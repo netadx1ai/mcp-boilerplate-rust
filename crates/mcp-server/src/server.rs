@@ -166,6 +166,15 @@ impl McpServerImpl {
         state.start_time.map(|start| start.elapsed())
     }
 
+    /// Get the number of registered tools
+    /// 
+    /// # Returns
+    /// 
+    /// The count of registered tools
+    pub async fn tool_count(&self) -> usize {
+        self.registry.read().await.tool_count()
+    }
+
     /// Run the server with a transport
     /// 
     /// This method starts the server and begins processing requests from the transport.
