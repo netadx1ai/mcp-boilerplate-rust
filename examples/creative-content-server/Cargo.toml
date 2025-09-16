@@ -24,6 +24,7 @@ tracing-subscriber = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 async-trait = { workspace = true }
+chrono = { version = "0.4", features = ["serde"] }
 
 [features]
 default = ["stdio", "http"]
