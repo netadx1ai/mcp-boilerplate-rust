@@ -1,0 +1,2 @@
+# This file ensures the sessions directory is preserved in git
+# while allowing session log files to be ignored by .gitignore

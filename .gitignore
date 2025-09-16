@@ -1,0 +1,55 @@
+# Rust
+/target
+**/*.rs.bk
+*.pdb
+Cargo.lock
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Build artifacts
+/dist
+/build
+
+# Test artifacts
+/coverage
+*.profraw
+
+# Documentation
+/doc
+/docs/_build
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
+# Local development
+.local/
+local_config.*
+
+# Session logs (but keep directory structure)
+sessions/*.md
+!sessions/.gitkeep
