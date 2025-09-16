@@ -98,7 +98,7 @@ mod tests {
     fn test_server_error_to_mcp_error() {
         let server_error = ServerError::ToolNotFound("missing_tool".to_string());
         let mcp_error: McpError = server_error.into();
-        
+
         assert_eq!(mcp_error.code, mcp_core::McpErrorCode::MethodNotFound);
         assert_eq!(mcp_error.message, "Method 'missing_tool' not found");
     }
@@ -107,7 +107,7 @@ mod tests {
     fn test_error_chain() {
         let mcp_error = McpError::tool_error("Tool failed");
         let server_error = ServerError::Mcp(mcp_error);
-        
+
         match server_error {
             ServerError::Mcp(inner) => {
                 assert_eq!(inner.code, mcp_core::McpErrorCode::ToolError);

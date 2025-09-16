@@ -153,7 +153,7 @@ impl From<serde_json::Error> for McpError {
 
 impl From<std::io::Error> for McpError {
     fn from(err: std::io::Error) -> Self {
-        McpError::internal_error(format!("IO error: {}", err))
+        McpError::internal_error(format!("IO error: {err}"))
     }
 }
 
@@ -189,7 +189,7 @@ mod tests {
         let error = McpError::invalid_params("Missing required parameter");
         let json = serde_json::to_string(&error).unwrap();
         let deserialized: McpError = serde_json::from_str(&json).unwrap();
-        
+
         assert_eq!(error.code, deserialized.code);
         assert_eq!(error.message, deserialized.message);
         assert_eq!(error.data, deserialized.data);

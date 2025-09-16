@@ -34,79 +34,79 @@ impl Default for TransportConfig {
 }
 
 /// Transport layer abstraction for MCP communication
-/// 
+///
 /// This trait defines the interface for different transport mechanisms
 /// (STDIO, HTTP, WebSocket, etc.) used by MCP servers and clients.
 #[async_trait]
 pub trait Transport: Send + Sync {
     /// Send an MCP response through the transport
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `response` - The MCP response to send
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// A result indicating success or transport-specific error
     async fn send_response(&self, response: McpResponse) -> TransportResult<()>;
 
     /// Receive an MCP request from the transport
-    /// 
+    ///
     /// This method should block until a request is received or an error occurs.
     /// Returns `None` if the transport is gracefully closed.
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// A result containing an optional MCP request or transport error
     async fn receive_request(&self) -> TransportResult<Option<McpRequest>>;
 
     /// Check if the transport is currently connected and ready for communication
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// `true` if connected, `false` otherwise
     fn is_connected(&self) -> bool;
 
     /// Gracefully close the transport connection
-    /// 
+    ///
     /// This should clean up any resources and ensure pending operations complete.
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// A result indicating success or failure of the close operation
     async fn close(&self) -> TransportResult<()>;
 
     /// Get the transport configuration
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// The current transport configuration
     fn config(&self) -> &TransportConfig;
 
     /// Get transport-specific metadata
-    /// 
+    ///
     /// This can include connection info, peer details, protocol version, etc.
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// A map of metadata key-value pairs
     fn metadata(&self) -> std::collections::HashMap<String, String> {
         std::collections::HashMap::new()
     }
 
     /// Check if the transport supports bidirectional communication
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// `true` if bidirectional, `false` for unidirectional transports
     fn is_bidirectional(&self) -> bool {
         true
     }
 
     /// Get the transport type identifier
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// A string identifying the transport type (e.g., "stdio", "http", "websocket")
     fn transport_type(&self) -> &'static str;
 }
@@ -156,14 +156,14 @@ pub struct TransportFactory;
 
 impl TransportFactory {
     /// Create a new transport from configuration
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `transport_type` - Type of transport to create
     /// * `config` - Transport configuration
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// A result containing the transport instance or creation error
     pub async fn create_transport(
         transport_type: &str,
@@ -190,19 +190,19 @@ impl TransportFactory {
     }
 
     /// List available transport types
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// A vector of available transport type names
     pub fn available_transports() -> Vec<&'static str> {
         let mut transports = Vec::new();
-        
+
         #[cfg(feature = "stdio")]
         transports.push("stdio");
-        
+
         #[cfg(feature = "http")]
         transports.push("http");
-        
+
         transports
     }
 }
@@ -212,40 +212,40 @@ pub mod utils {
     use super::*;
 
     /// Serialize a message to JSON bytes
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `message` - The message to serialize
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// Serialized message bytes or error
     pub fn serialize_message(message: &TransportMessage) -> TransportResult<Vec<u8>> {
         serde_json::to_vec(message).map_err(TransportError::from)
     }
 
     /// Deserialize JSON bytes to a message
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `bytes` - The bytes to deserialize
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// Deserialized message or error
     pub fn deserialize_message(bytes: &[u8]) -> TransportResult<TransportMessage> {
         serde_json::from_slice(bytes).map_err(TransportError::from)
     }
 
     /// Validate message size against configuration
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `message_size` - Size of the message in bytes
     /// * `config` - Transport configuration
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// Ok if valid, error if message is too large
     pub fn validate_message_size(
         message_size: usize,
@@ -262,9 +262,9 @@ pub mod utils {
     }
 
     /// Create a ping control message
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// A transport message containing a ping
     pub fn create_ping() -> TransportMessage {
         TransportMessage {
@@ -280,13 +280,13 @@ pub mod utils {
     }
 
     /// Create a pong response message
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `ping_timestamp` - Timestamp from the original ping
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// A transport message containing a pong response
     pub fn create_pong(ping_timestamp: u64) -> TransportMessage {
         TransportMessage {
@@ -367,10 +367,10 @@ mod tests {
     fn test_transport_factory_available_transports() {
         let transports = TransportFactory::available_transports();
         assert!(!transports.is_empty());
-        
+
         #[cfg(feature = "stdio")]
         assert!(transports.contains(&"stdio"));
-        
+
         #[cfg(feature = "http")]
         assert!(transports.contains(&"http"));
     }

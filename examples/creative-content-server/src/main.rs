@@ -1,12 +1,14 @@
 //! Creative content server example for MCP
-//! 
+//!
 //! This example demonstrates an AI-powered MCP server that provides multiple creative content generation capabilities.
 //! The server includes tools for story generation, poetry creation, character development, and creative writing assistance.
 
 use anyhow::Result;
 use async_trait::async_trait;
 use clap::{Parser, ValueEnum};
-use mcp_core::{McpError, McpRequest, McpResponse, McpTool, McpServer, ResponseResult, ToolContent};
+use mcp_core::{
+    McpError, McpRequest, McpResponse, McpServer, McpTool, ResponseResult, ToolContent,
+};
 use mcp_server::McpServerBuilder;
 use mcp_transport::{HttpTransport, StdioTransport, Transport};
 use serde_json::{json, Value};
@@ -60,20 +62,26 @@ impl GenerateStoryTool {
         Self { processing_delay }
     }
 
-    async fn generate_placeholder_story(&self, parameters: &HashMap<String, Value>) -> Result<Value, McpError> {
+    async fn generate_placeholder_story(
+        &self,
+        parameters: &HashMap<String, Value>,
+    ) -> Result<Value, McpError> {
         info!("Generating story with parameters: {:?}", parameters);
-        
+
         sleep(self.processing_delay).await;
-        
-        let genre = parameters.get("genre")
+
+        let genre = parameters
+            .get("genre")
             .and_then(|v| v.as_str())
             .unwrap_or("adventure");
-            
-        let length = parameters.get("length")
+
+        let length = parameters
+            .get("length")
             .and_then(|v| v.as_str())
             .unwrap_or("short");
-            
-        let theme = parameters.get("theme")
+
+        let theme = parameters
+            .get("theme")
             .and_then(|v| v.as_str())
             .unwrap_or("friendship");
 
@@ -110,11 +118,21 @@ impl GenerateStoryTool {
     fn validate_parameters(&self, parameters: &HashMap<String, Value>) -> Result<(), McpError> {
         if let Some(genre) = parameters.get("genre") {
             if let Some(genre_str) = genre.as_str() {
-                let valid_genres = ["fantasy", "sci-fi", "mystery", "romance", "adventure", "horror", "comedy", "drama"];
+                let valid_genres = [
+                    "fantasy",
+                    "sci-fi",
+                    "mystery",
+                    "romance",
+                    "adventure",
+                    "horror",
+                    "comedy",
+                    "drama",
+                ];
                 if !valid_genres.contains(&genre_str.to_lowercase().as_str()) {
-                    return Err(McpError::invalid_params(
-                        format!("genre must be one of: {}", valid_genres.join(", "))
-                    ));
+                    return Err(McpError::invalid_params(format!(
+                        "genre must be one of: {}",
+                        valid_genres.join(", ")
+                    )));
                 }
             }
         }
@@ -123,9 +141,10 @@ impl GenerateStoryTool {
             if let Some(length_str) = length.as_str() {
                 let valid_lengths = ["flash", "short", "medium", "long"];
                 if !valid_lengths.contains(&length_str.to_lowercase().as_str()) {
-                    return Err(McpError::invalid_params(
-                        format!("length must be one of: {}", valid_lengths.join(", "))
-                    ));
+                    return Err(McpError::invalid_params(format!(
+                        "length must be one of: {}",
+                        valid_lengths.join(", ")
+                    )));
                 }
             }
         }
@@ -142,16 +161,16 @@ impl McpTool for GenerateStoryTool {
                 if name != self.name() {
                     return Err(McpError::method_not_found(&name));
                 }
-                
+
                 debug!("GenerateStoryTool called with arguments: {:?}", arguments);
                 self.validate_parameters(&arguments)?;
-                
+
                 match self.generate_placeholder_story(&arguments).await {
                     Ok(result) => {
                         info!("Successfully generated story");
-                        let content = ToolContent::Text { 
+                        let content = ToolContent::Text {
                             text: serde_json::to_string_pretty(&result)
-                                .unwrap_or_else(|_| "Error serializing story".to_string())
+                                .unwrap_or_else(|_| "Error serializing story".to_string()),
                         };
                         let response_result = ResponseResult::ToolResult {
                             content: vec![content],
@@ -218,16 +237,21 @@ impl CreatePoemTool {
         Self { processing_delay }
     }
 
-    async fn generate_placeholder_poem(&self, parameters: &HashMap<String, Value>) -> Result<Value, McpError> {
+    async fn generate_placeholder_poem(
+        &self,
+        parameters: &HashMap<String, Value>,
+    ) -> Result<Value, McpError> {
         info!("Generating poem with parameters: {:?}", parameters);
-        
+
         sleep(self.processing_delay).await;
-        
-        let style = parameters.get("style")
+
+        let style = parameters
+            .get("style")
             .and_then(|v| v.as_str())
             .unwrap_or("free_verse");
-            
-        let theme = parameters.get("theme")
+
+        let theme = parameters
+            .get("theme")
             .and_then(|v| v.as_str())
             .unwrap_or("nature");
 
@@ -263,11 +287,20 @@ impl CreatePoemTool {
     fn validate_parameters(&self, parameters: &HashMap<String, Value>) -> Result<(), McpError> {
         if let Some(style) = parameters.get("style") {
             if let Some(style_str) = style.as_str() {
-                let valid_styles = ["sonnet", "haiku", "limerick", "ballad", "free_verse", "acrostic", "cinquain"];
+                let valid_styles = [
+                    "sonnet",
+                    "haiku",
+                    "limerick",
+                    "ballad",
+                    "free_verse",
+                    "acrostic",
+                    "cinquain",
+                ];
                 if !valid_styles.contains(&style_str.to_lowercase().as_str()) {
-                    return Err(McpError::invalid_params(
-                        format!("style must be one of: {}", valid_styles.join(", "))
-                    ));
+                    return Err(McpError::invalid_params(format!(
+                        "style must be one of: {}",
+                        valid_styles.join(", ")
+                    )));
                 }
             }
         }
@@ -283,16 +316,16 @@ impl McpTool for CreatePoemTool {
                 if name != self.name() {
                     return Err(McpError::method_not_found(&name));
                 }
-                
+
                 debug!("CreatePoemTool called with arguments: {:?}", arguments);
                 self.validate_parameters(&arguments)?;
-                
+
                 match self.generate_placeholder_poem(&arguments).await {
                     Ok(result) => {
                         info!("Successfully generated poem");
-                        let content = ToolContent::Text { 
+                        let content = ToolContent::Text {
                             text: serde_json::to_string_pretty(&result)
-                                .unwrap_or_else(|_| "Error serializing poem".to_string())
+                                .unwrap_or_else(|_| "Error serializing poem".to_string()),
                         };
                         let response_result = ResponseResult::ToolResult {
                             content: vec![content],
@@ -353,16 +386,21 @@ impl DevelopCharacterTool {
         Self { processing_delay }
     }
 
-    async fn generate_character_profile(&self, parameters: &HashMap<String, Value>) -> Result<Value, McpError> {
+    async fn generate_character_profile(
+        &self,
+        parameters: &HashMap<String, Value>,
+    ) -> Result<Value, McpError> {
         info!("Developing character with parameters: {:?}", parameters);
-        
+
         sleep(self.processing_delay).await;
-        
-        let name = parameters.get("name")
+
+        let name = parameters
+            .get("name")
             .and_then(|v| v.as_str())
             .unwrap_or("Alex");
-            
-        let archetype = parameters.get("archetype")
+
+        let archetype = parameters
+            .get("archetype")
             .and_then(|v| v.as_str())
             .unwrap_or("hero");
 
@@ -387,15 +425,18 @@ impl McpTool for DevelopCharacterTool {
                 if name != self.name() {
                     return Err(McpError::method_not_found(&name));
                 }
-                
-                debug!("DevelopCharacterTool called with arguments: {:?}", arguments);
-                
+
+                debug!(
+                    "DevelopCharacterTool called with arguments: {:?}",
+                    arguments
+                );
+
                 match self.generate_character_profile(&arguments).await {
                     Ok(result) => {
                         info!("Successfully developed character");
-                        let content = ToolContent::Text { 
+                        let content = ToolContent::Text {
                             text: serde_json::to_string_pretty(&result)
-                                .unwrap_or_else(|_| "Error serializing character".to_string())
+                                .unwrap_or_else(|_| "Error serializing character".to_string()),
                         };
                         let response_result = ResponseResult::ToolResult {
                             content: vec![content],
@@ -519,21 +560,34 @@ fn generate_sonnet(theme: &str) -> (String, String, String) {
          And find in simple moments grand display\n\
          Of how such beauty plays its vital part.\n\n\
          For in {}'s embrace we truly see\n\
-         The path to our own immortality.", 
+         The path to our own immortality.",
         theme, theme, theme, theme
     );
-    (title, content, "Shakespearean sonnet (ABAB CDCD EFEF GG)".to_string())
+    (
+        title,
+        content,
+        "Shakespearean sonnet (ABAB CDCD EFEF GG)".to_string(),
+    )
 }
 
 fn generate_haiku(theme: &str) -> (String, String, String) {
     let title = format!("{} Haiku", theme.to_title_case());
     let content = match theme.to_lowercase().as_str() {
         "nature" => "Cherry blossoms fall\nGentle breeze carries petals\nSpring's fleeting beauty",
-        "friendship" => "Laughter shared between\nTwo souls walking side by side\nBonds that time cannot break",
+        "friendship" => {
+            "Laughter shared between\nTwo souls walking side by side\nBonds that time cannot break"
+        }
         "love" => "Hearts beating as one\nStars witness our whispered vows\nEternal promise",
-        _ => &format!("{} whispers soft\nIn moments of quiet peace\nTruth reveals itself", theme.to_title_case())[..]
+        _ => &format!(
+            "{} whispers soft\nIn moments of quiet peace\nTruth reveals itself",
+            theme.to_title_case()
+        )[..],
     };
-    (title, content.to_string(), "Traditional haiku (5-7-5 syllable pattern)".to_string())
+    (
+        title,
+        content.to_string(),
+        "Traditional haiku (5-7-5 syllable pattern)".to_string(),
+    )
 }
 
 fn generate_limerick(theme: &str) -> (String, String, String) {
@@ -553,7 +607,11 @@ fn generate_ballad(theme: &str) -> (String, String, String) {
          So raise your voice and sing along,\nOf {}'s enduring fame,\nFor in this ancient, timeless song,\nWe honor its sweet name.",
         theme, theme, theme
     );
-    (title, content, "Traditional ballad (ABAB rhyme scheme)".to_string())
+    (
+        title,
+        content,
+        "Traditional ballad (ABAB rhyme scheme)".to_string(),
+    )
 }
 
 fn generate_free_verse(theme: &str) -> (String, String, String) {
@@ -565,7 +623,11 @@ fn generate_free_verse(theme: &str) -> (String, String, String) {
          and simply\nallow ourselves\nto be\nwith what is.",
         theme.to_title_case()
     );
-    (title, content, "Free verse (no fixed rhyme or meter)".to_string())
+    (
+        title,
+        content,
+        "Free verse (no fixed rhyme or meter)".to_string(),
+    )
 }
 
 fn generate_character_details(name: &str, archetype: &str) -> Value {
@@ -611,10 +673,26 @@ fn generate_physical_description() -> String {
 
 fn generate_character_skills(archetype: &str) -> Vec<String> {
     match archetype {
-        "hero" => vec!["Leadership".to_string(), "Combat".to_string(), "Diplomacy".to_string()],
-        "mentor" => vec!["Ancient Knowledge".to_string(), "Teaching".to_string(), "Wisdom".to_string()],
-        "villain" => vec!["Manipulation".to_string(), "Strategy".to_string(), "Dark Magic".to_string()],
-        _ => vec!["Adaptability".to_string(), "Observation".to_string(), "Empathy".to_string()]
+        "hero" => vec![
+            "Leadership".to_string(),
+            "Combat".to_string(),
+            "Diplomacy".to_string(),
+        ],
+        "mentor" => vec![
+            "Ancient Knowledge".to_string(),
+            "Teaching".to_string(),
+            "Wisdom".to_string(),
+        ],
+        "villain" => vec![
+            "Manipulation".to_string(),
+            "Strategy".to_string(),
+            "Dark Magic".to_string(),
+        ],
+        _ => vec![
+            "Adaptability".to_string(),
+            "Observation".to_string(),
+            "Empathy".to_string(),
+        ],
     }
 }
 
@@ -622,7 +700,7 @@ fn generate_character_relationships() -> Vec<Value> {
     vec![
         json!({"type": "ally", "description": "Trusted companion who shares their journey"}),
         json!({"type": "rival", "description": "Someone who challenges them and drives growth"}),
-        json!({"type": "family", "description": "Sibling or parent who provides emotional anchor"})
+        json!({"type": "family", "description": "Sibling or parent who provides emotional anchor"}),
     ]
 }
 
@@ -632,7 +710,7 @@ fn estimate_word_count(length: &str) -> u32 {
         "short" => 500,
         "medium" => 1500,
         "long" => 3000,
-        _ => 500
+        _ => 500,
     }
 }
 
@@ -662,11 +740,11 @@ impl ToTitleCase for str {
 /// Create and configure the MCP server with creative content tools
 async fn create_server(processing_delay: Duration) -> Result<mcp_server::McpServerImpl> {
     info!("Creating creative content server with multiple tools...");
-    
+
     let story_tool: Arc<dyn McpTool> = Arc::new(GenerateStoryTool::new(processing_delay));
     let poem_tool: Arc<dyn McpTool> = Arc::new(CreatePoemTool::new(processing_delay));
     let character_tool: Arc<dyn McpTool> = Arc::new(DevelopCharacterTool::new(processing_delay));
-    
+
     let server = McpServerBuilder::new()
         .with_name("creative-content-server")
         .with_version("1.0.0")
@@ -676,22 +754,25 @@ async fn create_server(processing_delay: Duration) -> Result<mcp_server::McpServ
         .enable_tracing(true)
         .max_concurrent_requests(10)
         .build()?;
-    
-    info!("Created creative content server with {} tools", server.tool_count().await);
+
+    info!(
+        "Created creative content server with {} tools",
+        server.tool_count().await
+    );
     Ok(server)
 }
 
 /// Run server with STDIO transport
 async fn run_with_stdio(server: mcp_server::McpServerImpl) -> Result<()> {
     info!("Starting creative content server with STDIO transport");
-    
+
     let transport = StdioTransport::with_defaults()?;
     let transport: Arc<dyn Transport> = Arc::new(transport);
-    
+
     info!("STDIO transport ready - listening on stdin/stdout");
     info!("Available tools: generate_story, create_poem, develop_character");
     info!("Example: {{\"method\": \"generate_story\", \"params\": {{\"genre\": \"fantasy\", \"theme\": \"courage\", \"length\": \"short\"}}}}");
-    
+
     // Simple request loop
     loop {
         match transport.receive_request().await {
@@ -700,7 +781,7 @@ async fn run_with_stdio(server: mcp_server::McpServerImpl) -> Result<()> {
                     error!("Request handling failed: {}", e);
                     McpResponse::error(e)
                 });
-                
+
                 if let Err(e) = transport.send_response(response).await {
                     error!("Failed to send response: {}", e);
                     break;
@@ -722,12 +803,15 @@ async fn run_with_stdio(server: mcp_server::McpServerImpl) -> Result<()> {
 /// Run server with HTTP transport  
 async fn run_with_http(server: mcp_server::McpServerImpl, host: String, port: u16) -> Result<()> {
     let addr = SocketAddr::new(host.parse::<IpAddr>()?, port);
-    
-    info!("Starting creative content server with HTTP transport on {}...", addr);
-    
+
+    info!(
+        "Starting creative content server with HTTP transport on {}...",
+        addr
+    );
+
     let transport = HttpTransport::with_defaults(addr)?;
     let transport: Arc<dyn Transport> = Arc::new(transport);
-    
+
     info!("Creative content server is ready!");
     info!("HTTP endpoint: http://{}/mcp", addr);
     info!("Health check: http://{}/health", addr);
@@ -747,7 +831,7 @@ async fn run_with_http(server: mcp_server::McpServerImpl, host: String, port: u1
     info!("curl -X POST http://{}/mcp \\", addr);
     info!("  -H 'Content-Type: application/json' \\");
     info!("  -d '{{\"method\": \"create_poem\", \"params\": {{\"style\": \"haiku\", \"theme\": \"nature\"}}}}'");
-    
+
     // Simple request loop for HTTP
     loop {
         match transport.receive_request().await {
@@ -756,7 +840,7 @@ async fn run_with_http(server: mcp_server::McpServerImpl, host: String, port: u1
                     error!("Request handling failed: {}", e);
                     McpResponse::error(e)
                 });
-                
+
                 if let Err(e) = transport.send_response(response).await {
                     error!("Failed to send response: {}", e);
                     break;
@@ -778,13 +862,15 @@ async fn run_with_http(server: mcp_server::McpServerImpl, host: String, port: u1
 /// Initialize logging based on debug flag
 fn init_logging(debug: bool) {
     let level = if debug { "debug" } else { "info" };
-    
+
     tracing_subscriber::fmt()
         .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| {
-                    tracing_subscriber::EnvFilter::new(format!("creative_content_server={},mcp_server={},mcp_transport={},mcp_core={}", level, level, level, level))
-                })
+            tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| {
+                tracing_subscriber::EnvFilter::new(format!(
+                    "creative_content_server={},mcp_server={},mcp_transport={},mcp_core={}",
+                    level, level, level, level
+                ))
+            }),
         )
         .with_target(false)
         .with_thread_ids(false)
@@ -796,16 +882,16 @@ fn init_logging(debug: bool) {
 #[tokio::main]
 async fn main() -> Result<()> {
     let args = Args::parse();
-    
+
     // Initialize logging
     init_logging(args.debug);
-    
+
     info!("MCP Creative Content Server v0.1.0");
     info!("Transport: {:?}", args.transport);
-    
+
     let processing_delay = Duration::from_secs(args.delay);
     let server = create_server(processing_delay).await?;
-    
+
     match args.transport {
         TransportType::Stdio => run_with_stdio(server).await,
         TransportType::Http => run_with_http(server, args.host, args.port).await,
@@ -823,12 +909,12 @@ mod tests {
         let mut params = HashMap::new();
         params.insert("genre".to_string(), json!("fantasy"));
         params.insert("theme".to_string(), json!("adventure"));
-        
+
         let request = McpRequest::CallTool {
             name: "generate_story".to_string(),
-            arguments: params
+            arguments: params,
         };
-        
+
         let result = tool.call(request).await;
         assert!(result.is_ok());
     }
@@ -839,12 +925,12 @@ mod tests {
         let mut params = HashMap::new();
         params.insert("style".to_string(), json!("haiku"));
         params.insert("theme".to_string(), json!("nature"));
-        
+
         let request = McpRequest::CallTool {
             name: "create_poem".to_string(),
-            arguments: params
+            arguments: params,
         };
-        
+
         let result = tool.call(request).await;
         assert!(result.is_ok());
     }
@@ -855,12 +941,12 @@ mod tests {
         let mut params = HashMap::new();
         params.insert("name".to_string(), json!("Aragorn"));
         params.insert("archetype".to_string(), json!("hero"));
-        
+
         let request = McpRequest::CallTool {
             name: "develop_character".to_string(),
-            arguments: params
+            arguments: params,
         };
-        
+
         let result = tool.call(request).await;
         assert!(result.is_ok());
     }
@@ -870,12 +956,12 @@ mod tests {
         let tool = GenerateStoryTool::new(Duration::from_millis(10));
         let mut params = HashMap::new();
         params.insert("genre".to_string(), json!("invalid_genre"));
-        
+
         let request = McpRequest::CallTool {
             name: "generate_story".to_string(),
-            arguments: params
+            arguments: params,
         };
-        
+
         let result = tool.call(request).await;
         assert!(result.is_err());
     }
@@ -885,11 +971,11 @@ mod tests {
         let story_tool = GenerateStoryTool::new(Duration::from_millis(10));
         let poem_tool = CreatePoemTool::new(Duration::from_millis(10));
         let character_tool = DevelopCharacterTool::new(Duration::from_millis(10));
-        
+
         assert_eq!(story_tool.name(), "generate_story");
         assert_eq!(poem_tool.name(), "create_poem");
         assert_eq!(character_tool.name(), "develop_character");
-        
+
         assert!(!story_tool.description().is_empty());
         assert!(!poem_tool.description().is_empty());
         assert!(!character_tool.description().is_empty());

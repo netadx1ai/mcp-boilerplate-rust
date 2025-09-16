@@ -1,12 +1,14 @@
 //! Blog generation server example for MCP
-//! 
+//!
 //! This example demonstrates an AI-powered MCP server that provides blog generation capabilities.
 //! The server can generate blog posts with various topics, styles, and lengths.
 
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use clap::{Parser, ValueEnum};
-use mcp_core::{McpError, McpRequest, McpResponse, McpTool, McpServer, ResponseResult, ToolContent};
+use mcp_core::{
+    McpError, McpRequest, McpResponse, McpServer, McpTool, ResponseResult, ToolContent,
+};
 use mcp_server::McpServerBuilder;
 use mcp_transport::{HttpTransport, StdioTransport, Transport};
 use serde_json::{json, Value};
@@ -62,45 +64,53 @@ impl CreateBlogPostTool {
 
     /// Generate a realistic placeholder blog post response
     /// In a real implementation, this would integrate with AI APIs like OpenAI, Claude, etc.
-    async fn generate_placeholder_blog(&self, parameters: &HashMap<String, Value>) -> Result<Value, McpError> {
+    async fn generate_placeholder_blog(
+        &self,
+        parameters: &HashMap<String, Value>,
+    ) -> Result<Value, McpError> {
         info!("Generating blog post with parameters: {:?}", parameters);
-        
+
         // Simulate processing time
         sleep(self.processing_delay).await;
-        
-        let topic = parameters.get("topic")
+
+        let topic = parameters
+            .get("topic")
             .and_then(|v| v.as_str())
             .unwrap_or("Technology");
-            
-        let style = parameters.get("style")
+
+        let style = parameters
+            .get("style")
             .and_then(|v| v.as_str())
             .unwrap_or("professional");
-            
-        let word_count = parameters.get("word_count")
+
+        let word_count = parameters
+            .get("word_count")
             .and_then(|v| v.as_u64())
             .unwrap_or(800);
 
         // Generate realistic placeholder content based on parameters
         let (title, content) = match topic.to_lowercase().as_str() {
             "technology" => (
-                "The Future of Artificial Intelligence: Transforming Industries in 2024".to_string(),
-                generate_tech_content(word_count, style)
+                "The Future of Artificial Intelligence: Transforming Industries in 2024"
+                    .to_string(),
+                generate_tech_content(word_count, style),
             ),
             "business" => (
                 "Strategic Innovation: Building Resilient Business Models for Tomorrow".to_string(),
-                generate_business_content(word_count, style)
+                generate_business_content(word_count, style),
             ),
             "health" => (
-                "Wellness in the Digital Age: Balancing Technology and Human Well-being".to_string(),
-                generate_health_content(word_count, style)
+                "Wellness in the Digital Age: Balancing Technology and Human Well-being"
+                    .to_string(),
+                generate_health_content(word_count, style),
             ),
             "education" => (
                 "Educational Technology: Reshaping Learning in the 21st Century".to_string(),
-                generate_education_content(word_count, style)
+                generate_education_content(word_count, style),
             ),
             _ => (
                 format!("Exploring {}: A Comprehensive Guide", topic),
-                generate_generic_content(topic, word_count, style)
+                generate_generic_content(topic, word_count, style),
             ),
         };
 
@@ -137,18 +147,18 @@ impl CreateBlogPostTool {
             match word_count.as_u64() {
                 Some(count) if count < 100 => {
                     return Err(McpError::invalid_params(
-                        "word_count must be at least 100 words for a meaningful blog post"
+                        "word_count must be at least 100 words for a meaningful blog post",
                     ));
                 }
                 Some(count) if count > 5000 => {
                     return Err(McpError::invalid_params(
-                        "word_count must be 5000 words or less to ensure readability"
+                        "word_count must be 5000 words or less to ensure readability",
                     ));
                 }
                 Some(_) => {} // Valid word count
                 None => {
                     return Err(McpError::invalid_params(
-                        "word_count must be a positive integer"
+                        "word_count must be a positive integer",
                     ));
                 }
             }
@@ -157,16 +167,22 @@ impl CreateBlogPostTool {
         // Validate style if provided
         if let Some(style) = parameters.get("style") {
             if let Some(style_str) = style.as_str() {
-                let valid_styles = ["professional", "casual", "academic", "creative", "technical", "conversational"];
+                let valid_styles = [
+                    "professional",
+                    "casual",
+                    "academic",
+                    "creative",
+                    "technical",
+                    "conversational",
+                ];
                 if !valid_styles.contains(&style_str.to_lowercase().as_str()) {
-                    return Err(McpError::invalid_params(
-                        format!("style must be one of: {}", valid_styles.join(", "))
-                    ));
+                    return Err(McpError::invalid_params(format!(
+                        "style must be one of: {}",
+                        valid_styles.join(", ")
+                    )));
                 }
             } else {
-                return Err(McpError::invalid_params(
-                    "style must be a string"
-                ));
+                return Err(McpError::invalid_params("style must be a string"));
             }
         }
 
@@ -182,7 +198,7 @@ impl McpTool for CreateBlogPostTool {
                 if name != self.name() {
                     return Err(McpError::method_not_found(&name));
                 }
-                
+
                 debug!("CreateBlogPostTool called with arguments: {:?}", arguments);
 
                 // Validate parameters
@@ -199,9 +215,9 @@ impl McpTool for CreateBlogPostTool {
                 match self.generate_placeholder_blog(&arguments).await {
                     Ok(result) => {
                         info!("Successfully generated blog post");
-                        let content = ToolContent::Text { 
+                        let content = ToolContent::Text {
                             text: serde_json::to_string_pretty(&result)
-                                .unwrap_or_else(|_| "Error serializing blog post".to_string())
+                                .unwrap_or_else(|_| "Error serializing blog post".to_string()),
                         };
                         let response_result = ResponseResult::ToolResult {
                             content: vec![content],
@@ -266,16 +282,21 @@ fn generate_tech_content(word_count: u64, style: &str) -> String {
         "casual" => "AI is everywhere these days! From your smartphone's voice assistant to recommendation systems on streaming platforms, artificial intelligence is quietly revolutionizing how we interact with technology. It's pretty amazing when you think about it - machines that can learn and adapt just like humans do.",
         _ => "Artificial Intelligence continues to reshape industries across the globe, offering unprecedented opportunities for innovation and efficiency. Organizations that embrace AI technologies are discovering new ways to enhance customer experiences, streamline operations, and drive competitive advantage in an increasingly digital marketplace."
     };
-    
+
     // Simulate content expansion based on word count
     let paragraphs = (word_count / 150).max(1);
     let mut content = String::new();
-    
+
     for i in 0..paragraphs {
-        if i > 0 { content.push_str("\n\n"); }
-        content.push_str(&format!("{} [Content continues with detailed analysis and insights...]", base_content));
+        if i > 0 {
+            content.push_str("\n\n");
+        }
+        content.push_str(&format!(
+            "{} [Content continues with detailed analysis and insights...]",
+            base_content
+        ));
     }
-    
+
     content
 }
 
@@ -285,15 +306,20 @@ fn generate_business_content(word_count: u64, style: &str) -> String {
         "casual" => "Running a business today feels like navigating through a storm sometimes. The market changes so quickly that what worked yesterday might not work tomorrow. But here's the thing - the companies that thrive are the ones that stay flexible and keep their customers at the heart of everything they do.",
         _ => "Modern businesses face unique challenges that require innovative solutions and strategic thinking. Success in today's marketplace demands agility, customer-centricity, and a deep understanding of emerging trends that shape consumer behavior and market dynamics."
     };
-    
+
     let paragraphs = (word_count / 150).max(1);
     let mut content = String::new();
-    
+
     for i in 0..paragraphs {
-        if i > 0 { content.push_str("\n\n"); }
-        content.push_str(&format!("{} [Content continues with strategic insights and practical applications...]", base_content));
+        if i > 0 {
+            content.push_str("\n\n");
+        }
+        content.push_str(&format!(
+            "{} [Content continues with strategic insights and practical applications...]",
+            base_content
+        ));
     }
-    
+
     content
 }
 
@@ -303,15 +329,20 @@ fn generate_health_content(word_count: u64, style: &str) -> String {
         "casual" => "Staying healthy in our digital world is all about finding the right balance. Sure, we're spending more time looking at screens, but we're also using apps to track our fitness, connect with healthcare providers, and learn about wellness in ways that weren't possible before.",
         _ => "Digital wellness has become a critical component of overall health as we navigate an increasingly connected world. The key lies in leveraging technology to enhance rather than diminish our physical and mental well-being through mindful integration of digital tools."
     };
-    
+
     let paragraphs = (word_count / 150).max(1);
     let mut content = String::new();
-    
+
     for i in 0..paragraphs {
-        if i > 0 { content.push_str("\n\n"); }
-        content.push_str(&format!("{} [Content continues with health insights and practical recommendations...]", base_content));
+        if i > 0 {
+            content.push_str("\n\n");
+        }
+        content.push_str(&format!(
+            "{} [Content continues with health insights and practical recommendations...]",
+            base_content
+        ));
     }
-    
+
     content
 }
 
@@ -321,15 +352,20 @@ fn generate_education_content(word_count: u64, style: &str) -> String {
         "casual" => "Education is getting a major tech makeover! From online learning platforms to interactive whiteboards, students today have access to learning tools that make education more engaging and personalized than ever before. It's pretty exciting to see how technology is opening up new possibilities for learners everywhere.",
         _ => "The integration of technology in education is transforming how students learn and teachers teach. Modern educational approaches leverage digital tools to create more engaging, personalized, and effective learning experiences that prepare students for success in a technology-driven world."
     };
-    
+
     let paragraphs = (word_count / 150).max(1);
     let mut content = String::new();
-    
+
     for i in 0..paragraphs {
-        if i > 0 { content.push_str("\n\n"); }
-        content.push_str(&format!("{} [Content continues with educational insights and innovative approaches...]", base_content));
+        if i > 0 {
+            content.push_str("\n\n");
+        }
+        content.push_str(&format!(
+            "{} [Content continues with educational insights and innovative approaches...]",
+            base_content
+        ));
     }
-    
+
     content
 }
 
@@ -339,37 +375,76 @@ fn generate_generic_content(topic: &str, word_count: u64, style: &str) -> String
         "casual" => format!("Let's dive into the fascinating world of {}! There's so much to explore and understand about this topic, and I think you'll find some really interesting insights that might change how you think about it.", topic),
         _ => format!("Understanding {} is essential in today's rapidly evolving landscape. This comprehensive exploration examines key aspects, current trends, and practical implications that matter to professionals and enthusiasts alike.", topic)
     };
-    
+
     let paragraphs = (word_count / 150).max(1);
     let mut content = String::new();
-    
+
     for i in 0..paragraphs {
-        if i > 0 { content.push_str("\n\n"); }
-        content.push_str(&format!("{} [Content continues with detailed analysis and expert perspectives...]", base_content));
+        if i > 0 {
+            content.push_str("\n\n");
+        }
+        content.push_str(&format!(
+            "{} [Content continues with detailed analysis and expert perspectives...]",
+            base_content
+        ));
     }
-    
+
     content
 }
 
 fn generate_keywords(topic: &str) -> Vec<String> {
     let base_keywords = vec![topic.to_lowercase()];
     let additional_keywords = match topic.to_lowercase().as_str() {
-        "technology" => vec!["innovation", "digital transformation", "AI", "automation", "future trends"],
-        "business" => vec!["strategy", "growth", "leadership", "market analysis", "competitive advantage"],
-        "health" => vec!["wellness", "healthcare", "medical", "fitness", "mental health"],
-        "education" => vec!["learning", "teaching", "students", "academic", "educational technology"],
-        _ => vec!["insights", "analysis", "trends", "best practices", "expert advice"],
+        "technology" => vec![
+            "innovation",
+            "digital transformation",
+            "AI",
+            "automation",
+            "future trends",
+        ],
+        "business" => vec![
+            "strategy",
+            "growth",
+            "leadership",
+            "market analysis",
+            "competitive advantage",
+        ],
+        "health" => vec![
+            "wellness",
+            "healthcare",
+            "medical",
+            "fitness",
+            "mental health",
+        ],
+        "education" => vec![
+            "learning",
+            "teaching",
+            "students",
+            "academic",
+            "educational technology",
+        ],
+        _ => vec![
+            "insights",
+            "analysis",
+            "trends",
+            "best practices",
+            "expert advice",
+        ],
     };
-    
-    [base_keywords, additional_keywords.into_iter().map(String::from).collect()].concat()
+
+    [
+        base_keywords,
+        additional_keywords.into_iter().map(String::from).collect(),
+    ]
+    .concat()
 }
 
 /// Create and configure the MCP server with blog generation tools
 async fn create_server(processing_delay: Duration) -> Result<mcp_server::McpServerImpl> {
     info!("Creating blog generation server...");
-    
+
     let blog_tool: Arc<dyn McpTool> = Arc::new(CreateBlogPostTool::new(processing_delay));
-    
+
     let server = McpServerBuilder::new()
         .with_name("blog-generation-server")
         .with_version("1.0.0")
@@ -377,22 +452,25 @@ async fn create_server(processing_delay: Duration) -> Result<mcp_server::McpServ
         .enable_tracing(true)
         .max_concurrent_requests(10)
         .build()?;
-    
-    info!("Created blog generation server with {} tools", server.tool_count().await);
+
+    info!(
+        "Created blog generation server with {} tools",
+        server.tool_count().await
+    );
     Ok(server)
 }
 
 /// Run server with STDIO transport
 async fn run_with_stdio(server: mcp_server::McpServerImpl) -> Result<()> {
     info!("Starting blog generation server with STDIO transport");
-    
+
     let transport = StdioTransport::with_defaults()?;
     let transport: Arc<dyn Transport> = Arc::new(transport);
-    
+
     info!("STDIO transport ready - listening on stdin/stdout");
     info!("Send MCP requests to generate blog posts on various topics");
     info!("Example: {{\"method\": \"create_blog_post\", \"params\": {{\"topic\": \"AI trends\", \"style\": \"professional\", \"word_count\": 1000}}}}");
-    
+
     // Simple request loop
     loop {
         match transport.receive_request().await {
@@ -401,7 +479,7 @@ async fn run_with_stdio(server: mcp_server::McpServerImpl) -> Result<()> {
                     error!("Request handling failed: {}", e);
                     McpResponse::error(e)
                 });
-                
+
                 if let Err(e) = transport.send_response(response).await {
                     error!("Failed to send response: {}", e);
                     break;
@@ -423,12 +501,15 @@ async fn run_with_stdio(server: mcp_server::McpServerImpl) -> Result<()> {
 /// Run server with HTTP transport  
 async fn run_with_http(server: mcp_server::McpServerImpl, host: String, port: u16) -> Result<()> {
     let addr = SocketAddr::new(host.parse::<IpAddr>()?, port);
-    
-    info!("Starting blog generation server with HTTP transport on {}...", addr);
-    
+
+    info!(
+        "Starting blog generation server with HTTP transport on {}...",
+        addr
+    );
+
     let transport = HttpTransport::with_defaults(addr)?;
     let transport: Arc<dyn Transport> = Arc::new(transport);
-    
+
     info!("Blog generation server is ready!");
     info!("HTTP endpoint: http://{}/mcp", addr);
     info!("Health check: http://{}/health", addr);
@@ -444,7 +525,7 @@ async fn run_with_http(server: mcp_server::McpServerImpl, host: String, port: u1
     info!("      \"word_count\": 1200");
     info!("    }}");
     info!("  }}'");
-    
+
     // Simple request loop for HTTP
     loop {
         match transport.receive_request().await {
@@ -453,7 +534,7 @@ async fn run_with_http(server: mcp_server::McpServerImpl, host: String, port: u1
                     error!("Request handling failed: {}", e);
                     McpResponse::error(e)
                 });
-                
+
                 if let Err(e) = transport.send_response(response).await {
                     error!("Failed to send response: {}", e);
                     break;
@@ -475,13 +556,15 @@ async fn run_with_http(server: mcp_server::McpServerImpl, host: String, port: u1
 /// Initialize logging based on debug flag
 fn init_logging(debug: bool) {
     let level = if debug { "debug" } else { "info" };
-    
+
     tracing_subscriber::fmt()
         .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| {
-                    tracing_subscriber::EnvFilter::new(format!("blog_generation_server={},mcp_server={},mcp_transport={},mcp_core={}", level, level, level, level))
-                })
+            tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| {
+                tracing_subscriber::EnvFilter::new(format!(
+                    "blog_generation_server={},mcp_server={},mcp_transport={},mcp_core={}",
+                    level, level, level, level
+                ))
+            }),
         )
         .with_target(false)
         .with_thread_ids(false)
@@ -493,16 +576,16 @@ fn init_logging(debug: bool) {
 #[tokio::main]
 async fn main() -> Result<()> {
     let args = Args::parse();
-    
+
     // Initialize logging
     init_logging(args.debug);
-    
+
     info!("MCP Blog Generation Server v0.1.0");
     info!("Transport: {:?}", args.transport);
-    
+
     let processing_delay = Duration::from_secs(args.delay);
     let server = create_server(processing_delay).await?;
-    
+
     match args.transport {
         TransportType::Stdio => run_with_stdio(server).await,
         TransportType::Http => run_with_http(server, args.host, args.port).await,
@@ -519,15 +602,14 @@ mod tests {
         let tool = CreateBlogPostTool::new(Duration::from_millis(10));
         let mut params = HashMap::new();
         params.insert("topic".to_string(), json!("technology"));
-        
-        let result = tool.call(params).await;
+
+        let request = McpRequest::CallTool {
+            name: "create_blog_post".to_string(),
+            arguments: params,
+        };
+
+        let result = tool.call(request).await;
         assert!(result.is_ok());
-        
-        let response = result.unwrap();
-        let blog_post = response.get("blog_post").unwrap();
-        assert!(blog_post.get("title").is_some());
-        assert!(blog_post.get("content").is_some());
-        assert!(blog_post.get("metadata").is_some());
     }
 
     #[tokio::test]
@@ -537,36 +619,52 @@ mod tests {
         params.insert("topic".to_string(), json!("business"));
         params.insert("style".to_string(), json!("casual"));
         params.insert("word_count".to_string(), json!(500));
-        
-        let result = tool.call(params).await;
+
+        let request = McpRequest::CallTool {
+            name: "create_blog_post".to_string(),
+            arguments: params,
+        };
+
+        let result = tool.call(request).await;
         assert!(result.is_ok());
-        
-        let response = result.unwrap();
-        let metadata = response.get("blog_post").unwrap().get("metadata").unwrap();
-        assert_eq!(metadata.get("topic").unwrap(), "business");
-        assert_eq!(metadata.get("style").unwrap(), "casual");
     }
 
     #[tokio::test]
     async fn test_missing_topic() {
         let tool = CreateBlogPostTool::new(Duration::from_millis(10));
         let params = HashMap::new(); // No topic provided
-        
-        let result = tool.call(params).await;
+
+        let request = McpRequest::CallTool {
+            name: "create_blog_post".to_string(),
+            arguments: params,
+        };
+
+        let result = tool.call(request).await;
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Missing required parameter: 'topic'"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Missing required parameter: 'topic'"));
     }
 
-    #[tokio::test] 
+    #[tokio::test]
     async fn test_invalid_word_count() {
         let tool = CreateBlogPostTool::new(Duration::from_millis(10));
         let mut params = HashMap::new();
         params.insert("topic".to_string(), json!("test"));
         params.insert("word_count".to_string(), json!(50)); // Too low
-        
-        let result = tool.call(params).await;
+
+        let request = McpRequest::CallTool {
+            name: "create_blog_post".to_string(),
+            arguments: params,
+        };
+
+        let result = tool.call(request).await;
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("word_count must be at least 100"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("word_count must be at least 100"));
     }
 
     #[test]

@@ -10,15 +10,15 @@ use std::sync::Arc;
 use tracing::{debug, info};
 
 /// Builder for constructing MCP server instances with fluent configuration
-/// 
+///
 /// The builder pattern allows for easy configuration of server instances
 /// with sensible defaults and type-safe construction.
-/// 
+///
 /// # Example
-/// 
+///
 /// ```rust
 /// use mcp_server::McpServerBuilder;
-/// 
+///
 /// let server = McpServerBuilder::new()
 ///     .with_name("my-server")
 ///     .with_version("1.0.0")
@@ -35,9 +35,9 @@ pub struct McpServerBuilder {
 
 impl McpServerBuilder {
     /// Create a new server builder with default configuration
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// A new builder instance with default settings
     pub fn new() -> Self {
         Self {
@@ -47,13 +47,13 @@ impl McpServerBuilder {
     }
 
     /// Set the server name
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `name` - The name of the server
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// The builder instance for chaining
     pub fn with_name(mut self, name: impl Into<String>) -> Self {
         self.config.name = name.into();
@@ -61,13 +61,13 @@ impl McpServerBuilder {
     }
 
     /// Set the server version
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `version` - The version string for the server
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// The builder instance for chaining
     pub fn with_version(mut self, version: impl Into<String>) -> Self {
         self.config.version = version.into();
@@ -75,13 +75,13 @@ impl McpServerBuilder {
     }
 
     /// Set the maximum number of concurrent requests
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `max_requests` - Maximum concurrent request limit
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// The builder instance for chaining
     pub fn max_concurrent_requests(mut self, max_requests: usize) -> Self {
         self.config.max_concurrent_requests = max_requests;
@@ -89,13 +89,13 @@ impl McpServerBuilder {
     }
 
     /// Enable or disable request tracing
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `enabled` - Whether to enable tracing
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// The builder instance for chaining
     pub fn enable_tracing(mut self, enabled: bool) -> Self {
         self.config.enable_tracing = enabled;
@@ -103,13 +103,13 @@ impl McpServerBuilder {
     }
 
     /// Add a tool to the server
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `tool` - The tool implementation to add
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// The builder instance for chaining
     pub fn add_tool(mut self, tool: Arc<dyn McpTool>) -> Self {
         let name = tool.name().to_string();
@@ -122,13 +122,13 @@ impl McpServerBuilder {
     }
 
     /// Add multiple tools to the server
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `tools` - A vector of tools to add
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// The builder instance for chaining
     pub fn add_tools(mut self, tools: Vec<Arc<dyn McpTool>>) -> Self {
         for tool in tools {
@@ -138,13 +138,13 @@ impl McpServerBuilder {
     }
 
     /// Set a custom server configuration
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `config` - The server configuration to use
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// The builder instance for chaining
     pub fn with_config(mut self, config: ServerConfig) -> Self {
         self.config = config;
@@ -152,144 +152,144 @@ impl McpServerBuilder {
     }
 
     /// Configure the server from environment variables
-    /// 
+    ///
     /// This method reads common configuration values from environment variables:
     /// - `MCP_SERVER_NAME`: Server name
     /// - `MCP_SERVER_VERSION`: Server version
     /// - `MCP_MAX_CONCURRENT_REQUESTS`: Maximum concurrent requests
     /// - `MCP_ENABLE_TRACING`: Enable tracing (true/false)
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// The builder instance for chaining
     pub fn from_env(mut self) -> Self {
         if let Ok(name) = std::env::var("MCP_SERVER_NAME") {
             self.config.name = name;
         }
-        
+
         if let Ok(version) = std::env::var("MCP_SERVER_VERSION") {
             self.config.version = version;
         }
-        
+
         if let Ok(max_requests) = std::env::var("MCP_MAX_CONCURRENT_REQUESTS") {
             if let Ok(parsed) = max_requests.parse::<usize>() {
                 self.config.max_concurrent_requests = parsed;
             }
         }
-        
+
         if let Ok(tracing) = std::env::var("MCP_ENABLE_TRACING") {
             self.config.enable_tracing = tracing.to_lowercase() == "true";
         }
-        
+
         debug!("Configured server from environment variables");
         self
     }
 
     /// Validate the current configuration
-    /// 
+    ///
     /// This method checks that the server configuration is valid and
     /// all required components are properly set up.
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// Result indicating validation success or failure
     pub fn validate(&self) -> ServerResult<()> {
         if self.config.name.is_empty() {
             return Err(ServerError::Configuration(
-                "Server name cannot be empty".to_string()
+                "Server name cannot be empty".to_string(),
             ));
         }
-        
+
         if self.config.version.is_empty() {
             return Err(ServerError::Configuration(
-                "Server version cannot be empty".to_string()
+                "Server version cannot be empty".to_string(),
             ));
         }
-        
+
         if self.config.max_concurrent_requests == 0 {
             return Err(ServerError::Configuration(
-                "Maximum concurrent requests must be greater than 0".to_string()
+                "Maximum concurrent requests must be greater than 0".to_string(),
             ));
         }
-        
+
         // Validate all registered tools
         self.registry.validate_tools()?;
-        
+
         debug!("Server configuration validated successfully");
         Ok(())
     }
 
     /// Build the MCP server instance
-    /// 
+    ///
     /// This method validates the configuration and constructs the final
     /// server instance. It consumes the builder.
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// Result containing the configured server or an error
     pub fn build(self) -> ServerResult<McpServerImpl> {
         // Validate configuration before building
         self.validate()?;
-        
+
         info!(
             "Building MCP server '{}' v{} with {} tools",
             self.config.name,
             self.config.version,
             self.registry.tool_count()
         );
-        
+
         let server = McpServerImpl::new(self.config, self.registry)?;
-        
+
         info!("Successfully built MCP server");
         Ok(server)
     }
 
     /// Get the current configuration (for inspection)
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// A reference to the current server configuration
     pub fn config(&self) -> &ServerConfig {
         &self.config
     }
 
     /// Get the current tool registry (for inspection)
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// A reference to the current tool registry
     pub fn registry(&self) -> &ToolRegistry {
         &self.registry
     }
 
     /// Get the number of registered tools
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// The count of currently registered tools
     pub fn tool_count(&self) -> usize {
         self.registry.tool_count()
     }
 
     /// Check if a tool is registered
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `name` - The name of the tool to check
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// True if the tool is registered, false otherwise
     pub fn has_tool(&self, name: &str) -> bool {
         self.registry.has_tool(name)
     }
 
     /// Clone the builder with the same configuration but empty registry
-    /// 
+    ///
     /// This is useful for creating multiple similar servers with different tools.
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// A new builder with the same configuration but no tools
     pub fn clone_config(&self) -> Self {
         Self {
@@ -318,8 +318,8 @@ impl std::fmt::Debug for McpServerBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use mcp_core::{McpRequest, McpResponse, McpError};
     use async_trait::async_trait;
+    use mcp_core::{McpError, McpRequest, McpResponse};
 
     struct MockTool {
         name: String,
@@ -370,8 +370,7 @@ mod tests {
             description: "A test tool".to_string(),
         });
 
-        let builder = McpServerBuilder::new()
-            .add_tool(tool);
+        let builder = McpServerBuilder::new().add_tool(tool);
 
         assert_eq!(builder.tool_count(), 1);
         assert!(builder.has_tool("test_tool"));
@@ -390,8 +389,7 @@ mod tests {
             }) as Arc<dyn McpTool>,
         ];
 
-        let builder = McpServerBuilder::new()
-            .add_tools(tools);
+        let builder = McpServerBuilder::new().add_tools(tools);
 
         assert_eq!(builder.tool_count(), 2);
         assert!(builder.has_tool("tool1"));
@@ -407,9 +405,7 @@ mod tests {
         assert!(builder.validate().is_ok());
 
         // Test empty name validation
-        let invalid_builder = McpServerBuilder::new()
-            .with_name("")
-            .with_version("1.0.0");
+        let invalid_builder = McpServerBuilder::new().with_name("").with_version("1.0.0");
 
         assert!(invalid_builder.validate().is_err());
 

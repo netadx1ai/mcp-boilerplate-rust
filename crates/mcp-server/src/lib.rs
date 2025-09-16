@@ -36,16 +36,16 @@
 
 pub mod builder;
 pub mod error;
-pub mod server;
 pub mod registry;
+pub mod server;
 
 pub use builder::McpServerBuilder;
 pub use error::{ServerError, ServerResult};
-pub use server::McpServerImpl;
 pub use registry::ToolRegistry;
+pub use server::McpServerImpl;
 
 /// Re-export core types for convenience
-pub use mcp_core::{McpServer, McpTool, McpRequest, McpResponse, McpError};
+pub use mcp_core::{McpError, McpRequest, McpResponse, McpServer, McpTool};
 pub use mcp_transport::{Transport, TransportConfig};
 
 /// Server configuration

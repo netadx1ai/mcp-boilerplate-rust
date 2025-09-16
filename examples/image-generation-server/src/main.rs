@@ -5,13 +5,13 @@
 //! ready for integration with actual AI image generation APIs.
 
 use anyhow::Result;
+use async_trait::async_trait;
 use clap::{Parser, ValueEnum};
 use mcp_core::{
     McpError, McpRequest, McpResponse, McpServer, McpTool, ResponseResult, ToolContent,
 };
 use mcp_server::{McpServerBuilder, McpServerImpl};
-use mcp_transport::{StdioTransport, HttpTransport, Transport};
-use async_trait::async_trait;
+use mcp_transport::{HttpTransport, StdioTransport, Transport};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::net::{IpAddr, SocketAddr};
@@ -26,19 +26,19 @@ struct Args {
     /// Transport type to use
     #[arg(short, long, default_value = "stdio")]
     transport: TransportType,
-    
+
     /// Port for HTTP transport
     #[arg(short, long, default_value_t = 3001)]
     port: u16,
-    
+
     /// Host for HTTP transport
     #[arg(long, default_value = "127.0.0.1")]
     host: String,
-    
+
     /// Enable debug logging
     #[arg(short, long)]
     debug: bool,
-    
+
     /// Simulate processing delay (seconds)
     #[arg(long, default_value_t = 2)]
     delay: u64,
@@ -67,12 +67,17 @@ impl GenerateImageTool {
 
     /// Generate a realistic placeholder image response
     /// TODO: Integrate with actual AI image generation API (e.g., DALL-E, Midjourney, Stable Diffusion)
-    async fn generate_placeholder_image(&self, prompt: &str, style: Option<&str>, size: Option<&str>) -> Result<Value, McpError> {
+    async fn generate_placeholder_image(
+        &self,
+        prompt: &str,
+        style: Option<&str>,
+        size: Option<&str>,
+    ) -> Result<Value, McpError> {
         // Simulate processing time
         sleep(self.processing_delay).await;
-        
+
         info!("Generated image for prompt: '{}' (placeholder)", prompt);
-        
+
         // Return realistic placeholder response structure
         Ok(serde_json::json!({
             "success": true,
@@ -104,20 +109,34 @@ impl GenerateImageTool {
     }
 
     /// Validate image generation parameters
-    fn validate_parameters(&self, prompt: &str, style: Option<&str>, size: Option<&str>) -> Result<(), McpError> {
+    fn validate_parameters(
+        &self,
+        prompt: &str,
+        style: Option<&str>,
+        size: Option<&str>,
+    ) -> Result<(), McpError> {
         if prompt.trim().is_empty() {
             return Err(McpError::invalid_params("Prompt cannot be empty"));
         }
 
         if prompt.len() > 1000 {
-            return Err(McpError::invalid_params("Prompt too long (maximum 1000 characters)"));
+            return Err(McpError::invalid_params(
+                "Prompt too long (maximum 1000 characters)",
+            ));
         }
 
         if let Some(style) = style {
-            let valid_styles = ["photorealistic", "artistic", "cartoon", "abstract", "vintage", "digital_art"];
+            let valid_styles = [
+                "photorealistic",
+                "artistic",
+                "cartoon",
+                "abstract",
+                "vintage",
+                "digital_art",
+            ];
             if !valid_styles.contains(&style) {
                 return Err(McpError::invalid_params(format!(
-                    "Invalid style '{}'. Valid styles: {:?}", 
+                    "Invalid style '{}'. Valid styles: {:?}",
                     style, valid_styles
                 )));
             }
@@ -127,7 +146,7 @@ impl GenerateImageTool {
             let valid_sizes = ["512x512", "1024x1024", "1024x768", "768x1024", "1920x1080"];
             if !valid_sizes.contains(&size) {
                 return Err(McpError::invalid_params(format!(
-                    "Invalid size '{}'. Valid sizes: {:?}", 
+                    "Invalid size '{}'. Valid sizes: {:?}",
                     size, valid_sizes
                 )));
             }
@@ -147,30 +166,37 @@ impl McpTool for GenerateImageTool {
                 }
 
                 // Extract parameters
-                let prompt = arguments.get("prompt")
+                let prompt = arguments
+                    .get("prompt")
                     .and_then(|v| v.as_str())
-                    .ok_or_else(|| McpError::invalid_params("Missing required parameter 'prompt'"))?;
+                    .ok_or_else(|| {
+                        McpError::invalid_params("Missing required parameter 'prompt'")
+                    })?;
 
-                let style = arguments.get("style")
-                    .and_then(|v| v.as_str());
+                let style = arguments.get("style").and_then(|v| v.as_str());
 
-                let size = arguments.get("size")
-                    .and_then(|v| v.as_str());
+                let size = arguments.get("size").and_then(|v| v.as_str());
 
                 // Validate parameters
                 self.validate_parameters(prompt, style, size)?;
 
-                debug!("Generating image with prompt: '{}', style: {:?}, size: {:?}", 
-                       prompt, style, size);
+                debug!(
+                    "Generating image with prompt: '{}', style: {:?}, size: {:?}",
+                    prompt, style, size
+                );
 
                 // Generate image (placeholder)
                 match self.generate_placeholder_image(prompt, style, size).await {
                     Ok(image_data) => {
-                        let response_text = serde_json::to_string_pretty(&image_data)
-                            .map_err(|e| McpError::internal_error(format!("JSON serialization error: {}", e)))?;
+                        let response_text =
+                            serde_json::to_string_pretty(&image_data).map_err(|e| {
+                                McpError::internal_error(format!("JSON serialization error: {}", e))
+                            })?;
 
                         let result = ResponseResult::ToolResult {
-                            content: vec![ToolContent::Text { text: response_text }],
+                            content: vec![ToolContent::Text {
+                                text: response_text,
+                            }],
                             is_error: false,
                         };
 
@@ -234,7 +260,10 @@ async fn create_server(delay: Duration) -> Result<McpServerImpl> {
         .max_concurrent_requests(5) // Limit concurrent image generation
         .build()?;
 
-    info!("Created image generation server with {} tools", server.tool_count().await);
+    info!(
+        "Created image generation server with {} tools",
+        server.tool_count().await
+    );
     Ok(server)
 }
 
@@ -278,7 +307,10 @@ async fn run_with_stdio(server: McpServerImpl) -> Result<()> {
 /// Run server with HTTP transport
 async fn run_with_http(server: McpServerImpl, host: String, port: u16) -> Result<()> {
     let addr = SocketAddr::new(host.parse::<IpAddr>()?, port);
-    info!("Starting image generation server with HTTP transport on {}", addr);
+    info!(
+        "Starting image generation server with HTTP transport on {}",
+        addr
+    );
 
     let transport = HttpTransport::with_defaults(addr)?;
 
@@ -342,8 +374,7 @@ fn init_logging(debug: bool) {
         .with_line_number(debug)
         .finish();
 
-    tracing::subscriber::set_global_default(subscriber)
-        .expect("Failed to set tracing subscriber");
+    tracing::subscriber::set_global_default(subscriber).expect("Failed to set tracing subscriber");
 }
 
 #[tokio::main]
@@ -377,23 +408,28 @@ async fn main() -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[tokio::test]
     async fn test_generate_image_tool_basic() {
         let tool = GenerateImageTool::new(Duration::from_millis(10));
-        
+
         let mut args = HashMap::new();
-        args.insert("prompt".to_string(), serde_json::Value::String("A beautiful sunset".to_string()));
-        
+        args.insert(
+            "prompt".to_string(),
+            serde_json::Value::String("A beautiful sunset".to_string()),
+        );
+
         let request = McpRequest::CallTool {
             name: "generate_image".to_string(),
             arguments: args,
         };
-        
+
         let response = tool.call(request).await.unwrap();
-        
+
         match response {
-            McpResponse::Success { result: ResponseResult::ToolResult { content, is_error } } => {
+            McpResponse::Success {
+                result: ResponseResult::ToolResult { content, is_error },
+            } => {
                 assert!(!is_error);
                 assert_eq!(content.len(), 1);
                 match &content[0] {
@@ -409,25 +445,36 @@ mod tests {
             _ => panic!("Expected successful tool result"),
         }
     }
-    
+
     #[tokio::test]
     async fn test_generate_image_with_parameters() {
         let tool = GenerateImageTool::new(Duration::from_millis(10));
-        
+
         let mut args = HashMap::new();
-        args.insert("prompt".to_string(), serde_json::Value::String("A robot playing chess".to_string()));
-        args.insert("style".to_string(), serde_json::Value::String("digital_art".to_string()));
-        args.insert("size".to_string(), serde_json::Value::String("1024x768".to_string()));
-        
+        args.insert(
+            "prompt".to_string(),
+            serde_json::Value::String("A robot playing chess".to_string()),
+        );
+        args.insert(
+            "style".to_string(),
+            serde_json::Value::String("digital_art".to_string()),
+        );
+        args.insert(
+            "size".to_string(),
+            serde_json::Value::String("1024x768".to_string()),
+        );
+
         let request = McpRequest::CallTool {
             name: "generate_image".to_string(),
             arguments: args,
         };
-        
+
         let response = tool.call(request).await.unwrap();
-        
+
         match response {
-            McpResponse::Success { result: ResponseResult::ToolResult { content, is_error } } => {
+            McpResponse::Success {
+                result: ResponseResult::ToolResult { content, is_error },
+            } => {
                 assert!(!is_error);
                 match &content[0] {
                     ToolContent::Text { text } => {
@@ -441,55 +488,64 @@ mod tests {
             _ => panic!("Expected successful tool result"),
         }
     }
-    
+
     #[tokio::test]
     async fn test_missing_prompt() {
         let tool = GenerateImageTool::new(Duration::from_millis(10));
-        
+
         let args = HashMap::new(); // No prompt
-        
+
         let request = McpRequest::CallTool {
             name: "generate_image".to_string(),
             arguments: args,
         };
-        
+
         let result = tool.call(request).await;
         assert!(result.is_err());
-        
+
         let error = result.unwrap_err();
         assert_eq!(error.code, mcp_core::McpErrorCode::InvalidParams);
     }
-    
+
     #[tokio::test]
     async fn test_invalid_style() {
         let tool = GenerateImageTool::new(Duration::from_millis(10));
-        
+
         let mut args = HashMap::new();
-        args.insert("prompt".to_string(), serde_json::Value::String("A test image".to_string()));
-        args.insert("style".to_string(), serde_json::Value::String("invalid_style".to_string()));
-        
+        args.insert(
+            "prompt".to_string(),
+            serde_json::Value::String("A test image".to_string()),
+        );
+        args.insert(
+            "style".to_string(),
+            serde_json::Value::String("invalid_style".to_string()),
+        );
+
         let request = McpRequest::CallTool {
             name: "generate_image".to_string(),
             arguments: args,
         };
-        
+
         let result = tool.call(request).await;
         assert!(result.is_err());
-        
+
         let error = result.unwrap_err();
         assert_eq!(error.code, mcp_core::McpErrorCode::InvalidParams);
     }
-    
+
     #[test]
     fn test_tool_metadata() {
         let tool = GenerateImageTool::new(Duration::from_millis(10));
-        
+
         assert_eq!(tool.name(), "generate_image");
         assert!(!tool.description().is_empty());
-        
+
         let schema = tool.input_schema();
         assert_eq!(schema["type"], "object");
         assert!(schema["properties"].get("prompt").is_some());
-        assert!(schema["required"].as_array().unwrap().contains(&serde_json::Value::String("prompt".to_string())));
+        assert!(schema["required"]
+            .as_array()
+            .unwrap()
+            .contains(&serde_json::Value::String("prompt".to_string())));
     }
 }

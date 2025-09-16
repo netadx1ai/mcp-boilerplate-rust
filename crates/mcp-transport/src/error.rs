@@ -65,7 +65,9 @@ impl From<TransportError> for McpError {
             TransportError::Json(_) => McpError::parse_error(error.to_string()),
             TransportError::InvalidMessage(_) => McpError::invalid_request(error.to_string()),
             TransportError::Protocol(_) => McpError::invalid_request(error.to_string()),
-            TransportError::AuthenticationFailed(_) => McpError::permission_denied(error.to_string()),
+            TransportError::AuthenticationFailed(_) => {
+                McpError::permission_denied(error.to_string())
+            }
             _ => McpError::internal_error(error.to_string()),
         }
     }
@@ -91,13 +93,16 @@ mod tests {
             "test",
         )));
         let mcp_error: McpError = transport_error.into();
-        
+
         assert_eq!(mcp_error.code, mcp_core::McpErrorCode::ParseError);
     }
 
     #[test]
     fn test_message_too_large_error() {
         let error = TransportError::MessageTooLarge(2048, 1024);
-        assert_eq!(error.to_string(), "Message too large: 2048 bytes (max: 1024)");
+        assert_eq!(
+            error.to_string(),
+            "Message too large: 2048 bytes (max: 1024)"
+        );
     }
 }

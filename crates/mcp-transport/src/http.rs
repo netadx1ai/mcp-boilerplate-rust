@@ -14,12 +14,12 @@ use mcp_core::{McpRequest, McpResponse};
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use tokio::sync::{mpsc, Mutex, oneshot};
+use tokio::sync::{mpsc, oneshot, Mutex};
 use tower_http::trace::TraceLayer;
 use tracing::{debug, error, info, trace};
 
 /// HTTP transport implementation
-/// 
+///
 /// This transport uses HTTP/REST for MCP communication, making it suitable
 /// for web-based integration and when STDIO is not available.
 pub struct HttpTransport {
@@ -50,14 +50,14 @@ struct HttpState {
 
 impl HttpTransport {
     /// Create a new HTTP transport
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `addr` - Socket address to bind the HTTP server to
     /// * `config` - Transport configuration
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// A new HTTP transport instance
     pub fn new(addr: SocketAddr, config: TransportConfig) -> TransportResult<Self> {
         let (request_sender, request_receiver) = mpsc::unbounded_channel();
@@ -77,25 +77,28 @@ impl HttpTransport {
     }
 
     /// Create a new HTTP transport with default configuration
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `addr` - Socket address to bind the HTTP server to
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// A new HTTP transport instance with default settings
     pub fn with_defaults(addr: SocketAddr) -> TransportResult<Self> {
         Self::new(addr, TransportConfig::default())
     }
 
     /// Start the HTTP server
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// Result indicating success or failure of server start
     pub async fn start_server(&self) -> TransportResult<()> {
-        let request_sender = self.request_sender.lock().await
+        let request_sender = self
+            .request_sender
+            .lock()
+            .await
             .take()
             .ok_or_else(|| TransportError::Other("Request sender already taken".to_string()))?;
 
@@ -116,12 +119,16 @@ impl HttpTransport {
             .layer(TraceLayer::new_for_http())
             .with_state(state);
 
-        let listener = tokio::net::TcpListener::bind(self.addr).await
-            .map_err(|e| TransportError::Connection(format!("Failed to bind to {}: {}", self.addr, e)))?;
+        let listener = tokio::net::TcpListener::bind(self.addr)
+            .await
+            .map_err(|e| {
+                TransportError::Connection(format!("Failed to bind to {}: {}", self.addr, e))
+            })?;
 
         info!("HTTP transport server starting on {}", self.addr);
-        
-        self.connected.store(true, std::sync::atomic::Ordering::Relaxed);
+
+        self.connected
+            .store(true, std::sync::atomic::Ordering::Relaxed);
 
         // Start the server in a separate task
         let connected = self.connected.clone();
@@ -134,7 +141,7 @@ impl HttpTransport {
 
         tokio::spawn(async move {
             let server = axum::serve(listener, app);
-            
+
             tokio::select! {
                 result = server => {
                     if let Err(e) = result {
@@ -145,7 +152,7 @@ impl HttpTransport {
                     info!("HTTP server shutdown requested");
                 }
             }
-            
+
             connected.store(false, std::sync::atomic::Ordering::Relaxed);
         });
 
@@ -162,11 +169,14 @@ impl Transport for HttpTransport {
 
         let sender = self.response_sender.lock().await;
         if let Some(ref sender) = *sender {
-            sender.send(response)
+            sender
+                .send(response)
                 .map_err(|_| TransportError::Other("Failed to send response".to_string()))?;
             debug!("Sent MCP response via HTTP");
         } else {
-            return Err(TransportError::Other("Response sender not available".to_string()));
+            return Err(TransportError::Other(
+                "Response sender not available".to_string(),
+            ));
         }
 
         Ok(())
@@ -190,7 +200,9 @@ impl Transport for HttpTransport {
                 }
             }
         } else {
-            Err(TransportError::Other("Request receiver not available".to_string()))
+            Err(TransportError::Other(
+                "Request receiver not available".to_string(),
+            ))
         }
     }
 
@@ -199,14 +211,15 @@ impl Transport for HttpTransport {
     }
 
     async fn close(&self) -> TransportResult<()> {
-        self.connected.store(false, std::sync::atomic::Ordering::Relaxed);
-        
+        self.connected
+            .store(false, std::sync::atomic::Ordering::Relaxed);
+
         // Send shutdown signal
         let mut shutdown_sender = self.shutdown_sender.lock().await;
         if let Some(sender) = shutdown_sender.take() {
             let _ = sender.send(());
         }
-        
+
         debug!("HTTP transport closed");
         Ok(())
     }
@@ -244,20 +257,18 @@ async fn handle_mcp_request(
     Json(payload): Json<serde_json::Value>,
 ) -> Result<Json<serde_json::Value>, StatusCode> {
     trace!("Received raw MCP request: {}", payload);
-    
+
     // Try to deserialize as MCP request
-    let request: McpRequest = serde_json::from_value(payload)
-        .map_err(|e| {
-            error!("Failed to deserialize MCP request: {}", e);
-            StatusCode::BAD_REQUEST
-        })?;
+    let request: McpRequest = serde_json::from_value(payload).map_err(|e| {
+        error!("Failed to deserialize MCP request: {}", e);
+        StatusCode::BAD_REQUEST
+    })?;
 
     // Send request through channel
-    state.request_sender.send(request)
-        .map_err(|e| {
-            error!("Failed to send request: {}", e);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
+    state.request_sender.send(request).map_err(|e| {
+        error!("Failed to send request: {}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
 
     // For now, return a simple acknowledgment
     // In a full implementation, you'd wait for and return the actual response
@@ -272,12 +283,11 @@ async fn handle_list_tools(
     State(state): State<HttpState>,
 ) -> Result<Json<serde_json::Value>, StatusCode> {
     let request = McpRequest::ListTools { cursor: None };
-    
-    state.request_sender.send(request)
-        .map_err(|e| {
-            error!("Failed to send list tools request: {}", e);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
+
+    state.request_sender.send(request).map_err(|e| {
+        error!("Failed to send list tools request: {}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
 
     // Return placeholder response
     Ok(Json(serde_json::json!({
@@ -291,27 +301,24 @@ async fn handle_call_tool(
     State(state): State<HttpState>,
     Json(payload): Json<serde_json::Value>,
 ) -> Result<Json<serde_json::Value>, StatusCode> {
-    let name = payload.get("name")
+    let name = payload
+        .get("name")
         .and_then(|v| v.as_str())
         .ok_or(StatusCode::BAD_REQUEST)?
         .to_string();
 
-    let arguments = payload.get("arguments")
+    let arguments = payload
+        .get("arguments")
         .and_then(|v| v.as_object())
-        .map(|obj| {
-            obj.iter()
-                .map(|(k, v)| (k.clone(), v.clone()))
-                .collect()
-        })
+        .map(|obj| obj.iter().map(|(k, v)| (k.clone(), v.clone())).collect())
         .unwrap_or_default();
 
     let request = McpRequest::CallTool { name, arguments };
-    
-    state.request_sender.send(request)
-        .map_err(|e| {
-            error!("Failed to send call tool request: {}", e);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
+
+    state.request_sender.send(request).map_err(|e| {
+        error!("Failed to send call tool request: {}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
 
     // Return placeholder response
     Ok(Json(serde_json::json!({
@@ -330,12 +337,11 @@ async fn handle_list_resources(
     State(state): State<HttpState>,
 ) -> Result<Json<serde_json::Value>, StatusCode> {
     let request = McpRequest::ListResources { cursor: None };
-    
-    state.request_sender.send(request)
-        .map_err(|e| {
-            error!("Failed to send list resources request: {}", e);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
+
+    state.request_sender.send(request).map_err(|e| {
+        error!("Failed to send list resources request: {}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
 
     // Return placeholder response
     Ok(Json(serde_json::json!({
@@ -349,18 +355,18 @@ async fn handle_read_resource(
     State(state): State<HttpState>,
     Json(payload): Json<serde_json::Value>,
 ) -> Result<Json<serde_json::Value>, StatusCode> {
-    let uri = payload.get("uri")
+    let uri = payload
+        .get("uri")
         .and_then(|v| v.as_str())
         .ok_or(StatusCode::BAD_REQUEST)?
         .to_string();
 
     let request = McpRequest::ReadResource { uri };
-    
-    state.request_sender.send(request)
-        .map_err(|e| {
-            error!("Failed to send read resource request: {}", e);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
+
+    state.request_sender.send(request).map_err(|e| {
+        error!("Failed to send read resource request: {}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
 
     // Return placeholder response
     Ok(Json(serde_json::json!({
@@ -428,7 +434,7 @@ mod tests {
     async fn test_http_transport_creation() {
         let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
         let transport = HttpTransport::with_defaults(addr).unwrap();
-        
+
         assert_eq!(transport.transport_type(), "http");
         assert!(!transport.is_connected()); // Not connected until server starts
         assert!(transport.is_bidirectional());
@@ -457,7 +463,7 @@ mod tests {
         let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 3000);
         let transport = HttpTransport::with_defaults(addr).unwrap();
         let metadata = transport.metadata();
-        
+
         assert_eq!(metadata.get("transport"), Some(&"http".to_string()));
         assert_eq!(metadata.get("version"), Some(&"1.0".to_string()));
         assert_eq!(metadata.get("address"), Some(&addr.to_string()));
@@ -468,13 +474,13 @@ mod tests {
     async fn test_http_transport_close() {
         let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
         let transport = HttpTransport::with_defaults(addr).unwrap();
-        
+
         // Start server to set connected state
         transport.start_server().await.unwrap();
         assert!(transport.is_connected());
-        
+
         transport.close().await.unwrap();
-        
+
         // Give it a moment for the async close to take effect
         tokio::time::sleep(std::time::Duration::from_millis(10)).await;
         assert!(!transport.is_connected());

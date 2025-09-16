@@ -1,7 +1,7 @@
 //! STDIO transport implementation for MCP communication.
 
 use crate::error::{TransportError, TransportResult};
-use crate::transport::{Transport, TransportConfig, TransportMessage, MessageContent, utils};
+use crate::transport::{utils, MessageContent, Transport, TransportConfig, TransportMessage};
 use async_trait::async_trait;
 use mcp_core::{McpRequest, McpResponse};
 use std::sync::Arc;
@@ -10,7 +10,7 @@ use tokio::sync::Mutex;
 use tracing::{debug, error, trace, warn};
 
 /// STDIO transport implementation
-/// 
+///
 /// This transport uses standard input and output streams for communication,
 /// which is ideal for pipe-based MCP communication patterns.
 pub struct StdioTransport {
@@ -26,13 +26,13 @@ pub struct StdioTransport {
 
 impl StdioTransport {
     /// Create a new STDIO transport
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `config` - Transport configuration
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// A new STDIO transport instance
     pub fn new(config: TransportConfig) -> TransportResult<Self> {
         let stdin = tokio::io::stdin();
@@ -47,56 +47,57 @@ impl StdioTransport {
     }
 
     /// Create a new STDIO transport with default configuration
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// A new STDIO transport instance with default settings
     pub fn with_defaults() -> TransportResult<Self> {
         Self::new(TransportConfig::default())
     }
 
     /// Write a JSON line to stdout
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `json` - The JSON string to write
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// Result indicating success or failure
     async fn write_json_line(&self, json: &str) -> TransportResult<()> {
         let mut stdout = self.stdout.lock().await;
-        
+
         // Validate message size
         utils::validate_message_size(json.len(), &self.config)?;
-        
+
         stdout.write_all(json.as_bytes()).await?;
         stdout.write_all(b"\n").await?;
         stdout.flush().await?;
-        
+
         trace!("Sent JSON: {}", json);
         Ok(())
     }
 
     /// Read a JSON line from stdin
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// Result containing the JSON string or None if EOF
     async fn read_json_line(&self) -> TransportResult<Option<String>> {
         let mut stdin = self.stdin.lock().await;
         let mut line = String::new();
-        
+
         match stdin.read_line(&mut line).await? {
             0 => {
                 debug!("EOF reached on stdin");
-                self.connected.store(false, std::sync::atomic::Ordering::Relaxed);
+                self.connected
+                    .store(false, std::sync::atomic::Ordering::Relaxed);
                 Ok(None)
             }
             n => {
                 // Validate message size
                 utils::validate_message_size(n, &self.config)?;
-                
+
                 // Remove trailing newline
                 if line.ends_with('\n') {
                     line.pop();
@@ -104,7 +105,7 @@ impl StdioTransport {
                         line.pop();
                     }
                 }
-                
+
                 trace!("Received JSON: {}", line);
                 Ok(Some(line))
             }
@@ -127,7 +128,7 @@ impl Transport for StdioTransport {
 
         let json = serde_json::to_string(&message)?;
         self.write_json_line(&json).await?;
-        
+
         debug!("Sent MCP response via STDIO");
         Ok(())
     }
@@ -157,7 +158,9 @@ impl Transport for StdioTransport {
                                     continue;
                                 }
                                 MessageContent::Response(_) => {
-                                    warn!("Received unexpected response message on STDIO transport");
+                                    warn!(
+                                        "Received unexpected response message on STDIO transport"
+                                    );
                                     continue;
                                 }
                             }
@@ -184,12 +187,13 @@ impl Transport for StdioTransport {
     }
 
     async fn close(&self) -> TransportResult<()> {
-        self.connected.store(false, std::sync::atomic::Ordering::Relaxed);
-        
+        self.connected
+            .store(false, std::sync::atomic::Ordering::Relaxed);
+
         // Flush stdout before closing
         let mut stdout = self.stdout.lock().await;
         stdout.flush().await?;
-        
+
         debug!("STDIO transport closed");
         Ok(())
     }
@@ -290,7 +294,7 @@ mod tests {
     async fn test_stdio_transport_metadata() {
         let transport = StdioTransport::with_defaults().unwrap();
         let metadata = transport.metadata();
-        
+
         assert_eq!(metadata.get("transport"), Some(&"stdio".to_string()));
         assert_eq!(metadata.get("version"), Some(&"1.0".to_string()));
         assert_eq!(metadata.get("bidirectional"), Some(&"true".to_string()));
@@ -300,7 +304,7 @@ mod tests {
     async fn test_stdio_transport_close() {
         let transport = StdioTransport::with_defaults().unwrap();
         assert!(transport.is_connected());
-        
+
         transport.close().await.unwrap();
         assert!(!transport.is_connected());
     }

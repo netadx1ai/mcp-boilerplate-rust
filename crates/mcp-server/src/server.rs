@@ -3,20 +3,19 @@
 use crate::error::{ServerError, ServerResult};
 use crate::registry::ToolRegistry;
 use crate::ServerConfig;
+use async_trait::async_trait;
 use mcp_core::{
     McpError, McpRequest, McpResponse, McpServer, ResponseResult, ServerCapabilities, ServerInfo,
-    Tool, ToolInputSchema, ToolContent,
+    Tool, ToolContent, ToolInputSchema,
 };
 use mcp_transport::Transport;
-use async_trait::async_trait;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::{RwLock, Semaphore};
 use tracing::{debug, error, info, instrument, warn};
 
-
 /// Core MCP server implementation
-/// 
+///
 /// This is the main server orchestrator that handles MCP protocol requests
 /// and delegates them to appropriate tools. It manages the request lifecycle
 /// and provides the main entry point for MCP communication.
@@ -57,18 +56,18 @@ struct ServerStats {
 
 impl McpServerImpl {
     /// Create a new MCP server instance
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `config` - Server configuration
     /// * `registry` - Tool registry with registered tools
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// Result containing the server instance or an error
     pub fn new(config: ServerConfig, registry: ToolRegistry) -> ServerResult<Self> {
         let request_limiter = Arc::new(Semaphore::new(config.max_concurrent_requests));
-        
+
         let state = ServerState {
             is_running: false,
             start_time: None,
@@ -84,82 +83,82 @@ impl McpServerImpl {
     }
 
     /// Start the server
-    /// 
+    ///
     /// This initializes the server and marks it as running.
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// Result indicating success or failure
     pub async fn start(&self) -> ServerResult<()> {
         let mut state = self.state.write().await;
-        
+
         if state.is_running {
             return Err(ServerError::AlreadyRunning);
         }
-        
+
         // Initialize server
         self.initialize().await?;
-        
+
         state.is_running = true;
         state.start_time = Some(std::time::Instant::now());
-        
+
         info!(
             "Started MCP server '{}' v{} with {} tools",
             self.config.name,
             self.config.version,
             self.registry.read().await.tool_count()
         );
-        
+
         Ok(())
     }
 
     /// Stop the server
-    /// 
+    ///
     /// This gracefully shuts down the server and cleans up resources.
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// Result indicating success or failure
     pub async fn stop(&self) -> ServerResult<()> {
         let mut state = self.state.write().await;
-        
+
         if !state.is_running {
             return Err(ServerError::NotRunning);
         }
-        
+
         // Shutdown server
         self.shutdown().await?;
-        
+
         state.is_running = false;
         state.start_time = None;
-        
+
         info!("Stopped MCP server '{}'", self.config.name);
-        
+
         Ok(())
     }
 
     /// Check if the server is running
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// True if the server is running, false otherwise
     pub async fn is_running(&self) -> bool {
         self.state.read().await.is_running
     }
 
     /// Get server statistics
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// Current server statistics
     pub async fn stats(&self) -> ServerStats {
         self.state.read().await.stats.clone()
     }
 
     /// Get server uptime
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// Server uptime duration, or None if not running
     pub async fn uptime(&self) -> Option<std::time::Duration> {
         let state = self.state.read().await;
@@ -167,44 +166,47 @@ impl McpServerImpl {
     }
 
     /// Get the number of registered tools
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// The count of registered tools
     pub async fn tool_count(&self) -> usize {
         self.registry.read().await.tool_count()
     }
 
     /// Run the server with a transport
-    /// 
+    ///
     /// This method starts the server and begins processing requests from the transport.
     /// It will run until the transport is closed or an error occurs.
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `transport` - The transport to use for communication
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// Result indicating success or failure
     pub async fn run_with_transport(&self, transport: Arc<dyn Transport>) -> ServerResult<()> {
         self.start().await?;
-        
-        info!("Starting server event loop with {} transport", transport.transport_type());
-        
+
+        info!(
+            "Starting server event loop with {} transport",
+            transport.transport_type()
+        );
+
         loop {
             match transport.receive_request().await {
                 Ok(Some(request)) => {
                     // Process request asynchronously
                     let server = self.clone_arc();
                     let transport_clone = transport.clone();
-                    
+
                     tokio::spawn(async move {
                         let response = server.handle_request(request).await.unwrap_or_else(|e| {
                             error!("Request handling failed: {}", e);
                             McpResponse::error(e.into())
                         });
-                        
+
                         if let Err(e) = transport_clone.send_response(response).await {
                             error!("Failed to send response: {}", e);
                         }
@@ -220,7 +222,7 @@ impl McpServerImpl {
                 }
             }
         }
-        
+
         self.stop().await?;
         Ok(())
     }
@@ -237,7 +239,7 @@ impl McpServerImpl {
     async fn handle_list_tools(&self, cursor: Option<String>) -> ServerResult<McpResponse> {
         let registry = self.registry.read().await;
         let tools = registry.list_tools();
-        
+
         let tool_list: Vec<Tool> = tools
             .into_iter()
             .map(|tool| Tool {
@@ -262,9 +264,13 @@ impl McpServerImpl {
 
     /// Handle a call tool request
     #[instrument(skip(self))]
-    async fn handle_call_tool(&self, name: String, arguments: HashMap<String, serde_json::Value>) -> ServerResult<McpResponse> {
+    async fn handle_call_tool(
+        &self,
+        name: String,
+        arguments: HashMap<String, serde_json::Value>,
+    ) -> ServerResult<McpResponse> {
         let registry = self.registry.read().await;
-        
+
         let tool = registry
             .get_tool(&name)
             .ok_or_else(|| ServerError::ToolNotFound(name.clone()))?;
@@ -272,7 +278,10 @@ impl McpServerImpl {
         debug!("Calling tool '{}' with {} arguments", name, arguments.len());
 
         // Create a CallTool request for the tool
-        let tool_request = McpRequest::CallTool { name: name.clone(), arguments };
+        let tool_request = McpRequest::CallTool {
+            name: name.clone(),
+            arguments,
+        };
 
         // Call the tool
         match tool.call(tool_request).await {
@@ -310,7 +319,7 @@ impl McpServerImpl {
     async fn update_stats(&self, success: bool) {
         let mut state = self.state.write().await;
         state.stats.total_requests += 1;
-        
+
         if success {
             state.stats.successful_requests += 1;
         } else {
@@ -344,12 +353,8 @@ impl McpServer for McpServerImpl {
         }
 
         let result = match request {
-            McpRequest::Initialize { .. } => {
-                self.handle_initialize().await
-            }
-            McpRequest::ListTools { cursor } => {
-                self.handle_list_tools(cursor).await
-            }
+            McpRequest::Initialize { .. } => self.handle_initialize().await,
+            McpRequest::ListTools { cursor } => self.handle_list_tools(cursor).await,
             McpRequest::CallTool { name, arguments } => {
                 self.handle_call_tool(name, arguments).await
             }
@@ -360,7 +365,7 @@ impl McpServer for McpServerImpl {
             _ => {
                 warn!("Unsupported request type: {:?}", request);
                 Err(ServerError::RequestHandling(
-                    "Unsupported request type".to_string()
+                    "Unsupported request type".to_string(),
                 ))
             }
         };
@@ -381,7 +386,7 @@ impl McpServer for McpServerImpl {
 
     async fn initialize(&self) -> Result<(), McpError> {
         debug!("Initializing MCP server");
-        
+
         // Validate tools
         let registry = self.registry.read().await;
         registry.validate_tools().map_err(|e| {
@@ -389,28 +394,34 @@ impl McpServer for McpServerImpl {
             McpError::internal_error(e.to_string())
         })?;
 
-        info!("MCP server initialized with {} tools", registry.tool_count());
+        info!(
+            "MCP server initialized with {} tools",
+            registry.tool_count()
+        );
         Ok(())
     }
 
     async fn shutdown(&self) -> Result<(), McpError> {
         debug!("Shutting down MCP server");
-        
+
         // Wait for active requests to complete (with timeout)
         let timeout = std::time::Duration::from_secs(30);
         let start = std::time::Instant::now();
-        
+
         while start.elapsed() < timeout {
             let active_requests = {
                 let state = self.state.read().await;
                 state.stats.active_requests
             };
-            
+
             if active_requests == 0 {
                 break;
             }
-            
-            debug!("Waiting for {} active requests to complete", active_requests);
+
+            debug!(
+                "Waiting for {} active requests to complete",
+                active_requests
+            );
             tokio::time::sleep(std::time::Duration::from_millis(100)).await;
         }
 
@@ -436,16 +447,30 @@ impl McpServer for McpServerImpl {
     async fn metrics(&self) -> HashMap<String, serde_json::Value> {
         let state = self.state.read().await;
         let registry = self.registry.read().await;
-        
+
         let mut metrics = HashMap::new();
-        metrics.insert("total_requests".to_string(), state.stats.total_requests.into());
-        metrics.insert("successful_requests".to_string(), state.stats.successful_requests.into());
-        metrics.insert("failed_requests".to_string(), state.stats.failed_requests.into());
-        metrics.insert("active_requests".to_string(), state.stats.active_requests.into());
+        metrics.insert(
+            "total_requests".to_string(),
+            state.stats.total_requests.into(),
+        );
+        metrics.insert(
+            "successful_requests".to_string(),
+            state.stats.successful_requests.into(),
+        );
+        metrics.insert(
+            "failed_requests".to_string(),
+            state.stats.failed_requests.into(),
+        );
+        metrics.insert(
+            "active_requests".to_string(),
+            state.stats.active_requests.into(),
+        );
         metrics.insert("tool_count".to_string(), registry.tool_count().into());
-        metrics.insert("uptime_seconds".to_string(), 
-            self.uptime().await.map(|d| d.as_secs()).unwrap_or(0).into());
-        
+        metrics.insert(
+            "uptime_seconds".to_string(),
+            self.uptime().await.map(|d| d.as_secs()).unwrap_or(0).into(),
+        );
+
         metrics
     }
 }
@@ -454,7 +479,10 @@ impl std::fmt::Debug for McpServerImpl {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("McpServerImpl")
             .field("config", &self.config)
-            .field("max_concurrent_requests", &self.config.max_concurrent_requests)
+            .field(
+                "max_concurrent_requests",
+                &self.config.max_concurrent_requests,
+            )
             .finish()
     }
 }
@@ -462,8 +490,8 @@ impl std::fmt::Debug for McpServerImpl {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use mcp_core::{McpTool};
     use async_trait::async_trait;
+    use mcp_core::McpTool;
 
     struct MockTool {
         name: String,
@@ -489,7 +517,7 @@ mod tests {
     async fn test_server_creation() {
         let config = ServerConfig::default();
         let registry = ToolRegistry::new();
-        
+
         let server = McpServerImpl::new(config, registry).unwrap();
         assert!(!server.is_running().await);
     }
@@ -517,7 +545,9 @@ mod tests {
 
         let response = server.handle_request(McpRequest::Ping).await.unwrap();
         match response {
-            McpResponse::Success { result: ResponseResult::Pong } => (),
+            McpResponse::Success {
+                result: ResponseResult::Pong,
+            } => (),
             _ => panic!("Expected pong response"),
         }
     }
@@ -528,9 +558,14 @@ mod tests {
         let registry = ToolRegistry::new();
         let server = McpServerImpl::new(config, registry).unwrap();
 
-        let response = server.handle_request(McpRequest::ListTools { cursor: None }).await.unwrap();
+        let response = server
+            .handle_request(McpRequest::ListTools { cursor: None })
+            .await
+            .unwrap();
         match response {
-            McpResponse::Success { result: ResponseResult::Tools { tools, .. } } => {
+            McpResponse::Success {
+                result: ResponseResult::Tools { tools, .. },
+            } => {
                 assert!(tools.is_empty());
             }
             _ => panic!("Expected tools response"),
@@ -541,18 +576,23 @@ mod tests {
     async fn test_list_tools_with_tools() {
         let config = ServerConfig::default();
         let mut registry = ToolRegistry::new();
-        
+
         let tool = Arc::new(MockTool {
             name: "test_tool".to_string(),
             description: "A test tool".to_string(),
         });
         registry.register_tool(tool).unwrap();
-        
+
         let server = McpServerImpl::new(config, registry).unwrap();
 
-        let response = server.handle_request(McpRequest::ListTools { cursor: None }).await.unwrap();
+        let response = server
+            .handle_request(McpRequest::ListTools { cursor: None })
+            .await
+            .unwrap();
         match response {
-            McpResponse::Success { result: ResponseResult::Tools { tools, .. } } => {
+            McpResponse::Success {
+                result: ResponseResult::Tools { tools, .. },
+            } => {
                 assert_eq!(tools.len(), 1);
                 assert_eq!(tools[0].name, "test_tool");
             }

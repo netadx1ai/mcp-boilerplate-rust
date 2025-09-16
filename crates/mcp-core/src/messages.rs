@@ -611,12 +611,7 @@ impl ToolResult {
 
     /// Create a text result
     pub fn text(call_id: impl Into<String>, text: impl Into<String>) -> Self {
-        Self::success(
-            call_id,
-            vec![ToolContent::Text {
-                text: text.into(),
-            }],
-        )
+        Self::success(call_id, vec![ToolContent::Text { text: text.into() }])
     }
 }
 
