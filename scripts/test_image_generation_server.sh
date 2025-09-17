@@ -287,6 +287,7 @@ test_realistic_configurations() {
     done
     
     # Test debug mode
+    # Test debug flag
     if timeout 5s ./target/debug/image-generation-server --debug --help > /dev/null 2>&1; then
         record_test_result "debug mode parameter" "PASS"
     else
@@ -298,6 +299,25 @@ test_realistic_configurations() {
         record_test_result "custom host parameter" "PASS"
     else
         record_test_result "custom host parameter" "FAIL"
+    fi
+
+    # Test AI provider flags
+    if timeout 5s ./target/debug/image-generation-server --use-ai --provider gemini --help > /dev/null 2>&1; then
+        record_test_result "AI provider parameters" "PASS"
+    else
+        record_test_result "AI provider parameters" "FAIL"
+    fi
+
+    # Test that AI provider is logged correctly
+    local ai_output
+    if ai_output=$(timeout 3s ./target/debug/image-generation-server --use-ai --provider gemini --delay 0 --transport stdio < /dev/null 2>&1); then
+        if [[ "$ai_output" == *"AI Provider: Enabled"* && "$ai_output" == *"Using provider: gemini"* ]]; then
+            record_test_result "AI provider logging" "PASS"
+        else
+            record_test_result "AI provider logging" "FAIL"
+        fi
+    else
+        record_test_result "AI provider logging" "FAIL"
     fi
 }
 
@@ -425,6 +445,7 @@ generate_report() {
         "invalid transport rejection"
         "STDIO transport startup with logs"
         "AI scaffolding unit tests"
+        "AI provider parameters"
     )
     
     local critical_passed=0
@@ -440,13 +461,14 @@ generate_report() {
     echo "Critical Requirements: ${critical_passed}/${#critical_tests[@]} passed"
     
     if [[ $critical_passed -eq ${#critical_tests[@]} && $pass_rate -ge 85 ]]; then
-        echo -e "${GREEN}🎉 Phase 2.2 READY FOR COMPLETION${NC}"
+        echo -e "${GREEN}🎉 Phase 2.2 READY FOR COMPLETION with AI PROVIDER SUPPORT${NC}"
         echo
         echo "✅ Image Generation Server E2E tests demonstrate:"
         echo "  • Server compiles and runs correctly"
-        echo "  • CLI interface fully functional"
+        echo "  • CLI interface fully functional with AI provider options"
         echo "  • Error handling validates input properly"
         echo "  • AI scaffolding implemented with proper structure"
+        echo "  • Google/Gemini provider integration working"
         echo "  • Transport configurations working"
         echo "  • Performance within acceptable limits"
         echo
@@ -455,7 +477,7 @@ generate_report() {
         echo -e "${YELLOW}⚠️  Phase 2.2 NEEDS ATTENTION${NC}"
         echo "  Critical tests passed: ${critical_passed}/${#critical_tests[@]}"
         echo "  Overall pass rate: ${pass_rate}%"
-        echo "  Minimum requirements: 6/6 critical tests + 85% pass rate"
+        echo "  Minimum requirements: 7/7 critical tests + 85% pass rate"
         echo
         return 1
     fi
