@@ -152,6 +152,13 @@
   - [ ] Run `cargo check --workspace --all-targets`
   - [ ] Run `cargo build --workspace --all-targets`
   - [ ] Run `cargo test --workspace`
+  - [ ] Run `cargo doc --workspace --no-deps`
+  - [ ] Run test all example servers
+- [ ] Code quality and cleanup [commit: ]
+  - [ ] Remove any unused code or dependencies
+  - [ ] Ensure all TODOs are documented and tracked
+  - [ ] Finalize all README files and documentation
+  - [ ] Ensure all commits follow conventional commit format
 - [ ] Success criteria validation [commit: ]
   - [ ] Verify project compiles successfully
   - [ ] Confirm filesystem example works with both transports

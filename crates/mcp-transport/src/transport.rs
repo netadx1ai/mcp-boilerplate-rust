@@ -183,8 +183,7 @@ impl TransportFactory {
                 Ok(Box::new(transport))
             }
             _ => Err(TransportError::Configuration(format!(
-                "Unknown transport type: {}",
-                transport_type
+                "Unknown transport type: {transport_type}"
             ))),
         }
     }
@@ -194,16 +193,17 @@ impl TransportFactory {
     /// # Returns
     ///
     /// A vector of available transport type names
+    #[allow(clippy::vec_init_then_push)]
     pub fn available_transports() -> Vec<&'static str> {
-        let mut transports = Vec::new();
-
+        let mut vec = Vec::new();
+        
         #[cfg(feature = "stdio")]
-        transports.push("stdio");
-
+        vec.push("stdio");
+        
         #[cfg(feature = "http")]
-        transports.push("http");
-
-        transports
+        vec.push("http");
+        
+        vec
     }
 }
 

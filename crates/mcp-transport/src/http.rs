@@ -45,6 +45,7 @@ pub struct HttpTransport {
 #[derive(Clone)]
 struct HttpState {
     request_sender: mpsc::UnboundedSender<McpRequest>,
+    #[allow(dead_code)]
     response_receiver: Arc<Mutex<Option<mpsc::UnboundedReceiver<McpResponse>>>>,
 }
 

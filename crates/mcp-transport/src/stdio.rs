@@ -168,8 +168,7 @@ impl Transport for StdioTransport {
                         Err(e) => {
                             error!("Failed to parse JSON message: {}", e);
                             return Err(TransportError::InvalidMessage(format!(
-                                "Invalid JSON: {}",
-                                e
+                                "Invalid JSON: {e}"
                             )));
                         }
                     }
@@ -265,8 +264,7 @@ impl Default for StdioTransportBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use mcp_core::{McpRequest, McpResponse, ResponseResult};
-    use tokio_test;
+
 
     #[tokio::test]
     async fn test_stdio_transport_creation() {

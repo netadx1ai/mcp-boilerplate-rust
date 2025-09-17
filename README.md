@@ -75,20 +75,48 @@ cargo run --bin filesystem-server -- --transport stdio
 cargo run --bin filesystem-server -- --transport http --port 3000
 ```
 
-#### Test HTTP endpoint
+#### Test HTTP endpoints
+
+**Health Check:**
 ```bash
-curl -X POST http://localhost:3000/tools/read_file \
+curl -X GET http://localhost:3000/health
+```
+
+**List Available Tools:**
+```bash
+curl -X GET http://localhost:3000/mcp/tools/list
+```
+
+**Call a Tool:**
+```bash
+curl -X POST http://localhost:3000/mcp/tools/call \
   -H "Content-Type: application/json" \
-  -d '{"path": "README.md"}'
+  -d '{"name": "read_file", "arguments": {"path": "README.md"}}'
 ```
 
 ## Example Servers
 
 ### 1. Filesystem Server
 Demonstrates basic file operations with proper error handling:
-- `read_file`: Read file contents
+- `read_file`: Read file contents with security constraints
+- Path traversal protection and base directory validation
 - Supports both STDIO and HTTP transports
 - Shows real-world tool implementation patterns
+
+**Available HTTP Endpoints:**
+- `GET /health` - Health check (returns "OK")
+- `POST /mcp/tools/call` - Call any tool with name and arguments
+- `GET /mcp/tools/list` - List all available tools
+
+**Tool Call Format:**
+```json
+{
+  "name": "read_file",
+  "arguments": {
+    "path": "README.md"
+  }
+}
+```
 
 ### 2. AI-Powered Servers (Scaffolded)
 Ready-to-integrate examples with placeholder responses:
@@ -143,8 +171,16 @@ let server = McpServerBuilder::new()
 ### Transport Support
 
 Both STDIO and HTTP transports are supported:
-- **STDIO**: Traditional pipe-based communication
+- **STDIO**: Traditional pipe-based communication for MCP clients
 - **HTTP**: RESTful API with JSON payloads
+
+**HTTP API Endpoints:**
+- `GET /health` - Server health check
+- `GET /mcp/tools/list` - List available tools
+- `POST /mcp/tools/call` - Execute a tool by name with arguments
+
+**MCP Protocol Compliance:**
+All tool calls use the standard MCP message format regardless of transport, ensuring consistency and interoperability.
 
 ### Project Rules
 
@@ -166,8 +202,9 @@ This project follows strict development rules defined in `.rules`:
 
 Licensed under the MIT License. See [LICENSE](LICENSE) for details.
 
-## Links
+## Documentation
 
+- [API Documentation](API.md) - Comprehensive API reference and integration guide
 - [Repository](https://github.com/netadx1ai/mcp-boilerplate-rust)
-- [Documentation](https://docs.rs/mcp-boilerplate-rust)
+- [Online Documentation](https://docs.rs/mcp-boilerplate-rust)
 - [Issues](https://github.com/netadx1ai/mcp-boilerplate-rust/issues)

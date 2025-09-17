@@ -6,7 +6,7 @@ use crate::ServerConfig;
 use async_trait::async_trait;
 use mcp_core::{
     McpError, McpRequest, McpResponse, McpServer, ResponseResult, ServerCapabilities, ServerInfo,
-    Tool, ToolContent, ToolInputSchema,
+    Tool, ToolInputSchema,
 };
 use mcp_transport::Transport;
 use std::collections::HashMap;
@@ -43,7 +43,7 @@ struct ServerState {
 
 /// Server statistics
 #[derive(Debug, Clone, Default)]
-struct ServerStats {
+pub struct ServerStats {
     /// Total requests processed
     total_requests: u64,
     /// Successful requests
@@ -204,7 +204,7 @@ impl McpServerImpl {
                     tokio::spawn(async move {
                         let response = server.handle_request(request).await.unwrap_or_else(|e| {
                             error!("Request handling failed: {}", e);
-                            McpResponse::error(e.into())
+                            McpResponse::error(e)
                         });
 
                         if let Err(e) = transport_clone.send_response(response).await {

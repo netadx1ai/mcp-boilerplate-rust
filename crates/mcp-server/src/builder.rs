@@ -5,7 +5,7 @@ use crate::registry::ToolRegistry;
 use crate::server::McpServerImpl;
 use crate::ServerConfig;
 use mcp_core::McpTool;
-use mcp_transport::Transport;
+
 use std::sync::Arc;
 use tracing::{debug, info};
 
