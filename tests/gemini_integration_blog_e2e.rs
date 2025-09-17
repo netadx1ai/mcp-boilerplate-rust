@@ -5,7 +5,7 @@
 
 use serde_json::{json, Value};
 use std::env;
-use std::process::{Command, Stdio};
+
 use std::time::Duration;
 use tokio::time::timeout;
 
@@ -565,7 +565,7 @@ fn has_gemini_api_key() -> bool {
 
 #[cfg(test)]
 mod gemini_blog_integration_tests {
-    use super::*;
+
 
     #[test]
     fn test_gemini_blog_test_suite_structure() {

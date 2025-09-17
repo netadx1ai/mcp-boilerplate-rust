@@ -4,7 +4,7 @@
 //! testing actual MCP protocol communication with real server processes.
 
 use serde_json::{json, Value};
-use std::collections::HashMap;
+
 use std::fs;
 use std::io::{BufRead, BufReader, Write};
 use std::path::Path;

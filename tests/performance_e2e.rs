@@ -12,7 +12,7 @@
 //! This implements Task 3.2 from the E2E testing roadmap.
 
 use std::collections::HashMap;
-use std::process::{Child, Command, Stdio};
+use std::process::{Command, Stdio};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::Mutex;
@@ -110,7 +110,7 @@ impl ServerPerformanceTester {
 
         let start_time = Instant::now();
 
-        let result = timeout(self.config.startup_timeout, async {
+        let _result = timeout(self.config.startup_timeout, async {
             let mut cmd = Command::new("cargo");
             cmd.args(&["run", "--bin", binary_name, "--", "--help"])
                 .stdout(Stdio::piped())
@@ -125,11 +125,10 @@ impl ServerPerformanceTester {
                     "Server {} failed to start: stderr={}",
                     server_name,
                     String::from_utf8_lossy(&output.stderr)
-                )
-                .into());
+                ).into());
             }
 
-            Ok(())
+            Ok::<(), Box<dyn std::error::Error>>(())
         })
         .await??;
 
@@ -177,7 +176,7 @@ impl ServerPerformanceTester {
             let _ = process.kill();
             let _ = process.wait();
 
-            Ok(memory_mb)
+            Ok::<f64, Box<dyn std::error::Error>>(memory_mb)
         })
         .await??;
 
@@ -217,7 +216,7 @@ impl ServerPerformanceTester {
             tokio::time::sleep(Duration::from_millis(400)).await;
 
             // Simulate concurrent load (multiple help requests)
-            let mut tasks = Vec::new();
+            let mut tasks: Vec<tokio::task::JoinHandle<Result<Duration, Box<dyn std::error::Error + Send + Sync>>>> = Vec::new();
             let start_time = Instant::now();
 
             for i in 0..self.config.concurrent_requests {
@@ -320,7 +319,7 @@ impl ServerPerformanceTester {
             let _ = process.wait();
 
             println!("✅ {} load test completed", server_name);
-            Ok(())
+            Ok::<(), Box<dyn std::error::Error>>(())
         })
         .await??;
 
@@ -554,7 +553,7 @@ async fn test_concurrent_load_performance() {
 #[tokio::test]
 async fn test_response_time_variability() {
     let test_result = timeout(Duration::from_secs(12), async {
-        let server_name = "image-generation";
+        let _server_name = "image-generation";
         let binary_name = "image-generation-server";
 
         let mut response_times = Vec::new();
@@ -629,7 +628,7 @@ async fn test_response_time_variability() {
 #[tokio::test]
 async fn test_large_payload_handling() {
     let test_result = timeout(Duration::from_secs(10), async {
-        let server_name = "blog-generation";
+        let _server_name = "blog-generation";
         let binary_name = "blog-generation-server";
 
         // Test server can handle startup with various argument patterns
@@ -699,7 +698,7 @@ async fn test_large_payload_handling() {
 #[tokio::test]
 async fn test_timeout_handling() {
     let test_result = timeout(Duration::from_secs(8), async {
-        let server_name = "creative-content";
+        let _server_name = "creative-content";
         let binary_name = "creative-content-server";
 
         // Test that server operations complete within reasonable timeouts
@@ -711,7 +710,8 @@ async fn test_timeout_handling() {
 
         let mut successful_ops = 0;
 
-        for (op_name, args) in operations {
+        let operations_len = operations.len();
+        for (op_name, args) in &operations {
             println!("⏰ Testing timeout for operation: {}", op_name);
 
             let op_result = timeout(
@@ -719,13 +719,13 @@ async fn test_timeout_handling() {
                 async {
                     let output = Command::new("cargo")
                         .args(&["run", "--bin", binary_name, "--"])
-                        .args(&args)
+                        .args(args)
                         .output();
 
                     match output {
                         Ok(output) if output.status.success() => {
                             println!("✅ Operation '{}' completed successfully", op_name);
-                            Ok(())
+                            Ok::<(), Box<dyn std::error::Error>>(())
                         }
                         Ok(output) => {
                             // Help and version operations may "fail" but still provide output
@@ -777,7 +777,7 @@ async fn test_timeout_handling() {
         println!(
             "✅ Timeout handling test: {}/{} operations successful",
             successful_ops,
-            operations.len()
+            operations_len
         );
         Ok::<(), Box<dyn std::error::Error>>(())
     })
@@ -886,7 +886,7 @@ async fn test_graceful_degradation() {
 #[tokio::test]
 async fn test_server_error_recovery() {
     let test_result = timeout(Duration::from_secs(10), async {
-        let server_name = "blog-generation";
+        let _server_name = "blog-generation";
         let binary_name = "blog-generation-server";
 
         // Test error scenarios and recovery
@@ -897,6 +897,7 @@ async fn test_server_error_recovery() {
 
         let mut recovery_successes = 0;
 
+        let error_scenarios_len = error_scenarios.len();
         for (scenario_name, error_args, recovery_args) in error_scenarios {
             println!("🔄 Testing recovery scenario: {}", scenario_name);
 
@@ -969,7 +970,7 @@ async fn test_server_error_recovery() {
         println!(
             "✅ Error recovery test: {}/{} scenarios successful",
             recovery_successes,
-            error_scenarios.len()
+            error_scenarios_len
         );
         Ok::<(), Box<dyn std::error::Error>>(())
     })
@@ -1040,7 +1041,7 @@ async fn test_comprehensive_performance_suite() {
 #[tokio::test]
 async fn test_server_resilience_cycles() {
     let test_result = timeout(Duration::from_secs(18), async {
-        let server_name = "filesystem";
+        let _server_name = "filesystem";
         let binary_name = "filesystem-server";
 
         let mut successful_cycles = 0;

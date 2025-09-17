@@ -10,7 +10,7 @@
 //! This implements Task 3.3 from the E2E testing roadmap.
 
 use std::collections::HashMap;
-use std::process::{Child, Command, Stdio};
+use std::process::{Command, Stdio};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::Mutex;
@@ -180,7 +180,7 @@ impl ServerResilienceTester {
                 invalid_patterns.len()
             );
 
-            Ok(success)
+            Ok::<bool, Box<dyn std::error::Error>>(success)
         })
         .await??;
 
@@ -225,13 +225,14 @@ impl ServerResilienceTester {
             ];
 
             let mut handled_gracefully = 0;
+            let malformed_scenarios_len = malformed_scenarios.len();
 
-            for (scenario_name, args) in malformed_scenarios {
+            for (scenario_name, args) in &malformed_scenarios {
                 println!("🧪 Testing malformed scenario: {}", scenario_name);
 
                 let output = Command::new("cargo")
                     .args(&["run", "--bin", binary_name, "--"])
-                    .args(&args)
+                    .args(args)
                     .output();
 
                 match output {
@@ -265,7 +266,7 @@ impl ServerResilienceTester {
                 tokio::time::sleep(Duration::from_millis(100)).await;
             }
 
-            let handling_rate = handled_gracefully as f64 / malformed_scenarios.len() as f64;
+            let handling_rate = handled_gracefully as f64 / malformed_scenarios_len as f64 * 100.0;
             let success = handling_rate >= 0.8;
 
             println!(
@@ -276,7 +277,7 @@ impl ServerResilienceTester {
                 malformed_scenarios.len()
             );
 
-            Ok(success)
+            Ok::<bool, Box<dyn std::error::Error>>(success)
         })
         .await??;
 
@@ -392,7 +393,7 @@ impl ServerResilienceTester {
                 total_attempts
             );
 
-            Ok(success)
+            Ok::<bool, Box<dyn std::error::Error>>(success)
         })
         .await??;
 
@@ -434,8 +435,9 @@ impl ServerResilienceTester {
             ];
 
             let mut successful_shutdowns = 0;
+            let shutdown_scenarios_len = shutdown_scenarios.len();
 
-            for (scenario_name, operation_duration) in shutdown_scenarios {
+            for (scenario_name, operation_duration) in &shutdown_scenarios {
                 println!("🔄 Testing shutdown scenario: {}", scenario_name);
 
                 // Start server
@@ -447,7 +449,7 @@ impl ServerResilienceTester {
                 match cmd.spawn() {
                     Ok(mut process) => {
                         // Let server operate for specified duration
-                        tokio::time::sleep(operation_duration).await;
+                        tokio::time::sleep(*operation_duration).await;
 
                         // Attempt graceful shutdown
                         let shutdown_start = Instant::now();
@@ -502,7 +504,7 @@ impl ServerResilienceTester {
                 tokio::time::sleep(Duration::from_millis(200)).await;
             }
 
-            let shutdown_rate = successful_shutdowns as f64 / shutdown_scenarios.len() as f64;
+            let shutdown_rate = successful_shutdowns as f64 / shutdown_scenarios_len as f64 * 100.0;
             let success = shutdown_rate >= 0.67;
 
             println!(
@@ -513,7 +515,7 @@ impl ServerResilienceTester {
                 shutdown_scenarios.len()
             );
 
-            Ok(success)
+            Ok::<bool, Box<dyn std::error::Error>>(success)
         })
         .await??;
 
@@ -638,7 +640,7 @@ impl ServerResilienceTester {
                 total_restarts
             );
 
-            Ok(success)
+            Ok::<bool, Box<dyn std::error::Error>>(success)
         })
         .await??;
 
@@ -683,13 +685,14 @@ impl ServerResilienceTester {
             ];
 
             let mut handled_errors = 0;
+            let config_errors_len = config_errors.len();
 
-            for (error_name, args) in config_errors {
+            for (error_name, args) in &config_errors {
                 println!("🧪 Testing config error: {}", error_name);
 
                 let output = Command::new("cargo")
                     .args(&["run", "--bin", binary_name, "--"])
-                    .args(&args)
+                    .args(args)
                     .output();
 
                 match output {
@@ -728,7 +731,7 @@ impl ServerResilienceTester {
                 tokio::time::sleep(Duration::from_millis(100)).await;
             }
 
-            let error_handling_rate = handled_errors as f64 / config_errors.len() as f64;
+            let error_handling_rate = handled_errors as f64 / config_errors_len as f64 * 100.0;
             let success = error_handling_rate >= 0.6; // At least 60% should be handled well
 
             println!(
@@ -739,7 +742,7 @@ impl ServerResilienceTester {
                 config_errors.len()
             );
 
-            Ok(success)
+            Ok::<bool, Box<dyn std::error::Error>>(success)
         })
         .await??;
 
@@ -941,10 +944,10 @@ async fn test_malformed_json_handling() {
 #[tokio::test]
 async fn test_network_interruption_recovery() {
     let config = ResilienceTestConfig::default();
-    let tester = ServerResilienceTester::new(config);
+    let _tester = ServerResilienceTester::new(config);
 
     // Test with HTTP-capable server
-    let server_name = "filesystem";
+    let _server_name = "filesystem";
     let binary_name = "filesystem-server";
 
     let test_result = timeout(Duration::from_secs(15), async {
@@ -1047,7 +1050,7 @@ async fn test_network_interruption_recovery() {
             "Network recovery rate should be at least 50%"
         );
 
-        Ok(())
+        Ok::<(), Box<dyn std::error::Error>>(())
     })
     .await;
 
@@ -1287,7 +1290,7 @@ async fn test_resource_stress_resilience() {
     let test_result = timeout(Duration::from_secs(12), async {
         println!("💪 Testing resource stress resilience");
 
-        let server_name = "filesystem";
+        let _server_name = "filesystem";
         let binary_name = "filesystem-server";
 
         // Test multiple rapid invocations (resource stress)
@@ -1404,12 +1407,13 @@ async fn test_error_propagation_recovery() {
             ];
 
             let mut recovery_successes = 0;
+            let error_tests_len = error_tests.len();
 
-            for (test_name, error_args, recovery_args) in error_tests {
+            for (test_name, error_args, recovery_args) in &error_tests {
                 // Trigger error
                 let _error_output = Command::new("cargo")
                     .args(&["run", "--bin", binary_name, "--"])
-                    .args(&error_args)
+                    .args(error_args)
                     .output();
 
                 // Small delay
@@ -1418,7 +1422,7 @@ async fn test_error_propagation_recovery() {
                 // Test recovery
                 let recovery_output = Command::new("cargo")
                     .args(&["run", "--bin", binary_name, "--"])
-                    .args(&recovery_args)
+                    .args(recovery_args)
                     .output();
 
                 match recovery_output {
@@ -1444,7 +1448,7 @@ async fn test_error_propagation_recovery() {
                 }
             }
 
-            let propagation_rate = recovery_successes as f64 / error_tests.len() as f64;
+            let propagation_rate = recovery_successes as f64 / error_tests_len as f64 * 100.0;
             propagation_results.push((server_name, propagation_rate));
 
             println!(
