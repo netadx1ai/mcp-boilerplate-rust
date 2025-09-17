@@ -248,14 +248,21 @@ impl McpServerImpl {
 
         let tool_list: Vec<Tool> = tools
             .into_iter()
-            .map(|tool| Tool {
-                name: tool.name().to_string(),
-                description: tool.description().to_string(),
-                input_schema: ToolInputSchema {
-                    schema_type: "object".to_string(),
-                    properties: Some(HashMap::new()),
-                    required: None,
-                },
+            .map(|tool| {
+                let schema = tool.input_schema();
+                Tool {
+                    name: tool.name().to_string(),
+                    description: tool.description().to_string(),
+                    input_schema: ToolInputSchema {
+                        schema_type: schema.get("type").and_then(|v| v.as_str()).unwrap_or("object").to_string(),
+                        properties: schema.get("properties").and_then(|v| v.as_object()).map(|obj| {
+                            obj.iter().map(|(k, v)| (k.clone(), v.clone())).collect::<HashMap<String, serde_json::Value>>()
+                        }),
+                        required: schema.get("required").and_then(|v| v.as_array()).map(|arr| {
+                            arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect::<Vec<String>>()
+                        }),
+                    },
+                }
             })
             .collect();
 
