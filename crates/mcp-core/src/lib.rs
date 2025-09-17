@@ -13,7 +13,7 @@
 //! # Example
 //!
 //! ```rust
-//! use mcp_core::{McpTool, McpRequest, McpResponse};
+//! use mcp_core::{McpTool, McpRequest, McpResponse, ResponseResult, ToolContent};
 //! use async_trait::async_trait;
 //!
 //! struct ExampleTool;
@@ -22,7 +22,13 @@
 //! impl McpTool for ExampleTool {
 //!     async fn call(&self, request: McpRequest) -> Result<McpResponse, mcp_core::McpError> {
 //!         // Tool implementation here
-//!         Ok(McpResponse::success("Hello from tool"))
+//!         let result = ResponseResult::ToolResult {
+//!             content: vec![ToolContent::Text {
+//!                 text: "Hello from tool".to_string()
+//!             }],
+//!             is_error: false,
+//!         };
+//!         Ok(McpResponse::success(result))
 //!     }
 //!     
 //!     fn name(&self) -> &str {

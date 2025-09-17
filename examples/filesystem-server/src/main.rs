@@ -13,7 +13,7 @@ use mcp_core::{
 use mcp_server::{McpServerBuilder, McpServerImpl};
 use mcp_transport::{HttpTransport, StdioTransport, Transport};
 use serde_json::Value;
-use std::collections::HashMap;
+
 use std::net::{IpAddr, SocketAddr};
 use std::path::Path;
 use std::sync::Arc;
@@ -352,6 +352,8 @@ async fn main() -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashMap;
+
     use tempfile::TempDir;
     use tokio::fs;
 

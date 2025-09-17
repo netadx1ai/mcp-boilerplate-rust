@@ -1,6 +1,11 @@
 # Image Generation Server Example
 
 An AI-powered MCP server that provides image generation capabilities with **Google/Gemini AI integration** and mock responses for development. Supports both development mode (fast mock responses) and production mode (real AI generation).
+[Your Prompt]──> [MCP Server] ──> [✅ Real Gemini API Call] ──> [✅ Real AI-Generated Text Description]
+                                                                                         │
+                                                                                         ▼
+                                                                [❌  Image Generation Step] ──> [❌  placeholder URL]
+
 
 **🎉 LATEST UPDATES:**
 - ✅ Fixed `/mcp/tools/list` endpoint - now returns complete tool schemas
@@ -69,7 +74,7 @@ Fast testing with realistic mock responses:
 # STDIO transport (default)
 cargo run --bin image-generation-server -- --delay 0
 
-# HTTP transport  
+# HTTP transport
 cargo run --bin image-generation-server -- --transport http --delay 0
 ```
 
@@ -190,7 +195,7 @@ The `/mcp/tools/list` endpoint now returns complete tool schemas with all parame
           },
           "size": {
             "type": "string",
-            "description": "Output image dimensions", 
+            "description": "Output image dimensions",
             "enum": ["512x512", "1024x1024", "1024x768", "768x1024", "1920x1080"],
             "default": "1024x1024"
           }
@@ -235,7 +240,7 @@ The `/mcp/tools/list` endpoint now returns complete tool schemas with all parame
 ```json
 {
   "result": {
-    "_type": "toolResult", 
+    "_type": "toolResult",
     "content": [
       {
         "type": "text",
@@ -276,7 +281,7 @@ The `/mcp/tools/list` endpoint now returns complete tool schemas with all parame
     "_type": "toolResult",
     "content": [
       {
-        "type": "text", 
+        "type": "text",
         "text": "{
           \"success\": true,
           \"image\": {
@@ -354,7 +359,7 @@ async fn generate_with_gemini(
 ) -> Result<Value, McpError> {
     let api_key = env::var("GEMINI_API_KEY")?;
     let model = "gemini-1.5-flash"; // Updated to use available model
-    
+
     // Enhanced prompt with style integration
     let enhanced_prompt = match style {
         Some(style) => format!("Generate an image in {} style: {}", style, prompt),
@@ -368,7 +373,7 @@ async fn generate_with_gemini(
         .json(&request_body)
         .send()
         .await?;
-    
+
     // Process real API response with enhanced descriptions...
 }
 ```
@@ -386,8 +391,8 @@ match env::var("GEMINI_API_KEY") {
 // API failure handling
 if !response.status().is_success() {
     return Err(McpError::internal_error(format!(
-        "Gemini API error {}: {}", 
-        status, 
+        "Gemini API error {}: {}",
+        status,
         error_text
     )));
 }
@@ -425,7 +430,7 @@ cargo test --bin image-generation-server
 cargo test --bin image-generation-server test_demonstrate_image_generation -- --nocapture
 ```
 
-#### E2E Tests  
+#### E2E Tests
 ```bash
 # Comprehensive E2E test suite
 ./scripts/test_image_generation_server.sh
@@ -582,7 +587,7 @@ cargo run --bin image-generation-server -- --debug --use-ai --provider gemini
 
 # Sample log output
 INFO Starting MCP Image Generation Server
-INFO AI Provider: Enabled (enabled: true) 
+INFO AI Provider: Enabled (enabled: true)
 INFO Using provider: gemini
 INFO Registered tool: generate_image
 INFO Generating image with Gemini model 'gemini-pro' for prompt: 'A sunset over mountains'
@@ -592,7 +597,7 @@ INFO Successfully generated image for prompt: 'A sunset over mountains'
 ### Error Monitoring
 The server provides detailed error information for monitoring:
 - API key validation errors
-- Network connectivity issues  
+- Network connectivity issues
 - API rate limiting responses
 - Invalid parameter validation
 - Timeout handling
@@ -608,14 +613,14 @@ The server provides detailed error information for monitoring:
 - HTTP transport was returning hardcoded placeholder responses
 - Server was creating empty input schemas instead of using actual tool schemas
 
-**Solution**: 
+**Solution**:
 - Updated HTTP transport to properly wait for server responses
 - Fixed server to use actual `tool.input_schema()` with complete parameter definitions
 - Now returns full tool documentation with types, descriptions, enums, and validation rules
 
 **Impact**: API consumers can now auto-generate clients and properly validate inputs
 
-#### 2. Google/Gemini Integration Enhanced  
+#### 2. Google/Gemini Integration Enhanced
 **Updates**:
 - Updated to use `gemini-1.5-flash` model (available endpoint)
 - Enhanced error handling with specific API error messages
@@ -646,7 +651,7 @@ export GEMINI_API_KEY="your_key"
 ## Files
 
 - `src/main.rs` - Complete server implementation with Google/Gemini integration
-- `Cargo.toml` - Dependencies including AI provider support  
+- `Cargo.toml` - Dependencies including AI provider support
 - `README.md` - This comprehensive documentation
 - `scripts/test_image_generation_server.sh` - E2E testing with AI validation
 - `simple_image_test.py` - Simple HTTP transport testing script
@@ -658,7 +663,7 @@ Before using in production, verify these key functionality areas:
 
 - [ ] **Server Starts**: `cargo run --bin image-generation-server --help`
 - [ ] **Tools List**: `curl http://127.0.0.1:3001/mcp/tools/list` returns complete schema
-- [ ] **Mock Mode**: Tool call returns placeholder image data  
+- [ ] **Mock Mode**: Tool call returns placeholder image data
 - [ ] **AI Mode**: With `GEMINI_API_KEY`, server connects to Gemini API
 - [ ] **Error Handling**: Invalid parameters are properly rejected
 - [ ] **Unit Tests**: `cargo test --bin image-generation-server` passes

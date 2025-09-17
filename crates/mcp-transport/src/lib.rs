@@ -21,7 +21,7 @@
 //!
 //! #[tokio::main]
 //! async fn main() -> anyhow::Result<()> {
-//!     let transport = StdioTransport::new();
+//!     let transport = StdioTransport::with_defaults()?;
 //!     // Use transport to handle MCP messages
 //!     Ok(())
 //! }

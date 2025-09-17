@@ -6,7 +6,8 @@ members = [
     "examples/filesystem-server",
     "examples/image-generation-server",
     "examples/blog-generation-server",
-    "examples/creative-content-server"
+    "examples/creative-content-server",
+    "tests-runner"
 ]
 resolver = "2"
 
@@ -59,6 +60,9 @@ predicates = "3.0"
 serial_test = "3.0"
 futures = "0.3"
 
+# Direct test dependencies
+urlencoding = "2.1"
+
 [profile.dev]
 opt-level = 0
 debug = true
@@ -74,6 +78,7 @@ codegen-units = 1
 [profile.test]
 opt-level = 1
 debug = true
+
 
 
 

@@ -19,15 +19,39 @@
 //!
 //! ```rust
 //! use mcp_server::{McpServerBuilder, McpServerImpl};
-//! use mcp_core::McpTool;
+//! use mcp_core::{McpTool, McpRequest, McpResponse, ResponseResult, ToolContent};
+//! use async_trait::async_trait;
+//! use std::sync::Arc;
+//!
+//! #[derive(Default)]
+//! struct ExampleTool;
+//!
+//! #[async_trait]
+//! impl McpTool for ExampleTool {
+//!     async fn call(&self, request: McpRequest) -> Result<McpResponse, mcp_core::McpError> {
+//!         let result = ResponseResult::ToolResult {
+//!             content: vec![ToolContent::Text {
+//!                 text: "Hello from tool".to_string()
+//!             }],
+//!             is_error: false,
+//!         };
+//!         Ok(McpResponse::success(result))
+//!     }
+//!     
+//!     fn name(&self) -> &str { "example_tool" }
+//!     fn description(&self) -> &str { "An example tool" }
+//!     fn input_schema(&self) -> serde_json::Value {
+//!         serde_json::json!({"type": "object", "properties": {}})
+//!     }
+//! }
 //!
 //! #[tokio::main]
 //! async fn main() -> anyhow::Result<()> {
 //!     let server = McpServerBuilder::new()
 //!         .with_name("example-server")
 //!         .with_version("1.0.0")
-//!         .add_tool(Box::new(my_tool))
-//!         .build();
+//!         .add_tool(Arc::new(ExampleTool::default()))
+//!         .build()?;
 //!         
 //!     // Use server with transport
 //!     Ok(())

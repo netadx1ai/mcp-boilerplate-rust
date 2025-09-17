@@ -254,13 +254,26 @@ impl McpServerImpl {
                     name: tool.name().to_string(),
                     description: tool.description().to_string(),
                     input_schema: ToolInputSchema {
-                        schema_type: schema.get("type").and_then(|v| v.as_str()).unwrap_or("object").to_string(),
-                        properties: schema.get("properties").and_then(|v| v.as_object()).map(|obj| {
-                            obj.iter().map(|(k, v)| (k.clone(), v.clone())).collect::<HashMap<String, serde_json::Value>>()
-                        }),
-                        required: schema.get("required").and_then(|v| v.as_array()).map(|arr| {
-                            arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect::<Vec<String>>()
-                        }),
+                        schema_type: schema
+                            .get("type")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("object")
+                            .to_string(),
+                        properties: schema.get("properties").and_then(|v| v.as_object()).map(
+                            |obj| {
+                                obj.iter()
+                                    .map(|(k, v)| (k.clone(), v.clone()))
+                                    .collect::<HashMap<String, serde_json::Value>>()
+                            },
+                        ),
+                        required: schema
+                            .get("required")
+                            .and_then(|v| v.as_array())
+                            .map(|arr| {
+                                arr.iter()
+                                    .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                                    .collect::<Vec<String>>()
+                            }),
                     },
                 }
             })

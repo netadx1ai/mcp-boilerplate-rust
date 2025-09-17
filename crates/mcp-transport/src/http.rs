@@ -351,16 +351,46 @@ async fn handle_call_tool(
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
 
-    // Return placeholder response
-    Ok(Json(serde_json::json!({
-        "content": [
-            {
-                "type": "text",
-                "text": "Tool executed successfully"
+    // Wait for response from server
+    let mut response_receiver = state.response_receiver.lock().await;
+    if let Some(ref mut receiver) = *response_receiver {
+        match tokio::time::timeout(std::time::Duration::from_secs(30), receiver.recv()).await {
+            Ok(Some(response)) => {
+                match response {
+                    McpResponse::Success { result } => {
+                        // Convert the result to JSON
+                        let json_response = serde_json::to_value(&result).unwrap_or_else(|_| {
+                            serde_json::json!({
+                                "content": [
+                                    {
+                                        "type": "text",
+                                        "text": "Tool executed successfully"
+                                    }
+                                ],
+                                "isError": false
+                            })
+                        });
+                        Ok(Json(json_response))
+                    }
+                    McpResponse::Error { error } => {
+                        error!("Server returned error for call tool: {:?}", error);
+                        Err(StatusCode::INTERNAL_SERVER_ERROR)
+                    }
+                }
             }
-        ],
-        "isError": false
-    })))
+            Ok(None) => {
+                error!("Response channel closed");
+                Err(StatusCode::INTERNAL_SERVER_ERROR)
+            }
+            Err(_) => {
+                error!("Timeout waiting for call tool response");
+                Err(StatusCode::REQUEST_TIMEOUT)
+            }
+        }
+    } else {
+        error!("Response receiver not available");
+        Err(StatusCode::INTERNAL_SERVER_ERROR)
+    }
 }
 
 /// Handle list resources request

@@ -11,6 +11,7 @@ use std::process::Command;
 async fn test_filesystem_server_exists() {
     let output = Command::new("cargo")
         .args(&["run", "--bin", "filesystem-server", "--", "--help"])
+        .current_dir("..")
         .output()
         .expect("Failed to execute filesystem server");
     
@@ -28,6 +29,7 @@ async fn test_filesystem_server_exists() {
 async fn test_image_generation_server_exists() {
     let output = Command::new("cargo")
         .args(&["run", "--bin", "image-generation-server", "--", "--help"])
+        .current_dir("..")
         .output()
         .expect("Failed to execute image generation server");
     
@@ -44,6 +46,7 @@ async fn test_image_generation_server_exists() {
 async fn test_blog_generation_server_exists() {
     let output = Command::new("cargo")
         .args(&["run", "--bin", "blog-generation-server", "--", "--help"])
+        .current_dir("..")
         .output()
         .expect("Failed to execute blog generation server");
     
@@ -60,6 +63,7 @@ async fn test_blog_generation_server_exists() {
 async fn test_creative_content_server_exists() {
     let output = Command::new("cargo")
         .args(&["run", "--bin", "creative-content-server", "--", "--help"])
+        .current_dir("..")
         .output()
         .expect("Failed to execute creative content server");
     
@@ -84,6 +88,7 @@ async fn test_all_servers_compile() {
     for server in &servers {
         let output = Command::new("cargo")
             .args(&["check", "--bin", server])
+            .current_dir("..")
             .output()
             .expect(&format!("Failed to check {}", server));
         
@@ -97,6 +102,7 @@ async fn test_all_servers_compile() {
 async fn test_server_help_content() {
     let output = Command::new("cargo")
         .args(&["run", "--bin", "filesystem-server", "--", "--help"])
+        .current_dir("..")
         .output()
         .expect("Failed to execute filesystem server");
     
@@ -123,6 +129,7 @@ async fn test_server_help_content() {
 async fn test_server_error_handling() {
     let output = Command::new("cargo")
         .args(&["run", "--bin", "filesystem-server", "--", "--invalid-flag"])
+        .current_dir("..")
         .output()
         .expect("Failed to execute filesystem server with invalid args");
     
@@ -148,6 +155,7 @@ async fn test_server_response_time() {
     
     let output = Command::new("cargo")
         .args(&["run", "--bin", "filesystem-server", "--", "--help"])
+        .current_dir("..")
         .output()
         .expect("Failed to execute filesystem server");
     
@@ -181,6 +189,7 @@ async fn test_complete_server_suite() {
         // Test compilation
         let check_output = Command::new("cargo")
             .args(&["check", "--bin", server])
+            .current_dir("..")
             .output()
             .expect(&format!("Failed to check {}", server));
         
@@ -192,6 +201,7 @@ async fn test_complete_server_suite() {
         // Test help functionality
         let help_output = Command::new("cargo")
             .args(&["run", "--bin", server, "--", "--help"])
+            .current_dir("..")
             .output()
             .expect(&format!("Failed to run {} help", server));
         
