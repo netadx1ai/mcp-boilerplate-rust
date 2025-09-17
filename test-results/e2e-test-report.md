@@ -1,6 +1,6 @@
 # MCP Boilerplate Rust E2E Test Report
 
-**Generated**: Thu Sep 18 04:08:52 +07 2025
+**Generated**: Thu Sep 18 04:14:12 +07 2025
 **Test Mode**: quick
 **Parallel Execution**: false
 
@@ -35,7 +35,7 @@
 
 ## Troubleshooting
 1. Check individual test logs in: /Volumes/T72/Work2025AI/MCP-Genertic/mcp-boilerplate-rust/test-results/
-2. Review full test log: /Volumes/T72/Work2025AI/MCP-Genertic/mcp-boilerplate-rust/test-results/e2e-test-20250918-040825.log
+2. Review full test log: /Volumes/T72/Work2025AI/MCP-Genertic/mcp-boilerplate-rust/test-results/e2e-test-20250918-041354.log
 3. Verify all dependencies are installed
 4. Ensure no other processes are using test ports (8001-8010)
 5. Check available disk space and memory

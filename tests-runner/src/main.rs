@@ -1,5 +1,5 @@
 //! Test Runner for MCP Boilerplate Integration Tests
-//! 
+//!
 //! This is a simple test runner package to organize integration tests
 //! for the MCP boilerplate workspace.
 
