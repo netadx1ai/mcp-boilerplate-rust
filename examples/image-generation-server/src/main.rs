@@ -136,8 +136,7 @@ impl GenerateImageTool {
             ];
             if !valid_styles.contains(&style) {
                 return Err(McpError::invalid_params(format!(
-                    "Invalid style '{}'. Valid styles: {:?}",
-                    style, valid_styles
+                    "Invalid style '{style}'. Valid styles: {valid_styles:?}"
                 )));
             }
         }
@@ -146,8 +145,7 @@ impl GenerateImageTool {
             let valid_sizes = ["512x512", "1024x1024", "1024x768", "768x1024", "1920x1080"];
             if !valid_sizes.contains(&size) {
                 return Err(McpError::invalid_params(format!(
-                    "Invalid size '{}'. Valid sizes: {:?}",
-                    size, valid_sizes
+                    "Invalid size '{size}'. Valid sizes: {valid_sizes:?}"
                 )));
             }
         }
@@ -190,7 +188,7 @@ impl McpTool for GenerateImageTool {
                     Ok(image_data) => {
                         let response_text =
                             serde_json::to_string_pretty(&image_data).map_err(|e| {
-                                McpError::internal_error(format!("JSON serialization error: {}", e))
+                                McpError::internal_error(format!("JSON serialization error: {e}"))
                             })?;
 
                         let result = ResponseResult::ToolResult {

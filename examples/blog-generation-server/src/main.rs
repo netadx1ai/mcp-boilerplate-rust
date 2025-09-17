@@ -3,7 +3,7 @@
 //! This example demonstrates an AI-powered MCP server that provides blog generation capabilities.
 //! The server can generate blog posts with various topics, styles, and lengths.
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use async_trait::async_trait;
 use clap::{Parser, ValueEnum};
 use mcp_core::{
@@ -109,7 +109,7 @@ impl CreateBlogPostTool {
                 generate_education_content(word_count, style),
             ),
             _ => (
-                format!("Exploring {}: A Comprehensive Guide", topic),
+                format!("Exploring {topic}: A Comprehensive Guide"),
                 generate_generic_content(topic, word_count, style),
             ),
         };
@@ -205,7 +205,7 @@ impl McpTool for CreateBlogPostTool {
                 self.validate_parameters(&arguments)?;
 
                 // Check for required topic parameter
-                if arguments.get("topic").is_none() {
+                if !arguments.contains_key("topic") {
                     return Err(McpError::invalid_params(
                         "Missing required parameter: 'topic' - please specify what the blog post should be about"
                     ));
@@ -292,8 +292,7 @@ fn generate_tech_content(word_count: u64, style: &str) -> String {
             content.push_str("\n\n");
         }
         content.push_str(&format!(
-            "{} [Content continues with detailed analysis and insights...]",
-            base_content
+            "{base_content} [Content continues with detailed analysis and insights...]"
         ));
     }
 
@@ -315,8 +314,7 @@ fn generate_business_content(word_count: u64, style: &str) -> String {
             content.push_str("\n\n");
         }
         content.push_str(&format!(
-            "{} [Content continues with strategic insights and practical applications...]",
-            base_content
+            "{base_content} [Content continues with strategic insights and practical applications...]"
         ));
     }
 
@@ -338,8 +336,7 @@ fn generate_health_content(word_count: u64, style: &str) -> String {
             content.push_str("\n\n");
         }
         content.push_str(&format!(
-            "{} [Content continues with health insights and practical recommendations...]",
-            base_content
+            "{base_content} [Content continues with health insights and practical recommendations...]"
         ));
     }
 
@@ -361,8 +358,7 @@ fn generate_education_content(word_count: u64, style: &str) -> String {
             content.push_str("\n\n");
         }
         content.push_str(&format!(
-            "{} [Content continues with educational insights and innovative approaches...]",
-            base_content
+            "{base_content} [Content continues with educational insights and innovative approaches...]"
         ));
     }
 
@@ -371,9 +367,9 @@ fn generate_education_content(word_count: u64, style: &str) -> String {
 
 fn generate_generic_content(topic: &str, word_count: u64, style: &str) -> String {
     let base_content = match style {
-        "academic" => format!("The study of {} presents multifaceted considerations that require systematic analysis and evidence-based evaluation. Current research in this domain reveals significant implications for both theoretical understanding and practical applications.", topic),
-        "casual" => format!("Let's dive into the fascinating world of {}! There's so much to explore and understand about this topic, and I think you'll find some really interesting insights that might change how you think about it.", topic),
-        _ => format!("Understanding {} is essential in today's rapidly evolving landscape. This comprehensive exploration examines key aspects, current trends, and practical implications that matter to professionals and enthusiasts alike.", topic)
+        "academic" => format!("The study of {topic} presents multifaceted considerations that require systematic analysis and evidence-based evaluation. Current research in this domain reveals significant implications for both theoretical understanding and practical applications."),
+        "casual" => format!("Let's dive into the fascinating world of {topic}! There's so much to explore and understand about this topic, and I think you'll find some really interesting insights that might change how you think about it."),
+        _ => format!("Understanding {topic} is essential in today's rapidly evolving landscape. This comprehensive exploration examines key aspects, current trends, and practical implications that matter to professionals and enthusiasts alike.")
     };
 
     let paragraphs = (word_count / 150).max(1);
@@ -384,8 +380,7 @@ fn generate_generic_content(topic: &str, word_count: u64, style: &str) -> String
             content.push_str("\n\n");
         }
         content.push_str(&format!(
-            "{} [Content continues with detailed analysis and expert perspectives...]",
-            base_content
+            "{base_content} [Content continues with detailed analysis and expert perspectives...]"
         ));
     }
 
@@ -561,8 +556,7 @@ fn init_logging(debug: bool) {
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| {
                 tracing_subscriber::EnvFilter::new(format!(
-                    "blog_generation_server={},mcp_server={},mcp_transport={},mcp_core={}",
-                    level, level, level, level
+                    "blog_generation_server={level},mcp_server={level},mcp_transport={level},mcp_core={level}"
                 ))
             }),
         )

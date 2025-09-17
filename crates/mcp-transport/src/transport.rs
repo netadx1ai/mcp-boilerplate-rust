@@ -196,13 +196,13 @@ impl TransportFactory {
     #[allow(clippy::vec_init_then_push)]
     pub fn available_transports() -> Vec<&'static str> {
         let mut vec = Vec::new();
-        
+
         #[cfg(feature = "stdio")]
         vec.push("stdio");
-        
+
         #[cfg(feature = "http")]
         vec.push("http");
-        
+
         vec
     }
 }

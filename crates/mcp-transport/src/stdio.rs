@@ -265,7 +265,6 @@ impl Default for StdioTransportBuilder {
 mod tests {
     use super::*;
 
-
     #[tokio::test]
     async fn test_stdio_transport_creation() {
         let transport = StdioTransport::with_defaults().unwrap();

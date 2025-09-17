@@ -70,7 +70,7 @@ impl ReadFileTool {
     fn resolve_path(&self, requested_path: &str) -> Result<std::path::PathBuf, McpError> {
         let base = Path::new(&self.base_dir)
             .canonicalize()
-            .map_err(|e| McpError::internal_error(format!("Invalid base directory: {}", e)))?;
+            .map_err(|e| McpError::internal_error(format!("Invalid base directory: {e}")))?;
 
         let requested = Path::new(requested_path);
 
@@ -153,13 +153,11 @@ impl McpTool for ReadFileTool {
                             std::io::ErrorKind::NotFound => Err(McpError::resource_not_found(path)),
                             std::io::ErrorKind::PermissionDenied => {
                                 Err(McpError::permission_denied(format!(
-                                    "Permission denied reading file '{}'",
-                                    path
+                                    "Permission denied reading file '{path}'"
                                 )))
                             }
                             _ => Err(McpError::internal_error(format!(
-                                "Failed to read file '{}': {}",
-                                path, e
+                                "Failed to read file '{path}': {e}"
                             ))),
                         }
                     }

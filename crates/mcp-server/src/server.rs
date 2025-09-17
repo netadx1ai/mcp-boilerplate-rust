@@ -120,17 +120,23 @@ impl McpServerImpl {
     ///
     /// Result indicating success or failure
     pub async fn stop(&self) -> ServerResult<()> {
-        let mut state = self.state.write().await;
+        // Check running status with scoped read lock
+        {
+            let state = self.state.read().await;
+            if !state.is_running {
+                return Err(ServerError::NotRunning);
+            }
+        } // Lock released here
 
-        if !state.is_running {
-            return Err(ServerError::NotRunning);
-        }
-
-        // Shutdown server
+        // Now shutdown can safely acquire read locks
         self.shutdown().await?;
 
-        state.is_running = false;
-        state.start_time = None;
+        // Update state with scoped write lock
+        {
+            let mut state = self.state.write().await;
+            state.is_running = false;
+            state.start_time = None;
+        }
 
         info!("Stopped MCP server '{}'", self.config.name);
 
@@ -524,21 +530,30 @@ mod tests {
 
     #[tokio::test]
     async fn test_server_start_stop() {
-    let config = ServerConfig::default();
-    let registry = ToolRegistry::new();
-    let server = McpServerImpl::new(config, registry).unwrap();
+        // Wrap entire test with timeout to prevent hanging
+        let result = tokio::time::timeout(std::time::Duration::from_secs(5), async {
+            let config = ServerConfig::default();
+            let registry = ToolRegistry::new();
+            let server = McpServerImpl::new(config, registry).unwrap();
 
-    // Start server
-    assert!(server.start().await.is_ok());
-    assert!(server.is_running().await);
+            // Test initial state
+            assert!(!server.is_running().await);
 
-    // Wait for 60 seconds
-    tokio::time::sleep(std::time::Duration::from_secs(60)).await;
+            // Start server
+            assert!(server.start().await.is_ok());
+            assert!(server.is_running().await);
 
-    // Stop server
-    assert!(server.stop().await.is_ok());
-    assert!(!server.is_running().await);
-}
+            // Brief wait to ensure server is fully started
+            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+
+            // Stop server
+            assert!(server.stop().await.is_ok());
+            assert!(!server.is_running().await);
+        })
+        .await;
+
+        assert!(result.is_ok(), "Server start/stop test should not hang");
+    }
 
     #[tokio::test]
     async fn test_ping_request() {

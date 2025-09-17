@@ -491,9 +491,9 @@ impl McpTool for DevelopCharacterTool {
 fn generate_fantasy_story(length: &str, theme: &str) -> (String, String) {
     let title = format!("The Chronicles of {}", theme.to_title_case());
     let content = match length {
-        "flash" => format!("In the mystical realm of Eldoria, {} would prove to be the key to salvation. The ancient prophecy spoke of a chosen one who would...", theme),
-        "short" => format!("The moonlight filtered through the ancient oak trees as Lyra discovered the truth about {}. Her journey had led her through dark forests and forgotten ruins, but nothing had prepared her for this revelation. The crystal in her hand pulsed with an otherworldly light...", theme),
-        _ => format!("Long ago, in a world where magic flowed like rivers through the land, the concept of {} held power beyond imagination. The great wizard Aldric had spent decades studying its mysteries, but even he could not have predicted what would unfold when the young apprentice Maya stumbled upon the forbidden tome...", theme)
+        "flash" => format!("In the mystical realm of Eldoria, {theme} would prove to be the key to salvation. The ancient prophecy spoke of a chosen one who would..."),
+        "short" => format!("The moonlight filtered through the ancient oak trees as Lyra discovered the truth about {theme}. Her journey had led her through dark forests and forgotten ruins, but nothing had prepared her for this revelation. The crystal in her hand pulsed with an otherworldly light..."),
+        _ => format!("Long ago, in a world where magic flowed like rivers through the land, the concept of {theme} held power beyond imagination. The great wizard Aldric had spent decades studying its mysteries, but even he could not have predicted what would unfold when the young apprentice Maya stumbled upon the forbidden tome...")
     };
     (title, content)
 }
@@ -501,9 +501,9 @@ fn generate_fantasy_story(length: &str, theme: &str) -> (String, String) {
 fn generate_scifi_story(length: &str, theme: &str) -> (String, String) {
     let title = format!("Quantum {}", theme.to_title_case());
     let content = match length {
-        "flash" => format!("The space station's AI announced: 'Anomaly detected in sector 7.' Captain Chen knew {} would be crucial to humanity's survival.", theme),
-        "short" => format!("Commander Sarah Rodriguez stared at the readings from the deep space probe. The data suggested that {} wasn't just a concept—it was a measurable force that could revolutionize their understanding of the universe. The implications were staggering...", theme),
-        _ => format!("In the year 2387, humanity had spread across the galaxy, but they had never encountered anything quite like this. The discovery on Kepler-442b challenged everything they knew about {}. Dr. Elena Vasquez, the lead xenobiologist, carefully examined the alien artifact that seemed to embody the very essence of what they had been searching for...", theme)
+        "flash" => format!("The space station's AI announced: 'Anomaly detected in sector 7.' Captain Chen knew {theme} would be crucial to humanity's survival."),
+        "short" => format!("Commander Sarah Rodriguez stared at the readings from the deep space probe. The data suggested that {theme} wasn't just a concept—it was a measurable force that could revolutionize their understanding of the universe. The implications were staggering..."),
+        _ => format!("In the year 2387, humanity had spread across the galaxy, but they had never encountered anything quite like this. The discovery on Kepler-442b challenged everything they knew about {theme}. Dr. Elena Vasquez, the lead xenobiologist, carefully examined the alien artifact that seemed to embody the very essence of what they had been searching for...")
     };
     (title, content)
 }
@@ -511,9 +511,9 @@ fn generate_scifi_story(length: &str, theme: &str) -> (String, String) {
 fn generate_mystery_story(length: &str, theme: &str) -> (String, String) {
     let title = format!("The {} Enigma", theme.to_title_case());
     let content = match length {
-        "flash" => format!("Detective Morrison found the note: '{}' is not what it seems. Follow the clues, but trust no one.'", theme),
-        "short" => format!("The rain drummed against Detective Kate Sullivan's office window as she reviewed the case files. Three victims, seemingly unconnected, except for one thing: they all had written about {} in their final days. The pattern was too precise to be coincidental...", theme),
-        _ => format!("The foggy streets of Victorian London concealed many secrets, but none as perplexing as the case that had stumped Inspector James Whitmore for months. Each victim had been found with a single word carved into the scene: '{}'. The connection eluded him until he received an anonymous letter that would change everything...", theme)
+        "flash" => format!("Detective Morrison found the note: '{theme}' is not what it seems. Follow the clues, but trust no one.'"),
+        "short" => format!("The rain drummed against Detective Kate Sullivan's office window as she reviewed the case files. Three victims, seemingly unconnected, except for one thing: they all had written about {theme} in their final days. The pattern was too precise to be coincidental..."),
+        _ => format!("The foggy streets of Victorian London concealed many secrets, but none as perplexing as the case that had stumped Inspector James Whitmore for months. Each victim had been found with a single word carved into the scene: '{theme}'. The connection eluded him until he received an anonymous letter that would change everything...")
     };
     (title, content)
 }
@@ -521,9 +521,9 @@ fn generate_mystery_story(length: &str, theme: &str) -> (String, String) {
 fn generate_romance_story(length: &str, theme: &str) -> (String, String) {
     let title = format!("Love and {}", theme.to_title_case());
     let content = match length {
-        "flash" => format!("Emma's heart skipped when she saw the message: 'Meet me where {} began.' She knew exactly where to go.", theme),
-        "short" => format!("The coffee shop where Emma first met David held so many memories. As she sat at their usual table, she reflected on how {} had brought them together and now seemed to be pulling them apart. The letter in her hands contained words that would determine their future...", theme),
-        _ => format!("Sophie had always believed that {} was just a fairy tale, something that happened to other people in romantic movies. But when she collided with the handsome stranger outside the bookstore, scattering her research papers about medieval literature across the sidewalk, she began to wonder if fate had other plans...", theme)
+        "flash" => format!("Emma's heart skipped when she saw the message: 'Meet me where {theme} began.' She knew exactly where to go."),
+        "short" => format!("The coffee shop where Emma first met David held so many memories. As she sat at their usual table, she reflected on how {theme} had brought them together and now seemed to be pulling them apart. The letter in her hands contained words that would determine their future..."),
+        _ => format!("Sophie had always believed that {theme} was just a fairy tale, something that happened to other people in romantic movies. But when she collided with the handsome stranger outside the bookstore, scattering her research papers about medieval literature across the sidewalk, she began to wonder if fate had other plans...")
     };
     (title, content)
 }
@@ -531,37 +531,36 @@ fn generate_romance_story(length: &str, theme: &str) -> (String, String) {
 fn generate_adventure_story(length: &str, theme: &str) -> (String, String) {
     let title = format!("Quest for {}", theme.to_title_case());
     let content = match length {
-        "flash" => format!("The map led to the temple where {} awaited. Jack checked his gear one last time before entering the ancient ruins.", theme),
-        "short" => format!("The jungle was alive with sounds as archaeologist Dr. Maya Chen pushed through the dense vegetation. The legends spoke of a lost civilization that had mastered the secrets of {}. Her expedition had already faced numerous perils, but the real danger lay ahead...", theme),
-        _ => format!("The call came at midnight: 'We've found it, Professor Martinez. The expedition to find the source of {} can finally begin.' Within hours, Maria was on a plane to the Amazon, her heart racing with anticipation. The local guides spoke in hushed tones about the cursed temple, but Maria knew that some discoveries were worth any risk...", theme)
+        "flash" => format!("The map led to the temple where {theme} awaited. Jack checked his gear one last time before entering the ancient ruins."),
+        "short" => format!("The jungle was alive with sounds as archaeologist Dr. Maya Chen pushed through the dense vegetation. The legends spoke of a lost civilization that had mastered the secrets of {theme}. Her expedition had already faced numerous perils, but the real danger lay ahead..."),
+        _ => format!("The call came at midnight: 'We've found it, Professor Martinez. The expedition to find the source of {theme} can finally begin.' Within hours, Maria was on a plane to the Amazon, her heart racing with anticipation. The local guides spoke in hushed tones about the cursed temple, but Maria knew that some discoveries were worth any risk...")
     };
     (title, content)
 }
 
-fn generate_generic_story(genre: &str, length: &str, theme: &str) -> (String, String) {
+fn generate_generic_story(genre: &str, _length: &str, theme: &str) -> (String, String) {
     let title = format!("A Tale of {}", theme.to_title_case());
-    let content = format!("This {} story explores the profound meaning of {} in ways that will captivate readers and leave them pondering long after the final page...", genre, theme);
+    let content = format!("This {genre} story explores the profound meaning of {theme} in ways that will captivate readers and leave them pondering long after the final page...");
     (title, content)
 }
 
 fn generate_sonnet(theme: &str) -> (String, String, String) {
     let title = format!("Sonnet on {}", theme.to_title_case());
     let content = format!(
-        "When {} blooms bright in morning's golden light,\n\
+        "When {theme} blooms bright in morning's golden light,\n\
          And shadows dance beneath the azure sky,\n\
          The world awakens to a wondrous sight,\n\
          As nature's beauty makes the spirit fly.\n\n\
          Through seasons past and futures yet to come,\n\
          This truth remains as constant as the sun,\n\
-         That {} makes the heart's true rhythm hum,\n\
+         That {theme} makes the heart's true rhythm hum,\n\
          And shows us how all souls become as one.\n\n\
          So let us pause and contemplate this day,\n\
-         The gifts that {} has brought to every heart,\n\
+         The gifts that {theme} has brought to every heart,\n\
          And find in simple moments grand display\n\
          Of how such beauty plays its vital part.\n\n\
-         For in {}'s embrace we truly see\n\
-         The path to our own immortality.",
-        theme, theme, theme, theme
+         For in {theme}'s embrace we truly see\n\
+         The path to our own immortality."
     );
     (
         title,
@@ -602,10 +601,9 @@ fn generate_limerick(theme: &str) -> (String, String, String) {
 fn generate_ballad(theme: &str) -> (String, String, String) {
     let title = format!("Ballad of {}", theme.to_title_case());
     let content = format!(
-        "Oh, listen to the tale I tell,\nOf {} so true and bright,\nThat guided souls through darkest dell,\nAnd brought them to the light.\n\n\
-         The minstrels sang of days of old,\nWhen {} was young and new,\nAnd heroes brave and knights so bold\nWould seek it through and through.\n\n\
-         So raise your voice and sing along,\nOf {}'s enduring fame,\nFor in this ancient, timeless song,\nWe honor its sweet name.",
-        theme, theme, theme
+        "Oh, listen to the tale I tell,\nOf {theme} so true and bright,\nThat guided souls through darkest dell,\nAnd brought them to the light.\n\n\
+         The minstrels sang of days of old,\nWhen {theme} was young and new,\nAnd heroes brave and knights so bold\nWould seek it through and through.\n\n\
+         So raise your voice and sing along,\nOf {theme}'s enduring fame,\nFor in this ancient, timeless song,\nWe honor its sweet name."
     );
     (
         title,
@@ -634,22 +632,22 @@ fn generate_character_details(name: &str, archetype: &str) -> Value {
     let (personality, backstory, motivation) = match archetype {
         "hero" => (
             "Brave, compassionate, and determined. Natural leader with a strong moral compass.",
-            format!("{} grew up in a small village, witnessing injustice that shaped their desire to protect others.", name),
+            format!("{name} grew up in a small village, witnessing injustice that shaped their desire to protect others."),
             "To right wrongs and protect the innocent from harm."
         ),
         "mentor" => (
             "Wise, patient, and experienced. Sees potential in others and guides them to greatness.",
-            format!("{} once walked the path of adventure but now passes knowledge to the next generation.", name),
+            format!("{name} once walked the path of adventure but now passes knowledge to the next generation."),
             "To ensure wisdom is preserved and shared with worthy successors."
         ),
         "villain" => (
             "Charismatic, cunning, and ruthlessly ambitious. Believes the ends justify the means.",
-            format!("{} was once idealistic but became corrupted by power and betrayal.", name),
+            format!("{name} was once idealistic but became corrupted by power and betrayal."),
             "To reshape the world according to their vision, regardless of cost."
         ),
         _ => (
             "Complex and multifaceted, with both strengths and flaws that make them relatable.",
-            format!("{} has lived through experiences that shaped their unique worldview.", name),
+            format!("{name} has lived through experiences that shaped their unique worldview."),
             "To find their place in the world and fulfill their personal destiny."
         )
     };
@@ -867,8 +865,7 @@ fn init_logging(debug: bool) {
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| {
                 tracing_subscriber::EnvFilter::new(format!(
-                    "creative_content_server={},mcp_server={},mcp_transport={},mcp_core={}",
-                    level, level, level, level
+                    "creative_content_server={level},mcp_server={level},mcp_transport={level},mcp_core={level}"
                 ))
             }),
         )
