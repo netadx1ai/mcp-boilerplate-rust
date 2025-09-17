@@ -51,6 +51,14 @@ rand = "0.8"
 rstest = "0.18"
 tokio-test = "0.4"
 
+# E2E Testing dependencies
+tempfile = "3.0"
+reqwest = { version = "0.11", features = ["json"] }
+assert_cmd = "2.0"
+predicates = "3.0"
+serial_test = "3.0"
+futures = "0.3"
+
 [profile.dev]
 opt-level = 0
 debug = true
@@ -66,3 +74,4 @@ codegen-units = 1
 [profile.test]
 opt-level = 1
 debug = true
+
