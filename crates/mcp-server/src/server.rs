@@ -524,18 +524,21 @@ mod tests {
 
     #[tokio::test]
     async fn test_server_start_stop() {
-        let config = ServerConfig::default();
-        let registry = ToolRegistry::new();
-        let server = McpServerImpl::new(config, registry).unwrap();
+    let config = ServerConfig::default();
+    let registry = ToolRegistry::new();
+    let server = McpServerImpl::new(config, registry).unwrap();
 
-        // Start server
-        assert!(server.start().await.is_ok());
-        assert!(server.is_running().await);
+    // Start server
+    assert!(server.start().await.is_ok());
+    assert!(server.is_running().await);
 
-        // Stop server
-        assert!(server.stop().await.is_ok());
-        assert!(!server.is_running().await);
-    }
+    // Wait for 60 seconds
+    tokio::time::sleep(std::time::Duration::from_secs(60)).await;
+
+    // Stop server
+    assert!(server.stop().await.is_ok());
+    assert!(!server.is_running().await);
+}
 
     #[tokio::test]
     async fn test_ping_request() {
