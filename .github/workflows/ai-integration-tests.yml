@@ -117,10 +117,8 @@ jobs:
         echo "Intensity: $AI_TEST_INTENSITY"
         echo "Content validation: $AI_CONTENT_VALIDATION"
         
-        cd tests-runner
-        
         # Run Gemini blog generation tests with proper timeout
-        timeout 1200 cargo test gemini_integration_blog_e2e -- --test-threads=1
+        timeout 1200 cargo test --test gemini_integration_blog_e2e -- --test-threads=1
         
     - name: Validate generated content quality
       env:

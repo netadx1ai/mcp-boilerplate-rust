@@ -65,8 +65,7 @@ jobs:
 
     - name: Run basic integration tests
       run: |
-        cd tests-runner
-        cargo test integration_basic
+        cargo test --test integration_basic
 
     - name: Upload test artifacts
       if: always()
@@ -110,8 +109,7 @@ jobs:
 
     - name: Run server E2E test
       run: |
-        cd tests-runner
-        timeout 600 cargo test ${{ matrix.server }} -- --test-threads=1
+        timeout 600 cargo test --test ${{ matrix.server }}_e2e -- --test-threads=1
 
     - name: Collect server logs
       if: always()
@@ -150,34 +148,29 @@ jobs:
 
     - name: Run multi-server integration tests
       run: |
-        cd tests-runner
         # Run core integration tests that are working
-        timeout 120 cargo test integration_e2e::test_multiple_servers_stdio_mode
-        timeout 120 cargo test integration_e2e::test_server_resource_isolation
-        timeout 120 cargo test integration_e2e::test_mixed_transport_modes
-        timeout 120 cargo test integration_e2e::test_graceful_multi_server_shutdown
-        timeout 120 cargo test integration_e2e::test_rapid_server_cycles
+        timeout 120 cargo test --test integration_e2e
 
     - name: Run manual integration demos
       run: |
         # Test multiple servers on different ports
-        timeout 10 cargo run --bin filesystem-server -- --transport http --port 8001 > /tmp/fs.log 2>&1 &
-        FS_PID=$!
+        timeout 10 cargo run --bin news-data-server -- --port 8001 > /tmp/news.log 2>&1 &
+        NEWS_PID=$!
 
-        timeout 10 cargo run --bin image-generation-server -- --transport http --port 8002 > /tmp/img.log 2>&1 &
-        IMG_PID=$!
+        timeout 10 cargo run --bin template-server -- --port 8002 > /tmp/template.log 2>&1 &
+        TEMPLATE_PID=$!
 
         sleep 3
 
         # Check if servers are running
-        if kill -0 $FS_PID 2>/dev/null && kill -0 $IMG_PID 2>/dev/null; then
+        if kill -0 $NEWS_PID 2>/dev/null && kill -0 $TEMPLATE_PID 2>/dev/null; then
           echo "✅ Multiple servers running successfully"
         else
           echo "⚠️ Some servers failed to start"
         fi
 
         # Cleanup
-        kill $FS_PID $IMG_PID 2>/dev/null || true
+        kill $NEWS_PID $TEMPLATE_PID 2>/dev/null || true
         wait 2>/dev/null || true
 
     - name: Upload integration test artifacts
@@ -214,20 +207,16 @@ jobs:
 
     - name: Run resilience tests
       run: |
-        cd tests-runner
         # Run working resilience tests
-        timeout 300 cargo test resilience_e2e::test_invalid_tool_calls_dont_crash
-        timeout 300 cargo test resilience_e2e::test_malformed_json_handling
-        timeout 300 cargo test resilience_e2e::test_graceful_shutdown_scenarios
-        timeout 300 cargo test resilience_e2e::test_restart_and_state_recovery
+        timeout 300 cargo test --test resilience_e2e
 
     - name: Run performance benchmarks
       run: |
-        # Manual performance tests since performance_e2e has compilation issues
+        # Manual performance tests
         echo "🏁 Manual Performance Testing"
 
         # Test server startup times
-        for server in filesystem-server image-generation-server blog-generation-server creative-content-server; do
+        for server in news-data-server template-server analytics-server database-server api-gateway-server workflow-server; do
           echo "Testing $server startup time..."
           start_time=$(date +%s.%N)
           if timeout 30 cargo run --bin $server -- --help > /dev/null 2>&1; then
@@ -280,11 +269,10 @@ jobs:
           exit 0
         fi
 
-        cd tests-runner
         echo "🤖 Running AI integration tests with real API..."
 
         # Run AI integration tests with timeout
-        timeout 1800 cargo test gemini_integration_blog_e2e -- --test-threads=1
+        timeout 1800 cargo test --test gemini_integration_blog_e2e -- --test-threads=1
 
     - name: Upload AI test artifacts
       if: always()
@@ -512,8 +500,8 @@ jobs:
         echo "🧪 Testing basic server functionality on ${{ matrix.os }}"
 
         # Test help commands work across platforms
-        cargo run --bin filesystem-server -- --help
-        cargo run --bin image-generation-server -- --help
+        cargo run --bin news-data-server -- --help
+        cargo run --bin template-server -- --help
 
         echo "✅ Basic server functionality verified on ${{ matrix.os }}"
 
@@ -523,8 +511,8 @@ jobs:
       with:
         name: cross-platform-${{ matrix.os }}
         path: |
-          target/debug/filesystem-server*
-          target/debug/image-generation-server*
+          target/debug/news-data-server*
+          target/debug/template-server*
         retention-days: 7
 
   quality-gates:
