@@ -6,6 +6,8 @@
 
 A production-ready MCP (Model Context Protocol) server ecosystem built on the official RMCP SDK, delivering specialized servers, reusable templates, and complete deployment infrastructure.
 
+> 💡 **Looking for TypeScript?** Check out our [TypeScript version](https://github.com/netadx1ai/mcp-boilerplate-ts) for Node.js environments with the same features and API compatibility!
+
 ## 🚀 Quick Start
 
 ```bash
@@ -224,6 +226,32 @@ mcp-boilerplate-rust/
 - ✅ Container security (non-root, read-only)
 - ✅ Kubernetes Pod Security Standards
 
+## 🔄 TypeScript Version Available
+
+This Rust implementation has a companion [TypeScript version](https://github.com/netadx1ai/mcp-boilerplate-ts) that provides:
+
+- **Same API**: Identical tool interfaces and responses
+- **Same Architecture**: Equivalent server templates and deployment options
+- **Same Performance Class**: Comparable response times for most use cases
+- **Enhanced DX**: Better debugging and IDE integration with TypeScript
+- **Node.js Ecosystem**: Access to npm packages and familiar tooling
+
+### Performance Comparison
+
+| Feature | Rust Version | TypeScript Version |
+|---------|-------------|-------------------|
+| **Response Time** | ~20ms | ~50ms |
+| **Memory Usage** | ~30MB per server | ~100MB per server |
+| **Build Time** | 4-9 seconds | 3-8 seconds |
+| **Type Safety** | Compile-time | Compile-time |
+| **Runtime** | Native binary | Node.js |
+| **Hot Reload** | Manual restart | Automatic |
+| **IDE Support** | Good | Excellent |
+| **Learning Curve** | Steep | Moderate |
+
+**Choose Rust for**: Maximum performance, minimal resource usage, systems programming teams
+**Choose TypeScript for**: Rapid development, web development teams, Node.js ecosystem integration
+
 ## 🤝 Contributing
 
 1. Fork the repository
@@ -245,6 +273,7 @@ Licensed under the MIT License. See [LICENSE](LICENSE) for details.
 
 - [RMCP SDK Team](https://github.com/modelcontextprotocol/rust-sdk) for the excellent official implementation
 - [Model Context Protocol](https://modelcontextprotocol.io/) for the specification
+- [TypeScript Version](https://github.com/netadx1ai/mcp-boilerplate-ts) for cross-language compatibility validation
 - Rust community for the incredible ecosystem
 
 ---
