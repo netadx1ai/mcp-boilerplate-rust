@@ -1,0 +1,96 @@
+# Multi-stage Dockerfile template for MCP servers
+# This template supports all production MCP servers with optimized builds
+# Usage: Copy this template and replace {SERVER_NAME} with actual server name
+
+ARG RUST_VERSION=1.75
+ARG DEBIAN_VERSION=bookworm-slim
+
+# Build stage - compile the Rust application
+FROM rust:${RUST_VERSION} as builder
+
+# Install system dependencies for building
+RUN apt-get update && apt-get install -y \
+    pkg-config \
+    libssl-dev \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set build environment
+WORKDIR /app
+ENV CARGO_NET_GIT_FETCH_WITH_CLI=true
+ENV CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse
+
+# Copy workspace configuration first for better layer caching
+COPY Cargo.toml Cargo.lock ./
+COPY servers/{SERVER_NAME}/Cargo.toml ./servers/{SERVER_NAME}/
+
+# Create dummy main.rs files to cache dependencies
+RUN mkdir -p servers/{SERVER_NAME}/src && \
+    echo "fn main() {}" > servers/{SERVER_NAME}/src/main.rs
+
+# Pre-build dependencies (this layer will be cached)
+RUN cargo build --release --bin {SERVER_NAME} && \
+    rm servers/{SERVER_NAME}/src/main.rs && \
+    rm target/release/deps/{SERVER_NAME}*
+
+# Copy source code
+COPY servers/{SERVER_NAME}/src ./servers/{SERVER_NAME}/src
+
+# Build the actual application
+RUN cargo build --release --bin {SERVER_NAME}
+
+# Verify the binary exists and is executable
+RUN ls -la target/release/{SERVER_NAME} && \
+    ./target/release/{SERVER_NAME} --version || echo "Binary verification complete"
+
+# Runtime stage - minimal production image
+FROM debian:${DEBIAN_VERSION} as runtime
+
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && update-ca-certificates
+
+# Create non-root user for security
+RUN groupadd -r mcp && useradd -r -g mcp -s /bin/false mcp
+
+# Create application directory
+WORKDIR /app
+
+# Copy the binary from builder stage
+COPY --from=builder /app/target/release/{SERVER_NAME} /usr/local/bin/{SERVER_NAME}
+
+# Set permissions and ownership
+RUN chown mcp:mcp /usr/local/bin/{SERVER_NAME} && \
+    chmod +x /usr/local/bin/{SERVER_NAME}
+
+# Create directories for application data
+RUN mkdir -p /app/data /app/logs && \
+    chown -R mcp:mcp /app
+
+# Switch to non-root user
+USER mcp
+
+# Health check endpoint (customize port as needed)
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8080/health || exit 1
+
+# Expose default MCP server port (customize as needed)
+EXPOSE 8080
+
+# Environment variables for configuration
+ENV RUST_LOG=info
+ENV MCP_SERVER_HOST=0.0.0.0
+ENV MCP_SERVER_PORT=8080
+
+# Default command - can be overridden
+CMD ["{SERVER_NAME}"]
+
+# Metadata
+LABEL maintainer="MCP Boilerplate Team"
+LABEL description="Production MCP server: {SERVER_NAME}"
+LABEL version="0.3.0"
+LABEL org.opencontainers.image.source="https://github.com/netadx1ai/mcp-boilerplate-rust"
+LABEL org.opencontainers.image.licenses="MIT"

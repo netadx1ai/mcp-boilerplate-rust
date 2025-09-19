@@ -1,0 +1,369 @@
+# Prometheus Alert Rules for MCP Server Ecosystem
+# Comprehensive alerting for production MCP servers with proper severity levels
+
+groups:
+  # ============================================================================
+  # MCP Server Instance Health Alerts
+  # ============================================================================
+  - name: mcp-server-health
+    interval: 30s
+    rules:
+      # Server Down Alert
+      - alert: MCPServerDown
+        expr: up{job=~"mcp-.*-server"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: mcp
+          category: availability
+        annotations:
+          summary: "MCP server {{ $labels.instance }} is down"
+          description: "MCP server {{ $labels.instance }} has been down for more than 1 minute."
+          runbook_url: "https://docs.mcp-servers.com/alerts/server-down"
+          dashboard_url: "http://grafana:3000/d/mcp-overview"
+
+      # Server High Response Time
+      - alert: MCPServerHighResponseTime
+        expr: histogram_quantile(0.95, rate(mcp_request_duration_seconds_bucket{job=~"mcp-.*-server"}[5m])) > 1.0
+        for: 5m
+        labels:
+          severity: warning
+          service: mcp
+          category: performance
+        annotations:
+          summary: "MCP server {{ $labels.instance }} has high response time"
+          description: "95th percentile response time for {{ $labels.instance }} is {{ $value }}s, which is above 1s threshold."
+
+      # Server High Error Rate
+      - alert: MCPServerHighErrorRate
+        expr: rate(mcp_requests_total{job=~"mcp-.*-server",status=~"5.."}[5m]) / rate(mcp_requests_total{job=~"mcp-.*-server"}[5m]) > 0.05
+        for: 3m
+        labels:
+          severity: critical
+          service: mcp
+          category: errors
+        annotations:
+          summary: "MCP server {{ $labels.instance }} has high error rate"
+          description: "Error rate for {{ $labels.instance }} is {{ $value | humanizePercentage }}, which is above 5% threshold."
+
+  # ============================================================================
+  # Resource Usage Alerts
+  # ============================================================================
+  - name: mcp-server-resources
+    interval: 30s
+    rules:
+      # High CPU Usage
+      - alert: MCPServerHighCPU
+        expr: rate(container_cpu_usage_seconds_total{pod=~".*mcp-.*-server.*"}[5m]) * 100 > 80
+        for: 10m
+        labels:
+          severity: warning
+          service: mcp
+          category: resources
+        annotations:
+          summary: "MCP server {{ $labels.pod }} has high CPU usage"
+          description: "CPU usage for {{ $labels.pod }} is {{ $value }}%, which is above 80% threshold."
+
+      # High Memory Usage
+      - alert: MCPServerHighMemory
+        expr: container_memory_usage_bytes{pod=~".*mcp-.*-server.*"} / container_spec_memory_limit_bytes{pod=~".*mcp-.*-server.*"} * 100 > 85
+        for: 10m
+        labels:
+          severity: warning
+          service: mcp
+          category: resources
+        annotations:
+          summary: "MCP server {{ $labels.pod }} has high memory usage"
+          description: "Memory usage for {{ $labels.pod }} is {{ $value }}%, which is above 85% threshold."
+
+      # Container Restart
+      - alert: MCPServerContainerRestarting
+        expr: increase(kube_pod_container_status_restarts_total{pod=~".*mcp-.*-server.*"}[10m]) > 0
+        for: 0m
+        labels:
+          severity: warning
+          service: mcp
+          category: stability
+        annotations:
+          summary: "MCP server container {{ $labels.pod }} is restarting"
+          description: "Container in pod {{ $labels.pod }} has restarted {{ $value }} times in the last 10 minutes."
+
+  # ============================================================================
+  # MCP Protocol Specific Alerts
+  # ============================================================================
+  - name: mcp-protocol-alerts
+    interval: 30s
+    rules:
+      # Tool Execution Failures
+      - alert: MCPToolExecutionFailures
+        expr: rate(mcp_tool_executions_total{status="error"}[5m]) > 0.1
+        for: 3m
+        labels:
+          severity: warning
+          service: mcp
+          category: functionality
+        annotations:
+          summary: "High MCP tool execution failure rate on {{ $labels.instance }}"
+          description: "Tool execution failure rate is {{ $value | humanize }} errors/sec on {{ $labels.instance }}."
+
+      # Connection Failures
+      - alert: MCPConnectionFailures
+        expr: rate(mcp_connections_failed_total[5m]) > 0.05
+        for: 2m
+        labels:
+          severity: warning
+          service: mcp
+          category: connectivity
+        annotations:
+          summary: "High MCP connection failure rate on {{ $labels.instance }}"
+          description: "Connection failure rate is {{ $value | humanize }} failures/sec on {{ $labels.instance }}."
+
+      # Queue Backlog
+      - alert: MCPQueueBacklog
+        expr: mcp_queue_size > 1000
+        for: 5m
+        labels:
+          severity: warning
+          service: mcp
+          category: performance
+        annotations:
+          summary: "MCP server {{ $labels.instance }} has large queue backlog"
+          description: "Queue size is {{ $value }} messages, which indicates processing delays."
+
+  # ============================================================================
+  # News Data Server Specific Alerts
+  # ============================================================================
+  - name: news-data-server-alerts
+    interval: 30s
+    rules:
+      # News API Rate Limit
+      - alert: NewsAPIRateLimitHit
+        expr: increase(news_api_rate_limit_hits_total[5m]) > 0
+        for: 1m
+        labels:
+          severity: warning
+          service: news-data
+          category: external-api
+        annotations:
+          summary: "News API rate limit hit on {{ $labels.instance }}"
+          description: "News API rate limit has been hit {{ $value }} times in the last 5 minutes."
+
+      # Cache Miss Rate
+      - alert: NewsCacheHighMissRate
+        expr: rate(news_cache_misses_total[5m]) / rate(news_cache_requests_total[5m]) > 0.7
+        for: 5m
+        labels:
+          severity: warning
+          service: news-data
+          category: performance
+        annotations:
+          summary: "High news cache miss rate on {{ $labels.instance }}"
+          description: "Cache miss rate is {{ $value | humanizePercentage }}, indicating potential cache issues."
+
+  # ============================================================================
+  # Database Server Specific Alerts
+  # ============================================================================
+  - name: database-server-alerts
+    interval: 30s
+    rules:
+      # SQL Injection Attempts
+      - alert: SQLInjectionAttempts
+        expr: increase(database_sql_injection_attempts_total[5m]) > 0
+        for: 0m
+        labels:
+          severity: critical
+          service: database
+          category: security
+        annotations:
+          summary: "SQL injection attempts detected on {{ $labels.instance }}"
+          description: "{{ $value }} SQL injection attempts detected in the last 5 minutes. Immediate attention required."
+
+      # Query Timeout
+      - alert: DatabaseQueryTimeout
+        expr: increase(database_query_timeouts_total[5m]) > 5
+        for: 3m
+        labels:
+          severity: warning
+          service: database
+          category: performance
+        annotations:
+          summary: "High database query timeout rate on {{ $labels.instance }}"
+          description: "{{ $value }} query timeouts detected in the last 5 minutes."
+
+  # ============================================================================
+  # API Gateway Server Specific Alerts
+  # ============================================================================
+  - name: api-gateway-alerts
+    interval: 30s
+    rules:
+      # Circuit Breaker Open
+      - alert: APIGatewayCircuitBreakerOpen
+        expr: api_gateway_circuit_breaker_state{state="open"} == 1
+        for: 1m
+        labels:
+          severity: critical
+          service: api-gateway
+          category: external-api
+        annotations:
+          summary: "API Gateway circuit breaker is open on {{ $labels.instance }}"
+          description: "Circuit breaker for {{ $labels.api }} is open, blocking external API calls."
+
+      # External API Failure Rate
+      - alert: ExternalAPIHighFailureRate
+        expr: rate(api_gateway_external_requests_total{status=~"5.."}[5m]) / rate(api_gateway_external_requests_total[5m]) > 0.1
+        for: 3m
+        labels:
+          severity: warning
+          service: api-gateway
+          category: external-api
+        annotations:
+          summary: "High external API failure rate on {{ $labels.instance }}"
+          description: "External API failure rate is {{ $value | humanizePercentage }} for {{ $labels.api }}."
+
+  # ============================================================================
+  # Workflow Server Specific Alerts
+  # ============================================================================
+  - name: workflow-server-alerts
+    interval: 30s
+    rules:
+      # Workflow Execution Failures
+      - alert: WorkflowExecutionFailures
+        expr: rate(workflow_executions_total{status="failed"}[5m]) > 0.1
+        for: 3m
+        labels:
+          severity: warning
+          service: workflow
+          category: execution
+        annotations:
+          summary: "High workflow execution failure rate on {{ $labels.instance }}"
+          description: "Workflow execution failure rate is {{ $value | humanize }} failures/sec."
+
+      # Long Running Workflows
+      - alert: WorkflowLongRunning
+        expr: workflow_execution_duration_seconds > 3600
+        for: 0m
+        labels:
+          severity: warning
+          service: workflow
+          category: performance
+        annotations:
+          summary: "Long running workflow detected on {{ $labels.instance }}"
+          description: "Workflow {{ $labels.workflow_id }} has been running for {{ $value | humanizeDuration }}."
+
+  # ============================================================================
+  # Kubernetes Infrastructure Alerts
+  # ============================================================================
+  - name: kubernetes-infrastructure
+    interval: 30s
+    rules:
+      # Pod Crash Looping
+      - alert: MCPPodCrashLooping
+        expr: rate(kube_pod_container_status_restarts_total{pod=~".*mcp-.*-server.*"}[15m]) > 0
+        for: 0m
+        labels:
+          severity: critical
+          service: kubernetes
+          category: stability
+        annotations:
+          summary: "MCP pod {{ $labels.pod }} is crash looping"
+          description: "Pod {{ $labels.pod }} in namespace {{ $labels.namespace }} is crash looping."
+
+      # Pending Pods
+      - alert: MCPPodPending
+        expr: kube_pod_status_phase{pod=~".*mcp-.*-server.*",phase="Pending"} == 1
+        for: 10m
+        labels:
+          severity: warning
+          service: kubernetes
+          category: scheduling
+        annotations:
+          summary: "MCP pod {{ $labels.pod }} is pending"
+          description: "Pod {{ $labels.pod }} has been in Pending state for more than 10 minutes."
+
+      # Node Not Ready
+      - alert: NodeNotReady
+        expr: kube_node_status_condition{condition="Ready",status="true"} == 0
+        for: 10m
+        labels:
+          severity: critical
+          service: kubernetes
+          category: infrastructure
+        annotations:
+          summary: "Node {{ $labels.node }} is not ready"
+          description: "Node {{ $labels.node }} has been NotReady for more than 10 minutes."
+
+  # ============================================================================
+  # Business Logic Alerts
+  # ============================================================================
+  - name: mcp-business-logic
+    interval: 60s
+    rules:
+      # Low Request Volume
+      - alert: MCPLowRequestVolume
+        expr: rate(mcp_requests_total[5m]) < 0.1
+        for: 10m
+        labels:
+          severity: warning
+          service: mcp
+          category: business
+        annotations:
+          summary: "Low request volume on MCP server {{ $labels.instance }}"
+          description: "Request rate is {{ $value | humanize }} req/sec, which is unusually low."
+
+      # SLA Violation
+      - alert: MCPSLAViolation
+        expr: |
+          (
+            rate(mcp_requests_total{status=~"2.."}[5m]) /
+            rate(mcp_requests_total[5m])
+          ) < 0.99
+        for: 5m
+        labels:
+          severity: critical
+          service: mcp
+          category: sla
+        annotations:
+          summary: "SLA violation on MCP server {{ $labels.instance }}"
+          description: "Success rate is {{ $value | humanizePercentage }}, which is below 99% SLA."
+
+  # ============================================================================
+  # Security Alerts
+  # ============================================================================
+  - name: mcp-security
+    interval: 30s
+    rules:
+      # Rate Limiting Triggered
+      - alert: MCPRateLimitExceeded
+        expr: increase(mcp_rate_limit_exceeded_total[5m]) > 100
+        for: 2m
+        labels:
+          severity: warning
+          service: mcp
+          category: security
+        annotations:
+          summary: "Rate limit exceeded on MCP server {{ $labels.instance }}"
+          description: "Rate limit has been exceeded {{ $value }} times in the last 5 minutes."
+
+      # Authentication Failures
+      - alert: MCPAuthenticationFailures
+        expr: rate(mcp_authentication_failures_total[5m]) > 0.1
+        for: 3m
+        labels:
+          severity: warning
+          service: mcp
+          category: security
+        annotations:
+          summary: "High authentication failure rate on {{ $labels.instance }}"
+          description: "Authentication failure rate is {{ $value | humanize }} failures/sec."
+
+      # Suspicious Request Patterns
+      - alert: MCPSuspiciousRequestPattern
+        expr: increase(mcp_suspicious_requests_total[5m]) > 10
+        for: 1m
+        labels:
+          severity: critical
+          service: mcp
+          category: security
+        annotations:
+          summary: "Suspicious request pattern detected on {{ $labels.instance }}"
+          description: "{{ $value }} suspicious requests detected in the last 5 minutes."

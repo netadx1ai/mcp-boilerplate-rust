@@ -1,0 +1,59 @@
+[package]
+name = "content-pipeline"
+version = "0.1.0"
+edition = "2021"
+description = "Multi-server coordination example: Content generation pipeline"
+authors = ["MCP Boilerplate Team"]
+license = "MIT"
+
+[[bin]]
+name = "content-pipeline"
+path = "src/main.rs"
+
+[[bin]]
+name = "pipeline-health-check"
+path = "src/health_check.rs"
+
+[dependencies]
+# Core async runtime
+tokio = { workspace = true, features = ["full"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+
+# Logging and tracing
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["json", "env-filter"] }
+uuid = { version = "1.0", features = ["v4", "serde"] }
+
+# HTTP client for server communication
+reqwest = { version = "0.11", features = ["json", "stream"] }
+
+# Time handling
+chrono = { version = "0.4", features = ["serde"] }
+
+# Caching and coordination
+dashmap = "5.5"
+futures = "0.3"
+
+# Configuration
+config = "0.14"
+
+# Performance monitoring
+metrics = "0.22"
+metrics-exporter-prometheus = "0.13"
+
+[dev-dependencies]
+tokio-test = "0.4"
+wiremock = "0.5"
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[[bench]]
+name = "pipeline_performance"
+harness = false
+
+[features]
+default = ["tracing"]
+performance-monitoring = ["metrics", "metrics-exporter-prometheus"]
+development = ["wiremock"]

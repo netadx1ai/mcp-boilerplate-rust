@@ -1,0 +1,48 @@
+[package]
+name = "api-wrapper-template"
+version = "0.1.0"
+edition = "2021"
+description = "MCP server template for external API integration with authentication and resilience patterns"
+license = "MIT"
+repository = "https://github.com/your-org/your-repo"
+
+[[bin]]
+name = "api-wrapper-server"
+path = "src/main.rs"
+
+[dependencies]
+# MCP Framework - Official SDK
+rmcp = { workspace = true }
+
+# Core async runtime and utilities
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+
+# Logging and tracing
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+# HTTP client for external API calls
+reqwest = { workspace = true }
+url = { workspace = true }
+
+# Authentication and encoding
+base64 = { workspace = true }
+jsonwebtoken = { workspace = true }
+
+# Data structures and concurrency
+dashmap = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+clap = { workspace = true }
+
+# Configuration and schema validation
+schemars = { workspace = true }
+
+[dev-dependencies]
+tokio-test = { workspace = true }
+tempfile = { workspace = true }
+wiremock = { workspace = true }

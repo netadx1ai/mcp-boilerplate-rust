@@ -1,0 +1,382 @@
+# Docker Compose for MCP Server Development Environment
+# Provides complete development stack with all 6 production servers
+# Includes monitoring, logging, and development tools
+
+version: '3.8'
+
+services:
+  # ============================================================================
+  # MCP Production Servers
+  # ============================================================================
+  
+  news-data-server:
+    build:
+      context: ../..
+      dockerfile: deployment/docker/news-data-server.Dockerfile
+    container_name: mcp-news-data-server
+    ports:
+      - "8081:8080"
+    environment:
+      - RUST_LOG=debug
+      - MCP_SERVER_HOST=0.0.0.0
+      - MCP_SERVER_PORT=8080
+      - NEWS_CACHE_SIZE=1000
+      - NEWS_RATE_LIMIT=100
+    volumes:
+      - news-data:/app/data
+      - logs:/app/logs
+    networks:
+      - mcp-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    labels:
+      - "mcp.server.type=news-data"
+      - "mcp.server.port=8081"
+
+  template-server:
+    build:
+      context: ../..
+      dockerfile: deployment/docker/template-server.Dockerfile
+    container_name: mcp-template-server
+    ports:
+      - "8082:8080"
+    environment:
+      - RUST_LOG=debug
+      - MCP_SERVER_HOST=0.0.0.0
+      - MCP_SERVER_PORT=8080
+      - TEMPLATE_STRICT_MODE=true
+      - TEMPLATE_MAX_SIZE=1048576
+    volumes:
+      - template-data:/app/data
+      - template-templates:/app/templates
+      - logs:/app/logs
+    networks:
+      - mcp-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    labels:
+      - "mcp.server.type=template"
+      - "mcp.server.port=8082"
+
+  analytics-server:
+    build:
+      context: ../..
+      dockerfile: deployment/docker/analytics-server.Dockerfile
+    container_name: mcp-analytics-server
+    ports:
+      - "8083:8080"
+    environment:
+      - RUST_LOG=debug
+      - MCP_SERVER_HOST=0.0.0.0
+      - MCP_SERVER_PORT=8080
+      - ANALYTICS_CACHE_TTL=3600
+      - ANALYTICS_MAX_PERIOD=365
+    volumes:
+      - analytics-data:/app/data
+      - analytics-reports:/app/reports
+      - logs:/app/logs
+    networks:
+      - mcp-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    labels:
+      - "mcp.server.type=analytics"
+      - "mcp.server.port=8083"
+
+  database-server:
+    build:
+      context: ../..
+      dockerfile: deployment/docker/database-server.Dockerfile
+    container_name: mcp-database-server
+    ports:
+      - "8084:8080"
+    environment:
+      - RUST_LOG=debug
+      - MCP_SERVER_HOST=0.0.0.0
+      - MCP_SERVER_PORT=8080
+      - DATABASE_MAX_CONNECTIONS=10
+      - DATABASE_QUERY_TIMEOUT=30
+      - DATABASE_SECURITY_MODE=strict
+    volumes:
+      - database-data:/app/data
+      - database-db:/app/db
+      - logs:/app/logs
+    networks:
+      - mcp-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    labels:
+      - "mcp.server.type=database"
+      - "mcp.server.port=8084"
+
+  api-gateway-server:
+    build:
+      context: ../..
+      dockerfile: deployment/docker/api-gateway-server.Dockerfile
+    container_name: mcp-api-gateway-server
+    ports:
+      - "8085:8080"
+    environment:
+      - RUST_LOG=debug
+      - MCP_SERVER_HOST=0.0.0.0
+      - MCP_SERVER_PORT=8080
+      - API_GATEWAY_TIMEOUT=30
+      - API_GATEWAY_RETRY_ATTEMPTS=3
+      - API_GATEWAY_RATE_LIMIT=1000
+    volumes:
+      - api-gateway-data:/app/data
+      - api-gateway-config:/app/config
+      - logs:/app/logs
+    networks:
+      - mcp-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    labels:
+      - "mcp.server.type=api-gateway"
+      - "mcp.server.port=8085"
+
+  workflow-server:
+    build:
+      context: ../..
+      dockerfile: deployment/docker/workflow-server.Dockerfile
+    container_name: mcp-workflow-server
+    ports:
+      - "8086:8080"
+    environment:
+      - RUST_LOG=debug
+      - MCP_SERVER_HOST=0.0.0.0
+      - MCP_SERVER_PORT=8080
+      - WORKFLOW_MAX_CONCURRENT=10
+      - WORKFLOW_TIMEOUT=3600
+      - WORKFLOW_RETRY_ATTEMPTS=3
+    volumes:
+      - workflow-data:/app/data
+      - workflow-workflows:/app/workflows
+      - workflow-executions:/app/executions
+      - logs:/app/logs
+    networks:
+      - mcp-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    labels:
+      - "mcp.server.type=workflow"
+      - "mcp.server.port=8086"
+
+  # ============================================================================
+  # Monitoring & Observability Stack
+  # ============================================================================
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: mcp-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    networks:
+      - mcp-network
+    restart: unless-stopped
+    labels:
+      - "mcp.service.type=monitoring"
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: mcp-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+    networks:
+      - mcp-network
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+    labels:
+      - "mcp.service.type=monitoring"
+
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: mcp-jaeger
+    ports:
+      - "16686:16686"
+      - "14268:14268"
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    networks:
+      - mcp-network
+    restart: unless-stopped
+    labels:
+      - "mcp.service.type=tracing"
+
+  # ============================================================================
+  # Development Tools
+  # ============================================================================
+
+  nginx:
+    image: nginx:alpine
+    container_name: mcp-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/conf.d:/etc/nginx/conf.d
+    networks:
+      - mcp-network
+    restart: unless-stopped
+    depends_on:
+      - news-data-server
+      - template-server
+      - analytics-server
+      - database-server
+      - api-gateway-server
+      - workflow-server
+    labels:
+      - "mcp.service.type=proxy"
+
+  redis:
+    image: redis:alpine
+    container_name: mcp-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - mcp-network
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    labels:
+      - "mcp.service.type=cache"
+
+  # ============================================================================
+  # Health Check Service
+  # ============================================================================
+
+  healthcheck:
+    image: curlimages/curl:latest
+    container_name: mcp-healthcheck
+    networks:
+      - mcp-network
+    depends_on:
+      - news-data-server
+      - template-server
+      - analytics-server
+      - database-server
+      - api-gateway-server
+      - workflow-server
+    command: >
+      sh -c "
+      while true; do
+        echo '=== MCP Server Health Check ==='
+        echo 'News Data Server:' && curl -s http://news-data-server:8080/health || echo 'FAILED'
+        echo 'Template Server:' && curl -s http://template-server:8080/health || echo 'FAILED'
+        echo 'Analytics Server:' && curl -s http://analytics-server:8080/health || echo 'FAILED'
+        echo 'Database Server:' && curl -s http://database-server:8080/health || echo 'FAILED'
+        echo 'API Gateway Server:' && curl -s http://api-gateway-server:8080/health || echo 'FAILED'
+        echo 'Workflow Server:' && curl -s http://workflow-server:8080/health || echo 'FAILED'
+        echo '================================'
+        sleep 60
+      done"
+    restart: unless-stopped
+    labels:
+      - "mcp.service.type=healthcheck"
+
+# ============================================================================
+# Network Configuration
+# ============================================================================
+
+networks:
+  mcp-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+# ============================================================================
+# Volume Configuration
+# ============================================================================
+
+volumes:
+  # Server data volumes
+  news-data:
+    driver: local
+  template-data:
+    driver: local
+  template-templates:
+    driver: local
+  analytics-data:
+    driver: local
+  analytics-reports:
+    driver: local
+  database-data:
+    driver: local
+  database-db:
+    driver: local
+  api-gateway-data:
+    driver: local
+  api-gateway-config:
+    driver: local
+  workflow-data:
+    driver: local
+  workflow-workflows:
+    driver: local
+  workflow-executions:
+    driver: local
+  
+  # Shared volumes
+  logs:
+    driver: local
+    
+  # Monitoring volumes
+  prometheus-data:
+    driver: local
+  grafana-data:
+    driver: local
+    
+  # Cache volumes
+  redis-data:
+    driver: local

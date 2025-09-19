@@ -1,0 +1,331 @@
+# Kubernetes Deployment and Service for news-data-server
+# Production-ready configuration with HPA, monitoring, and security
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: news-data-server
+  namespace: mcp-servers
+  labels:
+    app: news-data-server
+    app.kubernetes.io/name: news-data-server
+    app.kubernetes.io/component: server
+    app.kubernetes.io/part-of: mcp-ecosystem
+    app.kubernetes.io/version: "0.3.0"
+    app.kubernetes.io/managed-by: kubectl
+  annotations:
+    deployment.kubernetes.io/revision: "1"
+    description: "MCP news data server for real-time news and trends"
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app: news-data-server
+      app.kubernetes.io/name: news-data-server
+  template:
+    metadata:
+      labels:
+        app: news-data-server
+        app.kubernetes.io/name: news-data-server
+        app.kubernetes.io/component: server
+        app.kubernetes.io/part-of: mcp-ecosystem
+        app.kubernetes.io/version: "0.3.0"
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: mcp-server-sa
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: news-data-server
+        image: mcp-servers/news-data-server:0.3.0
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 1000
+          runAsGroup: 1000
+          capabilities:
+            drop:
+            - ALL
+        ports:
+        - name: http
+          containerPort: 8080
+          protocol: TCP
+        - name: metrics
+          containerPort: 9090
+          protocol: TCP
+        env:
+        - name: RUST_LOG
+          valueFrom:
+            configMapKeyRef:
+              name: mcp-common-config
+              key: RUST_LOG
+        - name: MCP_SERVER_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: mcp-common-config
+              key: MCP_SERVER_HOST
+        - name: MCP_SERVER_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: mcp-common-config
+              key: MCP_SERVER_PORT
+        - name: NEWS_CACHE_SIZE
+          value: "1000"
+        - name: NEWS_RATE_LIMIT
+          value: "100"
+        - name: METRICS_ENABLED
+          valueFrom:
+            configMapKeyRef:
+              name: mcp-common-config
+              key: METRICS_ENABLED
+        - name: TRACING_ENABLED
+          valueFrom:
+            configMapKeyRef:
+              name: mcp-common-config
+              key: TRACING_ENABLED
+        - name: JAEGER_ENDPOINT
+          valueFrom:
+            configMapKeyRef:
+              name: mcp-common-config
+              key: JAEGER_ENDPOINT
+        - name: API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: mcp-secrets
+              key: API_KEY
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+            ephemeral-storage: "100Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+            ephemeral-storage: "1Gi"
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+        - name: cache-volume
+          mountPath: /app/cache
+        - name: logs-volume
+          mountPath: /app/logs
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 3
+          successThreshold: 1
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 3
+          failureThreshold: 3
+          successThreshold: 1
+        startupProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 10
+          successThreshold: 1
+      volumes:
+      - name: tmp
+        emptyDir:
+          sizeLimit: "100Mi"
+      - name: cache-volume
+        emptyDir:
+          sizeLimit: "500Mi"
+      - name: logs-volume
+        emptyDir:
+          sizeLimit: "200Mi"
+      terminationGracePeriodSeconds: 30
+      restartPolicy: Always
+      dnsPolicy: ClusterFirst
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app: news-data-server
+              topologyKey: kubernetes.io/hostname
+      tolerations:
+      - key: "node.kubernetes.io/unreachable"
+        operator: "Exists"
+        effect: "NoExecute"
+        tolerationSeconds: 300
+      - key: "node.kubernetes.io/not-ready"
+        operator: "Exists"
+        effect: "NoExecute"
+        tolerationSeconds: 300
+
+---
+# Service for news-data-server
+apiVersion: v1
+kind: Service
+metadata:
+  name: news-data-server
+  namespace: mcp-servers
+  labels:
+    app: news-data-server
+    app.kubernetes.io/name: news-data-server
+    app.kubernetes.io/component: service
+    app.kubernetes.io/part-of: mcp-ecosystem
+    app.kubernetes.io/version: "0.3.0"
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "9090"
+spec:
+  type: ClusterIP
+  selector:
+    app: news-data-server
+    app.kubernetes.io/name: news-data-server
+  ports:
+  - name: http
+    port: 80
+    targetPort: http
+    protocol: TCP
+  - name: metrics
+    port: 9090
+    targetPort: metrics
+    protocol: TCP
+  sessionAffinity: None
+
+---
+# Horizontal Pod Autoscaler for news-data-server
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: news-data-server-hpa
+  namespace: mcp-servers
+  labels:
+    app: news-data-server
+    app.kubernetes.io/name: news-data-server-hpa
+    app.kubernetes.io/component: autoscaler
+    app.kubernetes.io/part-of: mcp-ecosystem
+    app.kubernetes.io/version: "0.3.0"
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: news-data-server
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 10
+        periodSeconds: 60
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+      - type: Percent
+        value: 50
+        periodSeconds: 60
+      - type: Pods
+        value: 2
+        periodSeconds: 60
+      selectPolicy: Max
+
+---
+# ServiceMonitor for Prometheus monitoring
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: news-data-server-monitor
+  namespace: mcp-servers
+  labels:
+    app: news-data-server
+    app.kubernetes.io/name: news-data-server-monitor
+    app.kubernetes.io/component: monitoring
+    app.kubernetes.io/part-of: mcp-ecosystem
+    app.kubernetes.io/version: "0.3.0"
+spec:
+  selector:
+    matchLabels:
+      app: news-data-server
+  endpoints:
+  - port: metrics
+    interval: 30s
+    path: /metrics
+    honorLabels: true
+  namespaceSelector:
+    matchNames:
+    - mcp-servers
+
+---
+# ConfigMap for news-data-server specific configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: news-data-server-config
+  namespace: mcp-servers
+  labels:
+    app: news-data-server
+    app.kubernetes.io/name: news-data-server-config
+    app.kubernetes.io/component: config
+    app.kubernetes.io/part-of: mcp-ecosystem
+    app.kubernetes.io/version: "0.3.0"
+data:
+  # News API configuration
+  NEWS_API_TIMEOUT: "30"
+  NEWS_API_RETRY_ATTEMPTS: "3"
+  NEWS_API_RETRY_DELAY: "1000"
+  
+  # Cache configuration
+  NEWS_CACHE_TTL: "3600"
+  NEWS_CACHE_MAX_SIZE: "10000"
+  
+  # Rate limiting
+  NEWS_RATE_LIMIT_WINDOW: "60"
+  NEWS_RATE_LIMIT_MAX_REQUESTS: "1000"
+  
+  # Categories
+  NEWS_DEFAULT_CATEGORIES: "general,business,technology,science,health"
+  NEWS_DEFAULT_LANGUAGE: "en"
+  NEWS_DEFAULT_COUNTRY: "us"
+  
+  # Performance tuning
+  NEWS_WORKER_THREADS: "4"
+  NEWS_MAX_CONCURRENT_REQUESTS: "100"

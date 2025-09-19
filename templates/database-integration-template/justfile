@@ -1,0 +1,313 @@
+# Database Integration Template - Development Commands
+# 
+# This justfile provides convenient commands for developing and testing
+# the database integration template.
+
+# Default recipe - show available commands
+default:
+    @just --list
+
+# Development commands
+alias dev := develop
+alias fmt := format
+alias test := test-all
+
+# Build the template
+build:
+    cargo build
+
+# Build in release mode
+build-release:
+    cargo build --release
+
+# Run the template server (SQLite by default)
+run *ARGS:
+    cargo run -- {{ARGS}}
+
+# Run with PostgreSQL support
+run-postgres *ARGS:
+    cargo run --features postgres -- --database-url postgresql://localhost/testdb {{ARGS}}
+
+# Run with MySQL support  
+run-mysql *ARGS:
+    cargo run --features mysql -- --database-url mysql://localhost/testdb {{ARGS}}
+
+# Run with SQLite (explicit)
+run-sqlite *ARGS:
+    cargo run --features sqlite -- --database-url sqlite:///tmp/template.db {{ARGS}}
+
+# Run in development mode with debug logging
+develop *ARGS:
+    RUST_LOG=debug cargo run -- --debug {{ARGS}}
+
+# Format code
+format:
+    cargo fmt
+
+# Check formatting
+check-format:
+    cargo fmt --check
+
+# Run clippy lints
+clippy:
+    cargo clippy --all-targets --all-features
+
+# Run clippy with fixes
+clippy-fix:
+    cargo clippy --all-targets --all-features --fix --allow-dirty
+
+# Run all tests
+test-all:
+    cargo test
+
+# Run tests with output
+test-verbose:
+    cargo test -- --nocapture
+
+# Run specific test
+test TEST_NAME:
+    cargo test {{TEST_NAME}}
+
+# Run security tests specifically
+test-security:
+    cargo test security
+
+# Run integration tests
+test-integration:
+    cargo test integration
+
+# Check code (fast compile check)
+check:
+    cargo check
+
+# Check all features and targets
+check-all:
+    cargo check --all-targets --all-features
+
+# Generate documentation
+docs:
+    cargo doc --no-deps --open
+
+# Generate documentation without opening
+docs-build:
+    cargo doc --no-deps
+
+# Clean build artifacts
+clean:
+    cargo clean
+
+# Update dependencies
+update:
+    cargo update
+
+# Audit dependencies for security vulnerabilities
+audit:
+    cargo audit
+
+# Install cargo tools needed for development
+install-tools:
+    cargo install cargo-audit cargo-watch just
+
+# Watch for changes and run tests
+watch:
+    cargo watch -x test
+
+# Watch for changes and run clippy
+watch-clippy:
+    cargo watch -x clippy
+
+# Watch for changes and run the server
+watch-run:
+    cargo watch -x run
+
+# Full verification pipeline (CI equivalent)
+verify: format check-format clippy test-all docs-build audit
+    @echo "✅ All verification checks passed!"
+
+# Quick development check
+quick-check: format clippy test-all
+    @echo "✅ Quick development checks passed!"
+
+# Database-specific development commands
+
+# Setup SQLite database for testing
+setup-sqlite:
+    @echo "Creating SQLite test database..."
+    @mkdir -p tmp
+    @touch tmp/template.db
+    @echo "SQLite database ready at tmp/template.db"
+
+# Setup PostgreSQL database for testing (requires running PostgreSQL)
+setup-postgres:
+    @echo "Setting up PostgreSQL test database..."
+    createdb template_test || echo "Database may already exist"
+    @echo "PostgreSQL database 'template_test' ready"
+
+# Setup MySQL database for testing (requires running MySQL)
+setup-mysql:
+    @echo "Setting up MySQL test database..."
+    mysql -e "CREATE DATABASE IF NOT EXISTS template_test;" || echo "Database may already exist"
+    @echo "MySQL database 'template_test' ready"
+
+# Run database migration examples
+migrate-example:
+    @echo "Running example database migrations..."
+    @echo "TODO: Add actual migration commands for your schema"
+
+# Performance testing
+perf-test:
+    @echo "Running performance tests..."
+    cargo test --release -- --ignored perf
+
+# Load testing with multiple connections
+load-test:
+    @echo "Running load tests..."
+    @echo "TODO: Add load testing with multiple database connections"
+
+# Security testing
+security-test:
+    cargo test security
+    @echo "Running additional security checks..."
+    @echo "TODO: Add SQL injection testing framework"
+
+# Template customization helpers
+
+# Generate new MCP tool template
+new-tool TOOL_NAME:
+    @echo "Generating new MCP tool: {{TOOL_NAME}}"
+    @echo "TODO: Add tool template generation"
+
+# Validate template configuration
+validate-config:
+    @echo "Validating template configuration..."
+    cargo check --all-features
+    @echo "✅ Configuration is valid"
+
+# Show template customization guide
+customize-guide:
+    @echo "📚 Database Integration Template Customization Guide"
+    @echo ""
+    @echo "1. Choose your database engine:"
+    @echo "   - PostgreSQL: Enable 'postgres' feature"
+    @echo "   - MySQL: Enable 'mysql' feature" 
+    @echo "   - SQLite: Enable 'sqlite' feature (default)"
+    @echo ""
+    @echo "2. Update Cargo.toml dependencies for your database"
+    @echo "3. Modify src/main.rs DatabaseConfig and connection logic"
+    @echo "4. Update init_database_schema() with your schema"
+    @echo "5. Customize security validation in validate_query_security()"
+    @echo "6. Add your domain-specific MCP tools"
+    @echo ""
+    @echo "See README.md for detailed customization instructions"
+
+# Development environment setup
+setup-dev: install-tools setup-sqlite
+    @echo "🚀 Development environment setup complete!"
+    @echo "Available commands:"
+    @just --list
+
+# Production build and packaging
+package: clean verify build-release
+    @echo "📦 Production package built successfully"
+    @echo "Binary location: target/release/database-server"
+
+# Run example queries for testing
+run-examples:
+    @echo "🧪 Running example database operations..."
+    @echo "Starting server and running sample queries..."
+    @echo "TODO: Add example query script"
+
+# Interactive development session
+interactive:
+    @echo "🔬 Starting interactive development session..."
+    @echo "Server will restart on file changes..."
+    cargo watch -x 'run -- --debug'
+
+# Benchmark database operations
+benchmark:
+    @echo "🏃 Running database operation benchmarks..."
+    cargo test --release bench -- --ignored
+
+# Generate database schema documentation
+schema-docs:
+    @echo "📋 Generating database schema documentation..."
+    @echo "TODO: Add schema documentation generation"
+
+# Container commands (if Docker is available)
+
+# Build Docker image
+docker-build:
+    docker build -t database-integration-template .
+
+# Run in Docker container
+docker-run:
+    docker run -p 3000:3000 database-integration-template
+
+# Docker compose for development
+docker-dev:
+    docker-compose up --build
+
+# Cleanup commands
+
+# Remove test databases
+clean-dbs:
+    @echo "🧹 Cleaning up test databases..."
+    rm -f tmp/template.db
+    @echo "Test databases cleaned"
+
+# Full cleanup (including dependencies)
+clean-all: clean clean-dbs
+    @echo "🧹 Full cleanup complete"
+
+# Help and information
+
+# Show database engine information
+db-info:
+    @echo "📊 Database Engine Support Information"
+    @echo ""
+    @echo "✅ PostgreSQL: Full production support with connection pooling"
+    @echo "✅ MySQL: Full production support with connection pooling"
+    @echo "✅ SQLite: File-based database, ideal for development"
+    @echo "🔧 Mock: In-memory testing database"
+    @echo ""
+    @echo "Features available:"
+    @echo "- SQL query execution with parameter binding"
+    @echo "- Schema introspection and metadata"
+    @echo "- Query validation and security protection"
+    @echo "- Transaction management"
+    @echo "- Connection pooling (PostgreSQL/MySQL)"
+    @echo "- Performance monitoring and statistics"
+
+# Show security features
+security-info:
+    @echo "🔒 Security Features Information"
+    @echo ""
+    @echo "✅ SQL Injection Protection"
+    @echo "✅ Query Syntax Validation"
+    @echo "✅ Dangerous Pattern Detection"
+    @echo "✅ Parameterized Query Support"
+    @echo "✅ Access Control Examples"
+    @echo ""
+    @echo "Blocked patterns:"
+    @echo "- DROP TABLE, DELETE FROM, TRUNCATE"
+    @echo "- ALTER TABLE, CREATE TABLE"
+    @echo "- INSERT INTO, UPDATE"
+    @echo "- EXEC, EXECUTE, UNION SELECT"
+    @echo "- SQL comments in query body"
+    @echo "- Multiple statements"
+
+# Show performance information
+perf-info:
+    @echo "⚡ Performance Features Information"
+    @echo ""
+    @echo "✅ Connection Pooling (PostgreSQL/MySQL)"
+    @echo "✅ Query Execution Statistics"
+    @echo "✅ Response Time Monitoring"
+    @echo "✅ Configurable Connection Limits"
+    @echo "✅ Query Result Caching"
+    @echo ""
+    @echo "Performance targets:"
+    @echo "- Query execution: < 50ms average"
+    @echo "- Connection pooling: Efficient resource usage"
+    @echo "- Schema introspection: < 100ms for complex schemas"
+    @echo "- Test suite: Complete execution < 5s"

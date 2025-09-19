@@ -1,0 +1,247 @@
+# Kubernetes Namespace and Common Configurations for MCP Servers
+# This file defines the namespace and common resources used by all MCP servers
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: mcp-servers
+  labels:
+    name: mcp-servers
+    app.kubernetes.io/name: mcp-servers
+    app.kubernetes.io/part-of: mcp-ecosystem
+    app.kubernetes.io/version: "0.3.0"
+    app.kubernetes.io/managed-by: kubectl
+  annotations:
+    description: "Production MCP server ecosystem namespace"
+    contact: "mcp-team@example.com"
+
+---
+# Service Account for MCP servers
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: mcp-server-sa
+  namespace: mcp-servers
+  labels:
+    app.kubernetes.io/name: mcp-server-sa
+    app.kubernetes.io/part-of: mcp-ecosystem
+    app.kubernetes.io/version: "0.3.0"
+automountServiceAccountToken: false
+
+---
+# ConfigMap for common MCP server configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mcp-common-config
+  namespace: mcp-servers
+  labels:
+    app.kubernetes.io/name: mcp-common-config
+    app.kubernetes.io/part-of: mcp-ecosystem
+    app.kubernetes.io/version: "0.3.0"
+data:
+  # Common server configuration
+  RUST_LOG: "info"
+  MCP_SERVER_HOST: "0.0.0.0"
+  MCP_SERVER_PORT: "8080"
+  
+  # Monitoring configuration
+  METRICS_ENABLED: "true"
+  METRICS_PORT: "9090"
+  HEALTH_CHECK_PATH: "/health"
+  
+  # Tracing configuration
+  TRACING_ENABLED: "true"
+  JAEGER_ENDPOINT: "http://jaeger-collector.mcp-servers.svc.cluster.local:14268/api/traces"
+  
+  # Performance tuning
+  TOKIO_WORKER_THREADS: "4"
+  MAX_CONCURRENT_REQUESTS: "1000"
+  REQUEST_TIMEOUT: "30"
+  
+  # Security settings
+  SECURITY_MODE: "strict"
+  RATE_LIMIT_ENABLED: "true"
+  CORS_ENABLED: "true"
+  CORS_ORIGINS: "*"
+
+---
+# Secret for sensitive configuration (create with actual values)
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mcp-secrets
+  namespace: mcp-servers
+  labels:
+    app.kubernetes.io/name: mcp-secrets
+    app.kubernetes.io/part-of: mcp-ecosystem
+    app.kubernetes.io/version: "0.3.0"
+type: Opaque
+data:
+  # Base64 encoded values - replace with actual secrets
+  # To encode: echo -n "your-secret" | base64
+  API_KEY: "eW91ci1hcGkta2V5LWhlcmU="  # your-api-key-here
+  DATABASE_URL: "cG9zdGdyZXNxbDovL3VzZXI6cGFzc3dvcmRAaG9zdDpwb3J0L2RibmFtZQ=="  # postgresql://user:password@host:port/dbname
+  REDIS_URL: "cmVkaXM6Ly9yZWRpcy5tY3Atc2VydmVycy5zdmMuY2x1c3Rlci5sb2NhbDo2Mzc5"  # redis://redis.mcp-servers.svc.cluster.local:6379
+  JWT_SECRET: "eW91ci1qd3Qtc2VjcmV0LWtleQ=="  # your-jwt-secret-key
+
+---
+# Network Policy for MCP servers (restrictive by default)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: mcp-servers-network-policy
+  namespace: mcp-servers
+  labels:
+    app.kubernetes.io/name: mcp-servers-network-policy
+    app.kubernetes.io/part-of: mcp-ecosystem
+    app.kubernetes.io/version: "0.3.0"
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/part-of: mcp-ecosystem
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # Allow ingress from nginx ingress controller
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx
+    ports:
+    - protocol: TCP
+      port: 8080
+  # Allow ingress from monitoring namespace
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring
+    ports:
+    - protocol: TCP
+      port: 8080
+    - protocol: TCP
+      port: 9090
+  # Allow inter-pod communication within namespace
+  - from:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/part-of: mcp-ecosystem
+    ports:
+    - protocol: TCP
+      port: 8080
+  egress:
+  # Allow DNS resolution
+  - to: []
+    ports:
+    - protocol: UDP
+      port: 53
+  # Allow outbound HTTPS for external APIs
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 443
+  # Allow communication with monitoring services
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring
+    ports:
+    - protocol: TCP
+      port: 9090
+    - protocol: TCP
+      port: 14268
+  # Allow communication within namespace
+  - to:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/part-of: mcp-ecosystem
+
+---
+# Resource Quota for the namespace
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: mcp-servers-quota
+  namespace: mcp-servers
+  labels:
+    app.kubernetes.io/name: mcp-servers-quota
+    app.kubernetes.io/part-of: mcp-ecosystem
+    app.kubernetes.io/version: "0.3.0"
+spec:
+  hard:
+    # Pod limits
+    pods: "50"
+    
+    # CPU limits
+    requests.cpu: "4"
+    limits.cpu: "8"
+    
+    # Memory limits
+    requests.memory: "8Gi"
+    limits.memory: "16Gi"
+    
+    # Storage limits
+    persistentvolumeclaims: "20"
+    requests.storage: "100Gi"
+    
+    # Service limits
+    services: "20"
+    services.loadbalancers: "5"
+    
+    # ConfigMap and Secret limits
+    configmaps: "20"
+    secrets: "20"
+
+---
+# Limit Range for pods in the namespace
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: mcp-servers-limits
+  namespace: mcp-servers
+  labels:
+    app.kubernetes.io/name: mcp-servers-limits
+    app.kubernetes.io/part-of: mcp-ecosystem
+    app.kubernetes.io/version: "0.3.0"
+spec:
+  limits:
+  # Default limits for containers
+  - default:
+      cpu: "500m"
+      memory: "512Mi"
+    defaultRequest:
+      cpu: "100m"
+      memory: "128Mi"
+    type: Container
+  # Limits for pods
+  - max:
+      cpu: "2"
+      memory: "2Gi"
+    min:
+      cpu: "50m"
+      memory: "64Mi"
+    type: Pod
+  # Limits for persistent volume claims
+  - max:
+      storage: "10Gi"
+    min:
+      storage: "1Gi"
+    type: PersistentVolumeClaim
+
+---
+# Pod Disruption Budget for high availability
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: mcp-servers-pdb
+  namespace: mcp-servers
+  labels:
+    app.kubernetes.io/name: mcp-servers-pdb
+    app.kubernetes.io/part-of: mcp-ecosystem
+    app.kubernetes.io/version: "0.3.0"
+spec:
+  minAvailable: 50%
+  selector:
+    matchLabels:
+      app.kubernetes.io/part-of: mcp-ecosystem

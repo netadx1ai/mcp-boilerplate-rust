@@ -1,0 +1,47 @@
+[package]
+name = "test-server"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Simple test server using official RMCP SDK"
+
+[[bin]]
+name = "test-server"
+path = "src/main.rs"
+
+[dependencies]
+# Official MCP SDK with required features
+rmcp = { version = "0.6.3", features = ["server", "transport-io"] }
+
+# Async runtime
+tokio = { workspace = true, features = ["full"] }
+
+# Error handling
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# JSON Schema generation (must match RMCP version)
+schemars = "1.0.4"
+
+# Time handling
+chrono = { workspace = true, features = ["serde"] }
+
+# Logging
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+# CLI
+clap = { workspace = true }
+
+[dev-dependencies]
+tokio-test = "0.4"
+
+[features]
+default = []

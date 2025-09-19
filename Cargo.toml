@@ -1,0 +1,128 @@
+[workspace]
+resolver = "2"
+members = [
+    "servers/test-server",
+    "servers/news-data-server",
+    "servers/template-server",
+    "servers/analytics-server",
+    "servers/database-server",
+    "servers/api-gateway-server",
+    "servers/workflow-server",
+    "templates/basic-server-template",
+    "templates/api-wrapper-template",
+    "templates/database-integration-template",
+    "templates/authenticated-server-template",
+]
+
+[workspace.package]
+version = "0.3.0"
+edition = "2021"
+rust-version = "1.75"
+authors = ["MCP Boilerplate Team"]
+license = "MIT"
+repository = "https://github.com/netadx1ai/mcp-boilerplate-rust"
+homepage = "https://github.com/netadx1ai/mcp-boilerplate-rust"
+documentation = "https://docs.rs/mcp-boilerplate-rust"
+keywords = ["mcp", "model-context-protocol", "ai", "llm", "agents"]
+categories = ["api-bindings", "development-tools", "web-programming"]
+description = "Production-ready MCP server ecosystem built on official RMCP SDK"
+
+[workspace.dependencies]
+# Official MCP SDK
+rmcp = { version = "0.6.3", features = ["server", "client", "transport-io"] }
+
+# Async runtime and utilities
+tokio = { version = "1.0", features = ["full"] }
+futures = "0.3"
+async-trait = "0.1"
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Error handling
+anyhow = "1.0"
+thiserror = "1.0"
+
+# Logging and tracing
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+tracing-opentelemetry = "0.21"
+opentelemetry = "0.21"
+
+# HTTP and web
+reqwest = { version = "0.11", features = ["json", "rustls-tls"] }
+axum = "0.7"
+tower = "0.4"
+tower-http = { version = "0.5", features = ["cors", "trace"] }
+hyper = "1.0"
+url = "2.4"
+
+# Authentication and encoding
+base64 = "0.21"
+jsonwebtoken = "9.0"
+
+# Data structures and concurrency
+dashmap = "5.5"
+
+# Configuration and schema validation
+schemars = { version = "1.0", features = ["chrono04", "uuid1"] }
+
+# Testing utilities
+tokio-test = "0.4"
+
+# Database support
+sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "mysql", "sqlite", "chrono", "uuid"] }
+redis = { version = "0.24", features = ["tokio-comp"] }
+
+# Utilities
+uuid = { version = "1.0", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+clap = { version = "4.0", features = ["derive", "env"] }
+config = "0.14"
+dotenv = "0.15"
+
+# Caching and performance
+lru = "0.12"
+moka = { version = "0.12", features = ["future"] }
+
+# Security and validation
+jsonschema = "0.17"
+validator = { version = "0.16", features = ["derive"] }
+
+# Testing utilities
+mockall = "0.12"
+wiremock = "0.5"
+tempfile = "3.0"
+
+# Development dependencies
+[workspace.dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
+insta = "1.0"
+proptest = "1.0"
+
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = "symbols"
+
+[profile.dev]
+opt-level = 0
+debug = true
+split-debuginfo = "packed"
+
+[profile.test]
+opt-level = 1
+debug = true
+
+# Production profile for optimized builds
+[profile.production]
+inherits = "release"
+opt-level = "s"
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+strip = "symbols"

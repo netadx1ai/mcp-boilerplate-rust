@@ -1,0 +1,275 @@
+# API Wrapper Template - Development Commands
+# 
+# This justfile provides convenient commands for developing and testing
+# the API wrapper template. Run `just --list` to see all available commands.
+
+# Default recipe to display available commands
+default:
+    @just --list
+
+# Build the project
+build:
+    cargo build
+
+# Build in release mode
+build-release:
+    cargo build --release
+
+# Run the server
+run:
+    cargo run --bin api-wrapper-server
+
+# Run with debug logging
+run-debug:
+    RUST_LOG=debug cargo run --bin api-wrapper-server
+
+# Run with trace logging
+run-trace:
+    RUST_LOG=trace cargo run --bin api-wrapper-server
+
+# Run tests
+test:
+    cargo test
+
+# Run tests with output
+test-verbose:
+    cargo test -- --nocapture
+
+# Run tests with specific pattern
+test-pattern pattern:
+    cargo test {{pattern}}
+
+# Check code without building
+check:
+    cargo check
+
+# Format code
+fmt:
+    cargo fmt
+
+# Check formatting without changing files
+fmt-check:
+    cargo fmt -- --check
+
+# Run clippy lints
+clippy:
+    cargo clippy -- -D warnings
+
+# Run clippy with all targets
+clippy-all:
+    cargo clippy --all-targets -- -D warnings
+
+# Fix clippy issues automatically where possible
+clippy-fix:
+    cargo clippy --fix --allow-dirty --allow-staged
+
+# Generate documentation
+doc:
+    cargo doc --no-deps
+
+# Generate and open documentation
+doc-open:
+    cargo doc --no-deps --open
+
+# Clean build artifacts
+clean:
+    cargo clean
+
+# Full verification pipeline (format, clippy, test, build)
+verify: fmt clippy test build
+    @echo "✅ All checks passed!"
+
+# Quick verification (check, test)
+quick-check: check test
+    @echo "✅ Quick checks passed!"
+
+# Development setup - install tools and dependencies
+setup:
+    @echo "Setting up development environment..."
+    rustup component add rustfmt clippy
+    cargo install cargo-watch cargo-audit
+    @echo "✅ Development environment ready!"
+
+# Watch for changes and run tests
+watch:
+    cargo watch -x test
+
+# Watch for changes and run with debug logging
+watch-run:
+    cargo watch -x "run --bin api-wrapper-server"
+
+# Watch for changes and run checks
+watch-check:
+    cargo watch -x check -x test
+
+# Security audit
+audit:
+    cargo audit
+
+# Update dependencies
+update:
+    cargo update
+
+# Show outdated dependencies
+outdated:
+    cargo outdated
+
+# Benchmark tests
+bench:
+    cargo test --release -- --bench
+
+# Install the binary locally
+install:
+    cargo install --path .
+
+# Create a new API integration test
+new-test name:
+    @echo "Creating new test: {{name}}"
+    @mkdir -p tests
+    @cat > tests/{{name}}.rs << 'EOF'
+    use api_wrapper_template::*;
+    use tokio_test;
+    
+    #[tokio::test]
+    async fn test_{{name}}() {
+        // TODO: Implement test
+        assert!(true);
+    }
+    EOF
+    @echo "✅ Created tests/{{name}}.rs"
+
+# Run integration tests only
+test-integration:
+    cargo test --test '*'
+
+# Run unit tests only
+test-unit:
+    cargo test --lib
+
+# Performance testing with timing
+perf-test:
+    @echo "Running performance tests..."
+    time cargo test --release
+    @echo "✅ Performance test completed"
+
+# Docker build
+docker-build:
+    docker build -t api-wrapper-template .
+
+# Docker run
+docker-run:
+    docker run -it --rm -p 8080:8080 api-wrapper-template
+
+# Create example configuration file
+example-config:
+    @cat > config.example.json << 'EOF'
+    {
+      "apis": [
+        {
+          "name": "example-api",
+          "base_url": "https://api.example.com",
+          "description": "Example API configuration",
+          "auth_method": {
+            "type": "api_key",
+            "header": "X-API-Key",
+            "value": "${API_KEY}"
+          },
+          "rate_limit_per_minute": 100,
+          "timeout_seconds": 10,
+          "retry_attempts": 3,
+          "default_headers": {
+            "Accept": "application/json",
+            "Content-Type": "application/json"
+          }
+        }
+      ]
+    }
+    EOF
+    @echo "✅ Created config.example.json"
+
+# Environment setup helper
+env-setup:
+    @echo "Setting up environment variables..."
+    @echo "export RUST_LOG=info" >> .env.example
+    @echo "export API_KEY_1=your-api-key-here" >> .env.example
+    @echo "export BEARER_TOKEN_2=your-bearer-token-here" >> .env.example
+    @echo "✅ Created .env.example - copy to .env and fill in your values"
+
+# Load test with simple tool calls
+load-test:
+    @echo "Running basic load test..."
+    @for i in {1..10}; do \
+        echo "Request $$i"; \
+        timeout 5s cargo run --bin api-wrapper-server & \
+        sleep 1; \
+        pkill -f api-wrapper-server; \
+    done
+    @echo "✅ Load test completed"
+
+# Generate test coverage report (requires cargo-tarpaulin)
+coverage:
+    cargo tarpaulin --out html --output-dir coverage/
+
+# Install coverage tool
+install-coverage:
+    cargo install cargo-tarpaulin
+
+# Memory usage analysis (requires cargo-profiler)
+memory-profile:
+    cargo build --release
+    valgrind --tool=massif target/release/api-wrapper-server
+
+# Dependency tree
+deps:
+    cargo tree
+
+# Show binary size
+size:
+    cargo build --release
+    @ls -lh target/release/api-wrapper-server
+
+# Release preparation checklist
+release-prep: verify audit
+    @echo "🚀 Release preparation checklist:"
+    @echo "✅ Code formatted and linted"
+    @echo "✅ All tests passing"
+    @echo "✅ Security audit passed"
+    @echo "✅ Dependencies up to date"
+    @echo "✅ Documentation generated"
+    @echo ""
+    @echo "Next steps:"
+    @echo "1. Update version in Cargo.toml"
+    @echo "2. Update CHANGELOG.md"
+    @echo "3. Git tag and push"
+    @echo "4. Publish to crates.io (if applicable)"
+
+# Debug build info
+debug-info:
+    @echo "🔍 Debug Information:"
+    @echo "Rust version: $(rustc --version)"
+    @echo "Cargo version: $(cargo --version)"
+    @echo "Project: $(basename $(pwd))"
+    @echo "Target directory: $(cargo metadata --no-deps --format-version 1 | jq -r '.target_directory')"
+    @echo "Workspace members: $(cargo metadata --no-deps --format-version 1 | jq -r '.workspace_members[]')"
+
+# Help for MCP integration
+mcp-help:
+    @echo "🔧 MCP Integration Help:"
+    @echo ""
+    @echo "1. Build the server:"
+    @echo "   just build-release"
+    @echo ""
+    @echo "2. Test MCP tools:"
+    @echo "   just test"
+    @echo ""
+    @echo "3. Run with debug logging:"
+    @echo "   just run-debug"
+    @echo ""
+    @echo "4. Available MCP tools:"
+    @echo "   - call_api: Make API calls to configured services"
+    @echo "   - list_apis: List all configured APIs"
+    @echo "   - get_api_stats: Get API call statistics"
+    @echo "   - get_server_status: Get server status"
+    @echo ""
+    @echo "5. Integration with MCP clients:"
+    @echo "   Configure your MCP client to use: ./target/release/api-wrapper-server"

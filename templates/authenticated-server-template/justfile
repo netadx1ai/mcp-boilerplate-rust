@@ -1,0 +1,322 @@
+# Authenticated MCP Server Template - Development Commands
+# Run with: just <command>
+
+# Default recipe - show available commands
+default:
+    @just --list
+
+# Development Commands
+# ==================
+
+# Build the server
+build:
+    cargo build
+
+# Build with optimizations
+build-release:
+    cargo build --release
+
+# Run the server
+run:
+    cargo run --bin authenticated-server
+
+# Run with environment variables
+run-dev:
+    JWT_SECRET=dev-secret-change-in-production \
+    SESSION_TIMEOUT_MINUTES=60 \
+    TOKEN_TIMEOUT_MINUTES=15 \
+    RUST_LOG=debug \
+    cargo run --bin authenticated-server
+
+# Run with OAuth configuration
+run-oauth:
+    JWT_SECRET=dev-secret-change-in-production \
+    OAUTH_CLIENT_ID=example-client-id \
+    OAUTH_CLIENT_SECRET=example-client-secret \
+    OAUTH_AUTH_URL=https://auth.example.com/oauth/authorize \
+    OAUTH_TOKEN_URL=https://auth.example.com/oauth/token \
+    OAUTH_REDIRECT_URL=http://localhost:8080/auth/callback \
+    cargo run --bin authenticated-server
+
+# Testing Commands
+# ================
+
+# Run all tests
+test:
+    cargo test
+
+# Run tests with output
+test-verbose:
+    cargo test -- --nocapture
+
+# Run specific test
+test-one test_name:
+    cargo test {{test_name}} -- --nocapture
+
+# Run tests with coverage
+test-coverage:
+    cargo install cargo-tarpaulin
+    cargo tarpaulin --out Html
+
+# Run integration tests
+test-integration:
+    cargo test --test integration
+
+# Quality Commands
+# ================
+
+# Format code
+fmt:
+    cargo fmt --all
+
+# Run clippy lints
+clippy:
+    cargo clippy --workspace --all-targets
+
+# Run clippy with fix suggestions
+clippy-fix:
+    cargo clippy --workspace --all-targets --fix
+
+# Check code without building
+check:
+    cargo check --workspace --all-targets
+
+# Generate documentation
+doc:
+    cargo doc --workspace --no-deps --open
+
+# Generate documentation without opening
+doc-build:
+    cargo doc --workspace --no-deps
+
+# Full quality check pipeline
+quality: fmt clippy check test doc-build
+    @echo "✅ All quality checks passed!"
+
+# Security Commands
+# =================
+
+# Audit dependencies for security vulnerabilities
+audit:
+    cargo install cargo-audit
+    cargo audit
+
+# Check for outdated dependencies
+outdated:
+    cargo install cargo-outdated
+    cargo outdated
+
+# Update dependencies
+update:
+    cargo update
+
+# Development Utilities
+# =====================
+
+# Watch for changes and rebuild
+watch:
+    cargo install cargo-watch
+    cargo watch -x "run --bin authenticated-server"
+
+# Watch and run tests
+watch-test:
+    cargo install cargo-watch
+    cargo watch -x test
+
+# Clean build artifacts
+clean:
+    cargo clean
+
+# Clean and rebuild
+rebuild: clean build
+
+# Generate sample authentication requests
+sample-requests:
+    @echo "=== Sample Authentication Requests ==="
+    @echo ""
+    @echo "1. API Key Authentication:"
+    @echo '{"type": "api_key", "key": "admin-key-12345"}'
+    @echo ""
+    @echo "2. Username/Password Authentication:"
+    @echo '{"type": "username_password", "username": "admin", "password": "password"}'
+    @echo ""
+    @echo "3. JWT Token Validation:"
+    @echo '{"type": "jwt", "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."}'
+    @echo ""
+    @echo "=== Sample Users ==="
+    @echo "admin (admin-key-12345) - Admin role with all permissions"
+    @echo "user (user-key-67890) - User role with read/write permissions"
+    @echo "readonly (readonly-key-11111) - ReadOnly role with read permission"
+
+# Production Commands
+# ===================
+
+# Build optimized binary for production
+build-prod:
+    cargo build --release --target x86_64-unknown-linux-musl
+
+# Build Docker image
+docker-build:
+    docker build -t authenticated-server .
+
+# Run Docker container
+docker-run:
+    docker run -p 8080:8080 \
+        -e JWT_SECRET=production-secret-change-me \
+        -e RUST_LOG=info \
+        authenticated-server
+
+# Build and run with Docker
+docker-dev: docker-build docker-run
+
+# Security scan of Docker image
+docker-scan:
+    docker scout cves authenticated-server
+
+# Benchmarking Commands
+# =====================
+
+# Run performance benchmarks
+bench:
+    cargo bench
+
+# Profile the application
+profile:
+    cargo install cargo-flamegraph
+    cargo flamegraph --bin authenticated-server
+
+# Memory usage analysis
+memory:
+    cargo install cargo-valgrind
+    cargo valgrind --bin authenticated-server
+
+# Template Customization
+# ======================
+
+# Rename template to your project
+rename-template new_name:
+    @echo "Renaming template to {{new_name}}..."
+    sed -i 's/authenticated-server-template/{{new_name}}/g' Cargo.toml
+    sed -i 's/authenticated-server/{{new_name}}/g' Cargo.toml
+    sed -i 's/authenticated-server/{{new_name}}/g' src/main.rs
+    @echo "✅ Template renamed to {{new_name}}"
+    @echo "Don't forget to update README.md and other documentation!"
+
+# Initialize git repository
+git-init:
+    git init
+    git add .
+    git commit -m "Initial commit: Authenticated MCP Server Template"
+
+# Setup development environment
+setup:
+    rustup update
+    cargo install cargo-watch cargo-tarpaulin cargo-audit cargo-outdated
+    @echo "✅ Development environment setup complete!"
+
+# Environment validation
+validate-env:
+    @echo "=== Environment Validation ==="
+    @rustc --version
+    @cargo --version
+    @echo "Cargo features: $(cargo --list | wc -l) commands available"
+    @if [ -z "$$JWT_SECRET" ]; then echo "⚠️  JWT_SECRET not set (will use default)"; else echo "✅ JWT_SECRET configured"; fi
+    @if [ -z "$$OAUTH_CLIENT_ID" ]; then echo "⚠️  OAuth not configured"; else echo "✅ OAuth configured"; fi
+    @echo "✅ Environment validation complete"
+
+# Complete development setup
+dev-setup: setup validate-env
+    @echo ""
+    @echo "🚀 Authenticated MCP Server Template ready for development!"
+    @echo ""
+    @echo "Quick start:"
+    @echo "  just run-dev     # Start development server"
+    @echo "  just test        # Run test suite"
+    @echo "  just quality     # Run all quality checks"
+    @echo ""
+    @echo "For more commands: just --list"
+
+# Cleanup Commands
+# ================
+
+# Remove all generated files
+distclean: clean
+    rm -rf target/
+    rm -f Cargo.lock
+    rm -rf .coverage/
+    rm -f flamegraph.svg
+    rm -f tarpaulin-report.html
+
+# Reset to template state
+reset-template:
+    @echo "⚠️  This will reset the template to its original state!"
+    @echo "Are you sure? This cannot be undone. [y/N]"
+    @read confirm && [ "$$confirm" = "y" ] || exit 1
+    git checkout HEAD -- .
+    @echo "✅ Template reset complete"
+
+# Help and Information
+# ====================
+
+# Show template information
+info:
+    @echo "=== Authenticated MCP Server Template ==="
+    @echo "Version: 1.0.0"
+    @echo "MCP SDK: v0.6.3"
+    @echo "Rust Edition: 2021"
+    @echo ""
+    @echo "Features:"
+    @echo "  ✅ OAuth 2.0 authentication"
+    @echo "  ✅ JWT token validation"
+    @echo "  ✅ API key authentication"
+    @echo "  ✅ Role-based access control"
+    @echo "  ✅ Session management"
+    @echo "  ✅ Permission system"
+    @echo ""
+    @echo "Sample API keys:"
+    @echo "  admin-key-12345 (Admin role)"
+    @echo "  user-key-67890 (User role)"
+    @echo "  readonly-key-11111 (ReadOnly role)"
+
+# Show common development workflows
+workflows:
+    @echo "=== Common Development Workflows ==="
+    @echo ""
+    @echo "🛠️  Initial Setup:"
+    @echo "  just dev-setup"
+    @echo ""
+    @echo "🔄 Development Cycle:"
+    @echo "  just watch        # Auto-rebuild on changes"
+    @echo "  just test         # Run tests"
+    @echo "  just quality      # Quality checks"
+    @echo ""
+    @echo "🚀 Testing Authentication:"
+    @echo "  just run-dev      # Start server"
+    @echo "  just sample-requests  # Show test requests"
+    @echo ""
+    @echo "📦 Production Build:"
+    @echo "  just build-prod   # Optimized binary"
+    @echo "  just docker-build # Docker image"
+    @echo ""
+    @echo "🔒 Security:"
+    @echo "  just audit        # Security audit"
+    @echo "  just docker-scan  # Container scan"
+
+# Performance optimization tips
+optimize:
+    @echo "=== Performance Optimization Tips ==="
+    @echo ""
+    @echo "🚀 Build Optimizations:"
+    @echo "  just build-release   # Release build"
+    @echo "  just profile         # Performance profiling"
+    @echo ""
+    @echo "⚡ Runtime Optimizations:"
+    @echo "  • Use shorter JWT token lifetimes"
+    @echo "  • Implement token caching"
+    @echo "  • Use database session storage for scale"
+    @echo "  • Enable compression for HTTP responses"
+    @echo ""
+    @echo "📊 Monitoring:"
+    @echo "  • Track authentication latency"
+    @echo "  • Monitor active session count"
+    @echo "  • Set up alerts for failed auth attempts"

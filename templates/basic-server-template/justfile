@@ -1,0 +1,164 @@
+# Justfile for Basic MCP Server Template Development
+# Use 'just <recipe>' to run commands
+
+# Default recipe - show available commands
+default:
+    @just --list
+
+# Development commands
+dev:
+    @echo "🚀 Starting development mode..."
+    cargo watch -x 'run'
+
+# Build commands
+build:
+    @echo "🔨 Building server..."
+    cargo build
+
+build-release:
+    @echo "🔨 Building optimized release..."
+    cargo build --release
+
+# Testing commands
+test:
+    @echo "🧪 Running all tests..."
+    cargo test
+
+test-verbose:
+    @echo "🧪 Running tests with output..."
+    cargo test -- --nocapture
+
+test-specific TEST:
+    @echo "🧪 Running specific test: {{TEST}}"
+    cargo test {{TEST}}
+
+# Code quality commands
+fmt:
+    @echo "🎨 Formatting code..."
+    cargo fmt --all
+
+clippy:
+    @echo "📎 Running clippy..."
+    cargo clippy --all-targets --all-features
+
+check:
+    @echo "✅ Checking code..."
+    cargo check --all-targets
+
+# Complete verification pipeline
+verify: fmt clippy check test
+    @echo "✅ All verification steps passed!"
+
+# Documentation commands
+doc:
+    @echo "📚 Generating documentation..."
+    cargo doc --no-deps --open
+
+doc-build:
+    @echo "📚 Building documentation..."
+    cargo doc --no-deps
+
+# Performance and profiling
+bench:
+    @echo "⚡ Running benchmarks..."
+    cargo test --release -- --ignored
+
+profile:
+    @echo "📊 Profiling server startup..."
+    cargo build --release
+    time ./target/release/basic-server-template --help
+
+# Security commands
+audit:
+    @echo "🔒 Security audit..."
+    cargo audit
+
+audit-fix:
+    @echo "🔒 Fixing security issues..."
+    cargo audit fix
+
+# Cleanup commands
+clean:
+    @echo "🧹 Cleaning build artifacts..."
+    cargo clean
+
+clean-all: clean
+    @echo "🧹 Deep cleaning..."
+    rm -rf target/
+    rm -f Cargo.lock
+
+# Template customization helpers
+customize NAME EMAIL:
+    @echo "🎯 Customizing template for {{NAME}} <{{EMAIL}}>..."
+    sed -i.bak 's/basic-server-template/{{NAME}}/g' Cargo.toml
+    sed -i.bak 's/Your Name <your.email@example.com>/{{NAME}} <{{EMAIL}}>/g' Cargo.toml
+    sed -i.bak 's/basic_server_template/{{replace(NAME, "-", "_")}}/g' src/main.rs
+    @echo "✅ Template customized! Remember to update business logic in src/main.rs"
+
+# Installation helpers
+install-deps:
+    @echo "📦 Installing development dependencies..."
+    cargo install cargo-watch cargo-audit cargo-flamegraph just
+
+setup: install-deps
+    @echo "🎯 Development environment setup complete!"
+    @echo "Available commands:"
+    @just --list
+
+# Container commands
+docker-build NAME="basic-server-template":
+    @echo "🐳 Building Docker image: {{NAME}}"
+    docker build -t {{NAME}} .
+
+docker-run NAME="basic-server-template":
+    @echo "🐳 Running Docker container: {{NAME}}"
+    docker run -it --rm {{NAME}}
+
+# Quick recipes for common workflows
+quick-test: fmt clippy test
+    @echo "🚀 Quick verification complete!"
+
+full-check: clean verify doc-build audit
+    @echo "🏆 Full quality check complete!"
+
+# Release preparation
+release-prep VERSION:
+    @echo "🚀 Preparing release {{VERSION}}..."
+    sed -i.bak 's/version = "0.1.0"/version = "{{VERSION}}"/g' Cargo.toml
+    just verify
+    git add .
+    git commit -m "Release {{VERSION}}"
+    git tag -a "v{{VERSION}}" -m "Release {{VERSION}}"
+    @echo "✅ Release {{VERSION}} prepared! Run 'git push origin v{{VERSION}}' to publish"
+
+# Performance testing
+perf-test:
+    @echo "⚡ Performance testing..."
+    cargo build --release
+    @echo "Startup time:"
+    hyperfine './target/release/basic-server-template --help' --warmup 3
+    @echo "Memory usage test requires running server manually"
+
+# Development workflow shortcuts
+dev-loop: fmt clippy test
+    @echo "🔄 Development loop complete - ready for changes!"
+
+# Help for new developers
+help:
+    @echo "🎯 Basic MCP Server Template Development"
+    @echo ""
+    @echo "Quick Start:"
+    @echo "  just setup          # Install dependencies"
+    @echo "  just customize NAME EMAIL  # Customize template"
+    @echo "  just dev-loop       # Format + check + test"
+    @echo ""
+    @echo "Common Commands:"
+    @echo "  just build          # Build debug version"
+    @echo "  just test           # Run tests"
+    @echo "  just verify         # Full verification"
+    @echo "  just doc            # Generate and open docs"
+    @echo ""
+    @echo "Quality Assurance:"
+    @echo "  just full-check     # Complete quality check"
+    @echo "  just audit          # Security audit"
+    @echo "  just perf-test      # Performance testing"

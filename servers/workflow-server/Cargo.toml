@@ -1,0 +1,54 @@
+[package]
+name = "workflow-server"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Production MCP server for workflow automation and task management"
+
+[[bin]]
+name = "workflow-server"
+path = "src/main.rs"
+
+[dependencies]
+# Official MCP SDK with required features
+rmcp = { version = "0.6.3", features = ["server", "transport-io"] }
+
+# Async runtime
+tokio = { workspace = true, features = ["full"] }
+
+# Error handling
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+
+# Serialization
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+
+# JSON Schema generation (must match RMCP version)
+schemars = "1.0.4"
+
+# Time handling
+chrono = { workspace = true, features = ["serde"] }
+
+# Logging
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+
+# CLI
+clap = { workspace = true, features = ["derive"] }
+
+# UUID generation
+uuid = { workspace = true, features = ["v4", "serde"] }
+
+# Collections and utilities
+indexmap = { version = "2.0", features = ["serde"] }
+
+[dev-dependencies]
+tokio-test = "0.4"
+
+[features]
+default = []
+fast-build = []

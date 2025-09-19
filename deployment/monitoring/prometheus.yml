@@ -1,0 +1,337 @@
+# Prometheus configuration for MCP server ecosystem monitoring
+# Comprehensive monitoring setup for all production MCP servers
+
+global:
+  # Scrape interval and evaluation interval
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  
+  # External labels for federation and alertmanager
+  external_labels:
+    cluster: 'mcp-production'
+    environment: 'production'
+    region: 'us-west-2'
+
+# Alertmanager configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          - alertmanager:9093
+
+# Load rules once and periodically evaluate them
+rule_files:
+  - "/etc/prometheus/rules/*.yml"
+
+# Scrape configuration
+scrape_configs:
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+    scrape_interval: 30s
+    metrics_path: /metrics
+
+  # MCP News Data Server
+  - job_name: 'mcp-news-data-server'
+    static_configs:
+      - targets: ['news-data-server:9090']
+    scrape_interval: 15s
+    metrics_path: /metrics
+    scrape_timeout: 10s
+    honor_labels: true
+    params:
+      format: ['prometheus']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'news-data-server'
+      - source_labels: [__address__]
+        target_label: server_type
+        replacement: 'news-data'
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'mcp_.*'
+        target_label: service
+        replacement: 'mcp-news-data'
+
+  # MCP Template Server
+  - job_name: 'mcp-template-server'
+    static_configs:
+      - targets: ['template-server:9090']
+    scrape_interval: 15s
+    metrics_path: /metrics
+    scrape_timeout: 10s
+    honor_labels: true
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'template-server'
+      - source_labels: [__address__]
+        target_label: server_type
+        replacement: 'template'
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'mcp_.*'
+        target_label: service
+        replacement: 'mcp-template'
+
+  # MCP Analytics Server
+  - job_name: 'mcp-analytics-server'
+    static_configs:
+      - targets: ['analytics-server:9090']
+    scrape_interval: 15s
+    metrics_path: /metrics
+    scrape_timeout: 10s
+    honor_labels: true
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'analytics-server'
+      - source_labels: [__address__]
+        target_label: server_type
+        replacement: 'analytics'
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'mcp_.*'
+        target_label: service
+        replacement: 'mcp-analytics'
+
+  # MCP Database Server
+  - job_name: 'mcp-database-server'
+    static_configs:
+      - targets: ['database-server:9090']
+    scrape_interval: 15s
+    metrics_path: /metrics
+    scrape_timeout: 10s
+    honor_labels: true
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'database-server'
+      - source_labels: [__address__]
+        target_label: server_type
+        replacement: 'database'
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'mcp_.*'
+        target_label: service
+        replacement: 'mcp-database'
+
+  # MCP API Gateway Server
+  - job_name: 'mcp-api-gateway-server'
+    static_configs:
+      - targets: ['api-gateway-server:9090']
+    scrape_interval: 15s
+    metrics_path: /metrics
+    scrape_timeout: 10s
+    honor_labels: true
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'api-gateway-server'
+      - source_labels: [__address__]
+        target_label: server_type
+        replacement: 'api-gateway'
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'mcp_.*'
+        target_label: service
+        replacement: 'mcp-api-gateway'
+
+  # MCP Workflow Server
+  - job_name: 'mcp-workflow-server'
+    static_configs:
+      - targets: ['workflow-server:9090']
+    scrape_interval: 15s
+    metrics_path: /metrics
+    scrape_timeout: 10s
+    honor_labels: true
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'workflow-server'
+      - source_labels: [__address__]
+        target_label: server_type
+        replacement: 'workflow'
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'mcp_.*'
+        target_label: service
+        replacement: 'mcp-workflow'
+
+  # Kubernetes API Server monitoring
+  - job_name: 'kubernetes-apiservers'
+    kubernetes_sd_configs:
+      - role: endpoints
+    scheme: https
+    tls_config:
+      ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+    bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name]
+        action: keep
+        regex: default;kubernetes;https
+
+  # Kubernetes nodes monitoring
+  - job_name: 'kubernetes-nodes'
+    kubernetes_sd_configs:
+      - role: node
+    scheme: https
+    tls_config:
+      ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+    bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+    relabel_configs:
+      - action: labelmap
+        regex: __meta_kubernetes_node_label_(.+)
+      - target_label: __address__
+        replacement: kubernetes.default.svc:443
+      - source_labels: [__meta_kubernetes_node_name]
+        regex: (.+)
+        target_label: __metrics_path__
+        replacement: /api/v1/nodes/${1}/proxy/metrics
+
+  # Kubernetes pods monitoring
+  - job_name: 'kubernetes-pods'
+    kubernetes_sd_configs:
+      - role: pod
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+        action: keep
+        regex: true
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+        action: replace
+        target_label: __metrics_path__
+        regex: (.+)
+      - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+        action: replace
+        regex: ([^:]+)(?::\d+)?;(\d+)
+        replacement: $1:$2
+        target_label: __address__
+      - action: labelmap
+        regex: __meta_kubernetes_pod_label_(.+)
+      - source_labels: [__meta_kubernetes_namespace]
+        action: replace
+        target_label: kubernetes_namespace
+      - source_labels: [__meta_kubernetes_pod_name]
+        action: replace
+        target_label: kubernetes_pod_name
+
+  # Kubernetes services monitoring
+  - job_name: 'kubernetes-services'
+    kubernetes_sd_configs:
+      - role: service
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scrape]
+        action: keep
+        regex: true
+      - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scheme]
+        action: replace
+        target_label: __scheme__
+        regex: (https?)
+      - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_path]
+        action: replace
+        target_label: __metrics_path__
+        regex: (.+)
+      - source_labels: [__address__, __meta_kubernetes_service_annotation_prometheus_io_port]
+        action: replace
+        target_label: __address__
+        regex: ([^:]+)(?::\d+)?;(\d+)
+        replacement: $1:$2
+      - action: labelmap
+        regex: __meta_kubernetes_service_label_(.+)
+      - source_labels: [__meta_kubernetes_namespace]
+        action: replace
+        target_label: kubernetes_namespace
+      - source_labels: [__meta_kubernetes_service_name]
+        action: replace
+        target_label: kubernetes_service_name
+
+  # cAdvisor for container metrics
+  - job_name: 'kubernetes-cadvisor'
+    kubernetes_sd_configs:
+      - role: node
+    scheme: https
+    tls_config:
+      ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+    bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+    relabel_configs:
+      - action: labelmap
+        regex: __meta_kubernetes_node_label_(.+)
+      - target_label: __address__
+        replacement: kubernetes.default.svc:443
+      - source_labels: [__meta_kubernetes_node_name]
+        regex: (.+)
+        target_label: __metrics_path__
+        replacement: /api/v1/nodes/${1}/proxy/metrics/cadvisor
+
+  # Node Exporter for system metrics
+  - job_name: 'node-exporter'
+    kubernetes_sd_configs:
+      - role: endpoints
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_endpoints_name]
+        regex: 'node-exporter'
+        action: keep
+      - action: labelmap
+        regex: __meta_kubernetes_service_label_(.+)
+      - source_labels: [__meta_kubernetes_namespace]
+        action: replace
+        target_label: kubernetes_namespace
+      - source_labels: [__meta_kubernetes_service_name]
+        action: replace
+        target_label: kubernetes_service_name
+
+  # Nginx ingress controller monitoring
+  - job_name: 'nginx-ingress'
+    kubernetes_sd_configs:
+      - role: pod
+        namespaces:
+          names:
+            - ingress-nginx
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_name]
+        regex: 'nginx-ingress-controller-.*'
+        action: keep
+      - source_labels: [__address__, __meta_kubernetes_pod_container_port_number]
+        action: replace
+        regex: ([^:]+)(?::\d+)?;(\d+)
+        replacement: $1:$2
+        target_label: __address__
+      - action: labelmap
+        regex: __meta_kubernetes_pod_label_(.+)
+
+# Storage configuration
+storage:
+  tsdb:
+    path: /prometheus/data
+    retention.time: 30d
+    retention.size: 50GB
+    wal-compression: true
+
+# Performance tuning
+query:
+  timeout: 2m
+  max_concurrency: 20
+  max_samples: 50000000
+
+# Web configuration
+web:
+  enable-lifecycle: true
+  enable-admin-api: true
+  page-title: "MCP Servers Prometheus"
+  external-url: "http://prometheus.mcp-servers.local"
+  route-prefix: "/"
+  
+# Remote write for long-term storage (optional)
+# remote_write:
+#   - url: "https://your-remote-prometheus-url/api/v1/write"
+#     queue_config:
+#       max_samples_per_send: 1000
+#       max_shards: 200
+#       capacity: 2500
+
+# Remote read for federation (optional)
+# remote_read:
+#   - url: "https://your-remote-prometheus-url/api/v1/read"
+#     read_recent: true

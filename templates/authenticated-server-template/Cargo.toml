@@ -1,0 +1,66 @@
+[package]
+name = "authenticated-server-template"
+version = "0.1.0"
+edition = "2021"
+description = "MCP server template with OAuth/JWT authentication and authorization patterns"
+license = "MIT"
+repository = "https://github.com/netadx1ai/mcp-boilerplate-rust"
+keywords = ["mcp", "authentication", "oauth", "jwt", "template"]
+categories = ["authentication", "web-programming", "template-engine"]
+
+[lib]
+name = "authenticated_server_template"
+path = "src/lib.rs"
+
+[[bin]]
+name = "authenticated-server"
+path = "src/main.rs"
+
+[dependencies]
+# MCP and async runtime
+rmcp = { workspace = true }
+tokio = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Authentication and authorization
+jsonwebtoken = "9.2"
+oauth2 = "4.4"
+uuid = { version = "1.6", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+base64 = "0.22"
+sha2 = "0.10"
+hmac = "0.12"
+
+# HTTP client for OAuth flows
+reqwest = { version = "0.11", features = ["json", "rustls-tls"] }
+url = "2.5"
+
+# Error handling and logging
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+# Data structures
+dashmap = "5.5"
+parking_lot = "0.12"
+
+[dev-dependencies]
+tokio-test = "0.4"
+wiremock = "0.6"
+tempfile = "3.8"
+mockito = "1.4"
+
+[features]
+default = ["jwt", "oauth2", "api-key", "session-store"]
+jwt = []
+oauth2 = []
+api-key = []
+session-store = []
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
