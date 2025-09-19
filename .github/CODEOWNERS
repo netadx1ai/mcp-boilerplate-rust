@@ -1,0 +1,48 @@
+# Global code owners for the MCP Boilerplate Rust repository
+# These users will be automatically requested for review when PRs are opened
+
+# Global fallback owners
+* @hscale
+
+# Core infrastructure and configuration
+/.github/ @hscale
+/Cargo.toml @hscale
+/Cargo.lock @hscale
+/.gitignore @hscale
+/README.md @hscale
+/justfile @hscale
+
+# Production servers - require review for changes
+/servers/ @hscale
+/servers/*/src/ @hscale
+/servers/*/Cargo.toml @hscale
+
+# Server templates - require review for changes  
+/templates/ @hscale
+/templates/*/src/ @hscale
+/templates/*/Cargo.toml @hscale
+
+# Deployment and infrastructure
+/deployment/ @hscale
+/deployment/docker/ @hscale
+/deployment/kubernetes/ @hscale
+/deployment/monitoring/ @hscale
+
+# Documentation
+/docs/ @hscale
+/docs/*.md @hscale
+
+# Examples and integration patterns
+/examples/ @hscale
+
+# Testing infrastructure
+/tests/ @hscale
+/.github/workflows/ @hscale
+
+# Scripts and automation
+/scripts/ @hscale
+
+# Security-sensitive files
+/.env.example @hscale
+/deployment/kubernetes/*.yaml @hscale
+/deployment/monitoring/*.yml @hscale
