@@ -16,6 +16,9 @@ path = "src/main.rs"
 # Official MCP SDK with required features
 rmcp = { version = "0.6.3", features = ["server", "transport-io"] }
 
+# HTTP bridge for transport support
+mcp-http-bridge = { path = "../../crates/mcp-http-bridge" }
+
 # Async runtime
 tokio = { workspace = true, features = ["full"] }
 

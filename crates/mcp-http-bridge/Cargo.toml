@@ -1,0 +1,55 @@
+[package]
+name = "mcp-http-bridge"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+keywords.workspace = true
+categories.workspace = true
+description = "HTTP transport bridge for RMCP SDK servers to enable REST API communication"
+
+[dependencies]
+# RMCP SDK for MCP protocol
+rmcp = { workspace = true }
+
+# Custom MCP transport layer
+mcp-core = { path = "../../../crates/mcp-core" }
+mcp-transport = { path = "../../../crates/mcp-transport", features = ["http"] }
+
+# Async runtime and utilities
+tokio = { workspace = true }
+futures = { workspace = true }
+async-trait = { workspace = true }
+
+# HTTP and web
+axum = { workspace = true }
+tower = { workspace = true }
+tower-http = { workspace = true }
+hyper = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Error handling
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+
+# Logging and tracing
+tracing = { workspace = true }
+
+# Configuration and utilities
+clap = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+
+[dev-dependencies]
+tokio-test = { workspace = true }
+tempfile = { workspace = true }
+
+[features]
+default = ["http"]
+http = []

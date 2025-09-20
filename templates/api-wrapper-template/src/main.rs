@@ -33,8 +33,8 @@ use clap::Parser;
 use dashmap::DashMap;
 use reqwest::{Client, Method, RequestBuilder, Response};
 use rmcp::{
-    handler::server::wrapper::Parameters, model::*, tool, tool_router, transport::stdio,
-    ErrorData as McpError, ServiceExt, schemars::JsonSchema,
+    handler::server::{router::tool::ToolRouter, wrapper::Parameters}, model::*, service::RequestContext, tool, tool_handler, tool_router, transport::stdio,
+    ErrorData as McpError, RoleServer, ServerHandler, ServiceExt, schemars::JsonSchema,
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -332,6 +332,7 @@ pub struct ApiWrapperServer {
     circuit_breakers: Arc<DashMap<String, CircuitBreaker>>,
     stats: Arc<DashMap<String, ApiStats>>,
     start_time: SystemTime,
+    tool_router: ToolRouter<ApiWrapperServer>,
 }
 
 impl ApiWrapperServer {
@@ -350,6 +351,7 @@ impl ApiWrapperServer {
             circuit_breakers: Arc::new(DashMap::new()),
             stats: Arc::new(DashMap::new()),
             start_time: SystemTime::now(),
+            tool_router: Self::tool_router(),
         };
 
         // Initialize with example APIs (customize this for your use case)
@@ -736,6 +738,34 @@ impl ApiWrapperServer {
         let status_text = serde_json::to_string_pretty(&status)
             .unwrap_or_else(|_| "Failed to format server status".to_string());
         Ok(CallToolResult::success(vec![Content::text(status_text)]))
+    }
+}
+
+#[tool_handler]
+impl ServerHandler for ApiWrapperServer {
+    fn get_info(&self) -> ServerInfo {
+        ServerInfo {
+            protocol_version: ProtocolVersion::V_2024_11_05,
+            capabilities: ServerCapabilities::builder().enable_tools().build(),
+            server_info: Implementation::from_build_env(),
+            instructions: Some(
+                "API Wrapper Server for external API integration. \
+                Provides generic API calling capabilities with authentication, \
+                rate limiting, retry logic, and health monitoring. \
+                Configure your APIs and start making authenticated requests."
+                    .to_string(),
+            ),
+        }
+    }
+
+    async fn initialize(
+        &self,
+        _request: InitializeRequestParam,
+        _context: RequestContext<RoleServer>,
+    ) -> Result<InitializeResult, McpError> {
+        info!("✅ API Wrapper Server initialized successfully");
+        info!("🔗 Available APIs: {}", self.stats.len());
+        Ok(self.get_info())
     }
 }
 

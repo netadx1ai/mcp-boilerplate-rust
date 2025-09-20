@@ -12,17 +12,19 @@
 
 use anyhow::Result;
 use chrono;
-use clap::Parser;
+use clap::{Parser, ValueEnum};
 use dashmap::DashMap;
+use mcp_http_bridge::{HttpBridge, HttpConfig};
 use rmcp::{
-    handler::server::wrapper::Parameters, model::*, service::RequestContext, tool, tool_router,
+    handler::server::{router::tool::ToolRouter, wrapper::Parameters}, model::*, service::RequestContext, tool, tool_handler, tool_router,
     transport::stdio, ErrorData as McpError, RoleServer, ServerHandler, ServiceExt,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
-    sync::atomic::{AtomicU64, Ordering},
+    net::SocketAddr,
+    sync::{atomic::{AtomicU64, Ordering}, Arc},
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 use tokio::time::{sleep, timeout};
@@ -35,6 +37,27 @@ struct Args {
     /// Enable debug logging
     #[arg(short, long)]
     debug: bool,
+
+    /// Transport type to use
+    #[arg(short, long, default_value = "stdio")]
+    transport: TransportType,
+
+    /// Port for HTTP transport
+    #[arg(short, long, default_value_t = 3000)]
+    port: u16,
+
+    /// Host for HTTP transport
+    #[arg(long, default_value = "127.0.0.1")]
+    host: String,
+}
+
+/// Available transport types
+#[derive(Clone, Debug, ValueEnum)]
+enum TransportType {
+    /// STDIO transport for pipe communication
+    Stdio,
+    /// HTTP transport for RESTful API
+    Http,
 }
 
 // ================================================================================================
@@ -147,23 +170,23 @@ pub struct ParameterConfig {
 // ================================================================================================
 
 /// Rate limiting tracker
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct RateLimiter {
-    requests: AtomicU64,
-    window_start: AtomicU64,
+    requests: Arc<AtomicU64>,
+    window_start: Arc<AtomicU64>,
     limit: u32,
 }
 
 impl RateLimiter {
     fn new(limit: u32) -> Self {
         Self {
-            requests: AtomicU64::new(0),
-            window_start: AtomicU64::new(
+            requests: Arc::new(AtomicU64::new(0)),
+            window_start: Arc::new(AtomicU64::new(
                 SystemTime::now()
                     .duration_since(UNIX_EPOCH)
                     .unwrap()
                     .as_secs(),
-            ),
+            )),
             limit,
         }
     }
@@ -187,11 +210,11 @@ impl RateLimiter {
 }
 
 /// Circuit breaker for handling API failures
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct CircuitBreaker {
-    failure_count: AtomicU64,
-    last_failure_time: AtomicU64,
-    state: std::sync::RwLock<CircuitBreakerState>,
+    failure_count: Arc<AtomicU64>,
+    last_failure_time: Arc<AtomicU64>,
+    state: Arc<std::sync::RwLock<CircuitBreakerState>>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -204,9 +227,9 @@ enum CircuitBreakerState {
 impl CircuitBreaker {
     fn new() -> Self {
         Self {
-            failure_count: AtomicU64::new(0),
-            last_failure_time: AtomicU64::new(0),
-            state: std::sync::RwLock::new(CircuitBreakerState::Closed),
+            failure_count: Arc::new(AtomicU64::new(0)),
+            last_failure_time: Arc::new(AtomicU64::new(0)),
+            state: Arc::new(std::sync::RwLock::new(CircuitBreakerState::Closed)),
         }
     }
 
@@ -257,7 +280,7 @@ impl CircuitBreaker {
 }
 
 /// API call statistics
-#[derive(Debug, Default, Serialize)]
+#[derive(Debug, Default, Serialize, Clone)]
 struct ApiStats {
     total_requests: u64,
     successful_requests: u64,
@@ -271,12 +294,14 @@ struct ApiStats {
 // ================================================================================================
 
 /// API Gateway Server implementation
+#[derive(Clone)]
 pub struct ApiGatewayServer {
     apis: HashMap<String, ApiConfig>,
     rate_limiters: DashMap<String, RateLimiter>,
     circuit_breakers: DashMap<String, CircuitBreaker>,
     stats: DashMap<String, ApiStats>,
     start_time: SystemTime,
+    tool_router: ToolRouter<ApiGatewayServer>,
 }
 
 impl ApiGatewayServer {
@@ -445,6 +470,7 @@ impl ApiGatewayServer {
             circuit_breakers: DashMap::new(),
             stats: DashMap::new(),
             start_time: SystemTime::now(),
+            tool_router: Self::tool_router(),
         };
 
         // Initialize rate limiters and circuit breakers
@@ -942,6 +968,34 @@ impl ApiGatewayServer {
     }
 }
 
+#[tool_handler]
+impl ServerHandler for ApiGatewayServer {
+    fn get_info(&self) -> ServerInfo {
+        ServerInfo {
+            protocol_version: ProtocolVersion::V_2024_11_05,
+            capabilities: ServerCapabilities::builder().enable_tools().build(),
+            server_info: Implementation::from_build_env(),
+            instructions: Some(
+                "API Gateway Server for external API integration. \
+                Available APIs: weather (current weather data), currency (exchange rates), \
+                geocoding (address to coordinates). Features authentication, rate limiting, \
+                circuit breaker patterns, and retry logic for production reliability."
+                    .to_string(),
+            ),
+        }
+    }
+
+    async fn initialize(
+        &self,
+        _request: InitializeRequestParam,
+        _context: RequestContext<RoleServer>,
+    ) -> Result<InitializeResult, McpError> {
+        info!("✅ API Gateway Server initialized successfully");
+        info!("🔗 Available external APIs: weather, currency, geocoding");
+        Ok(self.get_info())
+    }
+}
+
 // ================================================================================================
 // Main Function
 // ================================================================================================
@@ -964,6 +1018,7 @@ async fn main() -> Result<()> {
 
     info!("🚀 Starting API Gateway Server using official RMCP SDK");
     info!("🌐 External API integration with authentication and resilience patterns");
+    info!("🚀 Transport: {:?}", args.transport);
 
     // Create server instance
     let server = ApiGatewayServer::new();
@@ -976,17 +1031,52 @@ async fn main() -> Result<()> {
         info!("  - {}", api_name);
     }
 
-    // Start the server with STDIO transport
-    let service = server.serve(stdio()).await.inspect_err(|e| {
-        error!("Failed to start server: {:?}", e);
-    })?;
+    // Start the server with selected transport
+    match args.transport {
+        TransportType::Stdio => {
+            info!("🔌 Starting with STDIO transport");
+            let service = server.serve(stdio()).await.inspect_err(|e| {
+                error!("Failed to start server with STDIO: {:?}", e);
+            })?;
 
-    info!("✅ API Gateway Server started and ready for MCP connections");
-    info!("🔗 Available external APIs: weather, currency, geocoding");
-    info!("⚡ Features: Authentication, Rate limiting, Circuit breaker, Retry logic");
+            info!("✅ API Gateway Server started and ready for MCP connections");
+            info!("🔗 Available external APIs: weather, currency, geocoding");
+            info!("⚡ Features: Authentication, Rate limiting, Circuit breaker, Retry logic");
 
-    // Wait for the service to complete
-    service.waiting().await?;
+            // Wait for the service to complete
+            service.waiting().await?;
+        }
+        TransportType::Http => {
+            info!("🌐 Starting with HTTP transport on {}:{}", args.host, args.port);
+            
+            let addr: SocketAddr = format!("{}:{}", args.host, args.port).parse()?;
+            let config = HttpConfig::default()
+                .with_host(addr.ip())
+                .with_port(args.port)
+                .with_cors(true);
+
+            let mut bridge = HttpBridge::new(server, config).await?;
+
+            info!("✅ API Gateway Server started and ready for HTTP connections");
+            info!("🔗 Available external APIs: weather, currency, geocoding");
+            info!("⚡ Features: Authentication, Rate limiting, Circuit breaker, Retry logic");
+            info!("📡 HTTP server running on http://{}:{}", args.host, args.port);
+            info!("📋 Available endpoints:");
+            info!("   GET  /health                    - Health check");
+            info!("   GET  /info                      - Server information");
+            info!("   GET  /tools                     - List available tools");
+            info!("   POST /tools/call               - Call a tool");
+            info!("   GET  /stats                     - Bridge statistics");
+            info!("");
+            info!("🧪 Example curl command:");
+            info!("   curl -X POST http://{}:{}/tools/call \\", args.host, args.port);
+            info!("     -H 'Content-Type: application/json' \\");
+            info!("     -d '{{\"name\": \"call_external_api\", \"arguments\": {{\"api_name\": \"weather\", \"endpoint\": \"current\", \"parameters\": {{\"location\": \"New York\"}}}}}}'");
+
+            // Start and wait for the bridge
+            bridge.start().await?;
+        }
+    }
 
     info!("Server shutdown complete");
     Ok(())

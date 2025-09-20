@@ -12,6 +12,7 @@ members = [
     "templates/api-wrapper-template",
     "templates/database-integration-template",
     "templates/authenticated-server-template",
+    "crates/mcp-http-bridge",
 ]
 
 [workspace.package]

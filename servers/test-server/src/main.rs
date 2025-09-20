@@ -4,7 +4,8 @@
 //! It provides basic tools to test the MCP protocol functionality.
 
 use anyhow::Result;
-use clap::Parser;
+use clap::{Parser, ValueEnum};
+use mcp_http_bridge::{HttpBridge, HttpConfig};
 use rmcp::{
     handler::server::{router::tool::ToolRouter, wrapper::Parameters},
     model::*,
@@ -13,7 +14,7 @@ use rmcp::{
     transport::stdio,
     ErrorData as McpError, RoleServer, ServerHandler, ServiceExt,
 };
-use std::sync::Arc;
+use std::{net::SocketAddr, sync::Arc};
 use tokio::sync::Mutex;
 use tracing::{error, info};
 use tracing_subscriber::EnvFilter;
@@ -25,6 +26,27 @@ struct Args {
     /// Enable debug logging
     #[arg(short, long)]
     debug: bool,
+
+    /// Transport type to use
+    #[arg(short, long, default_value = "stdio")]
+    transport: TransportType,
+
+    /// Port for HTTP transport
+    #[arg(short, long, default_value_t = 3000)]
+    port: u16,
+
+    /// Host for HTTP transport
+    #[arg(long, default_value = "127.0.0.1")]
+    host: String,
+}
+
+/// Available transport types
+#[derive(Clone, Debug, ValueEnum)]
+enum TransportType {
+    /// STDIO transport for pipe communication
+    Stdio,
+    /// HTTP transport for RESTful API
+    Http,
 }
 
 /// Echo tool arguments
@@ -140,7 +162,8 @@ async fn main() -> Result<()> {
         .with_env_filter(
             EnvFilter::from_default_env()
                 .add_directive(format!("test_server={}", log_level).parse()?)
-                .add_directive(format!("rmcp={}", log_level).parse()?),
+                .add_directive(format!("rmcp={}", log_level).parse()?)
+                .add_directive(format!("mcp_http_bridge={}", log_level).parse()?),
         )
         .with_writer(std::io::stderr)
         .with_ansi(false)
@@ -149,20 +172,54 @@ async fn main() -> Result<()> {
     info!("🚀 Starting Test Server using official RMCP SDK");
     info!("SDK Version: 0.6.3+");
     info!("Available tools: echo, get_time, increment, get_counter, reset_counter");
+    info!("🚀 Transport: {:?}", args.transport);
 
     // Create server instance
     let server = TestServer::new();
 
-    // Start the server with STDIO transport
-    let service = server.serve(stdio()).await.inspect_err(|e| {
-        error!("Failed to start server: {:?}", e);
-    })?;
+    // Start the server with selected transport
+    match args.transport {
+        TransportType::Stdio => {
+            info!("🔌 Starting with STDIO transport");
+            let service = server.serve(stdio()).await.inspect_err(|e| {
+                error!("Failed to start server with STDIO: {:?}", e);
+            })?;
 
-    info!("✅ Test server started and ready for MCP connections");
-    info!("Connect via MCP client using STDIO transport");
+            info!("✅ Test server started and ready for MCP connections");
+            info!("Connect via MCP client using STDIO transport");
 
-    // Wait for the service to complete
-    service.waiting().await?;
+            // Wait for the service to complete
+            service.waiting().await?;
+        }
+        TransportType::Http => {
+            info!("🌐 Starting with HTTP transport on {}:{}", args.host, args.port);
+            
+            let addr: SocketAddr = format!("{}:{}", args.host, args.port).parse()?;
+            let config = HttpConfig::default()
+                .with_host(addr.ip())
+                .with_port(args.port)
+                .with_cors(true);
+
+            let mut bridge = HttpBridge::new(server, config).await?;
+
+            info!("✅ Test server started and ready for HTTP connections");
+            info!("📡 HTTP server running on http://{}:{}", args.host, args.port);
+            info!("📋 Available endpoints:");
+            info!("   GET  /health                    - Health check");
+            info!("   GET  /info                      - Server information");
+            info!("   GET  /tools                     - List available tools");
+            info!("   POST /tools/call               - Call a tool");
+            info!("   GET  /stats                     - Bridge statistics");
+            info!("");
+            info!("🧪 Example curl command:");
+            info!("   curl -X POST http://{}:{}/tools/call \\", args.host, args.port);
+            info!("     -H 'Content-Type: application/json' \\");
+            info!("     -d '{{\"name\": \"echo\", \"arguments\": {{\"text\": \"Hello, World!\"}}}}'");
+
+            // Start and wait for the bridge
+            bridge.start().await?;
+        }
+    }
 
     info!("Server shutdown complete");
     Ok(())
