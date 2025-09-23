@@ -1,0 +1,468 @@
+# AI Development Rules - Production-Ready Engineering Standards
+
+## 🎯 THE SUPREME RULE
+
+**ASAP create session tracking file** for before start doing new task, or new thread or new Conventional.
+
+**"Done" is not done until it is PROVEN done through execution and verification.**
+
+Excellence comes from discipline in execution, not just planning. The difference between "working" and "production-ready" lies in thoroughness of verification and willingness to investigate anomalies completely.
+- Use real timestamp, data, not placeholders
+- Keep code simple, clean, and scalable
+- Use current timestamp HCMC, not fake time
+- Do not use emojis or non-standard characters; my branding is professional and clean for B2B business.
+- Important constraints – Please follow strictly:
+Do NOT modify any code that is unrelated to the current implementation or requested feature.
+Do NOT refactor components, files, functions, or styles that are outside the scope of this change.
+Do NOT delete existing routes, handlers, pages, or functionality unless explicitly asked.
+Preserve all current logic and integrations unless specifically instructed otherwise.
+Keep changes atomic, focused, and reversible.
+If you detect outdated or redundant code, notify me separately — do NOT remove or alter it on your own.
+Be extremely careful when working in shared or core files — isolate changes in dedicated components or utils whenever possible.
+All hardcoded text must be moved to i18n. No literals in components.
+---
+
+## 1. The Verification Mandate (NON-NEGOTIABLE)
+
+This is the most critical rule. No task is complete until it is proven complete through actual execution.
+
+### 1.1. Definition of "Done"
+A task is only "done" when ALL of these are verified:
+1. **Code Quality**: Formatted (`cargo fmt`), linted (`cargo clippy`), compiles without warnings
+2. **Functionality**: Proven to work with direct, observable testing (running binaries, manual verification)
+3. **Test Suite**: All tests pass and run in reasonable time (< 5 seconds total)
+4. **Documentation**: All public APIs documented, builds successfully (`cargo doc`)
+5. **Git Integration**: Changes committed with proper messages, GitHub issues updated
+6. **Proof Provided**: Verification commands and their complete output documented
+
+### 1.2. The Complete Verification Pipeline
+Execute this sequence for EVERY task completion:
+```bash
+cargo fmt --all                          # Code formatting
+cargo clippy --workspace --all-targets   # Linting (0 warnings required)
+cargo check --workspace --all-targets    # Compilation check
+cargo build --workspace --all-targets    # Full build
+cargo test --workspace                   # Complete test suite
+cargo doc --workspace --no-deps          # Documentation generation
+
+# Manual verification
+./target/debug/example-server --help     # CLI verification
+timeout 5s ./target/debug/example-server # Startup test
+```
+
+### 1.3. Never Assume - Always Execute
+- ❌ **FORBIDDEN**: Marking tasks complete without running verification
+- ❌ **FORBIDDEN**: Assuming tests pass without executing them
+- ❌ **FORBIDDEN**: Skipping steps due to time pressure
+- ✅ **REQUIRED**: Execute every step and document results
+- ✅ **REQUIRED**: Investigate ALL anomalies completely
+
+---
+
+## 2. Code Quality & Technical Standards
+
+### 2.1. Async Rust: Deadlock Prevention (CRITICAL)
+Based on real debugging experience - these patterns WILL cause deadlocks:
+
+```rust
+// ❌ DEADLOCK PATTERN - NEVER DO THIS (Real example from MCP server)
+pub async fn stop(&self) -> ServerResult<()> {
+    let mut state = self.state.write().await;  // Write lock acquired
+
+    if !state.is_running {
+        return Err(ServerError::NotRunning);
+    }
+
+    self.shutdown().await?;  // shutdown() tries read lock -> DEADLOCK!
+
+    state.is_running = false;
+    Ok(())
+}
+
+// ✅ CORRECT PATTERN - Scoped Lock Pattern (Production-tested fix)
+pub async fn stop(&self) -> ServerResult<()> {
+    // Check running status with scoped read lock
+    {
+        let state = self.state.read().await;
+        if !state.is_running {
+            return Err(ServerError::NotRunning);
+        }
+    } // Lock released here
+
+    // Now shutdown can safely acquire read locks
+    self.shutdown().await?;
+
+    // Update state with scoped write lock
+    {
+        let mut state = self.state.write().await;
+        state.is_running = false;
+        state.start_time = None;
+    }
+
+    Ok(())
+}
+```
+
+**Lock Management Rules (Production-Validated):**
+- NEVER hold locks across `.await` points unless absolutely necessary
+- ALWAYS use scoped blocks `{}` to control lock lifetime explicitly
+- NEVER hold write locks while calling methods that might need read locks
+- ALWAYS prefer read locks when mutation isn't required
+
+**Deadlock Detection Protocol:**
+1. **Symptom**: Test hangs indefinitely (> 5 seconds)
+2. **Investigation**: Add timeout wrapper to reveal deadlock
+3. **Root Cause**: Trace lock acquisition across async boundaries
+4. **Solution**: Apply scoped lock pattern immediately
+5. **Verification**: Test should complete in < 0.1 seconds
+
+### 2.2. Test Engineering Standards
+- **Performance**: Unit tests < 1s, Integration < 5s, E2E < 30s
+- **No Long Sleeps**: Never use hardcoded sleeps > 100ms without justification
+- **Hanging Test Protocol**: STOP and investigate immediately - they indicate architectural issues
+
+**Anti-Pattern Examples (Real cases found):**
+```rust
+// ❌ NEVER DO THIS - Masks architectural problems
+#[tokio::test]
+async fn test_server_start_stop() {
+    // ... setup
+    tokio::time::sleep(Duration::from_secs(60)).await;  // TERRIBLE!
+    // ... assertions
+}
+```
+
+**Correct Testing Pattern (Production-proven):**
+```rust
+#[tokio::test]
+async fn test_with_timeout() {
+    // Wrap entire test with timeout to prevent hanging
+    let result = tokio::time::timeout(
+        Duration::from_secs(5),
+        async {
+            // Actual test logic here
+            let server = create_server();
+            assert!(server.start().await.is_ok());
+
+            // Brief functional wait only (< 100ms)
+            tokio::time::sleep(Duration::from_millis(50)).await;
+
+            assert!(server.stop().await.is_ok());
+        }
+    ).await;
+
+    assert!(result.is_ok(), "Test should not hang - indicates deadlock");
+}
+```
+
+**Hanging Test Investigation Steps:**
+1. **Add timeout wrapper** (5s max) to reveal hanging vs infinite loop
+2. **Remove long sleeps** (> 100ms) that mask real issues
+3. **Trace async lock patterns** - look for write locks held across awaits
+4. **Apply scoped lock fixes** using `{}` blocks
+5. **Verify performance** - fixed tests should run in < 0.1s
+
+### 2.3. Error Handling Philosophy
+- **Libraries**: Use `thiserror` for specific, typed errors
+- **Binaries**: Use `anyhow::Result` for flexible error propagation
+- **Async Operations**: Always handle timeouts and resource cleanup
+
+### 2.4. Quality Gates (Zero Tolerance)
+- **0 clippy warnings** in production code
+- **0 compiler warnings** in final builds
+- **All tests pass** and run quickly
+- **All public APIs documented** with working examples
+
+---
+
+## 3. Development Workflow Integration
+
+### 3.1. Git Standards
+
+**Branch Naming:**
+- `feature/task-X.Y-description` for individual tasks
+- `fix/issue-description` for bug fixes
+- `docs/description` for documentation
+
+**Commit Messages (Conventional Format):**
+```
+type(scope): description [#issue-number]
+
+Optional detailed explanation.
+
+- Specific change 1
+- Specific change 2
+
+Closes #issue-number
+```
+
+**Types:** `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `ci`
+
+### 3.2. GitHub Integration Protocol
+
+**Issue Management:**
+1. Create GitHub issue for each major task
+2. Use task title as issue title
+3. Include acceptance criteria in issue body
+4. Reference issue number in task files: `[#IssueNumber]`
+5. Close via commit messages: `Closes #123`
+
+**Task/Issue Synchronization:**
+- Check existing issues before creating duplicates
+- Update issue status as work progresses
+- Reference commits in issue comments
+- Verify local task file matches GitHub state
+
+### 3.3. Task File Management
+
+**Naming Convention:**
+- `tasks_{PROJECT_NAME}_{STATUS}.md`
+- Use real timestamps: `YYYY-MM-DD-HHMMSS`
+- Completion: `tasks_{PROJECT}_YYYY-MM-DD-HHMMSS_COMPLETED.md`
+
+**W5H Context Block (Required):**
+```markdown
+## TASKS Context (W5H)
+**Who**: {Team/Person Name} Performing [specific work]
+**What**: [Concrete objective and deliverables]
+**Why**: [Business justification linking to project goals]
+**How**: [Specific approach and tasks to address]
+
+**Git Context**: Current branch, related issues, planned commits
+
+**Files Context**: Current working files, recently modified files, related dependencies, and important project files that are relevant to the current session work
+```
+**Format (with GitHub integration):**
+```markdown
+## [ ] Phase 1: Core Foundation (90 minutes) [#1]
+   ### [ ] Task 1.1: Project Setup (20 minutes) [#2]
+    #### - [ ] Create workspace [commit: abc123]
+     - [ ] Add mcp-core crate
+     - [ ] Add mcp-transport crate
+```
+
+---
+
+## 4. Session Management & Documentation
+
+### 4.1. Session Protocol
+**File Naming:** ./sessions/`{STATUS}_YYYY-MM-DD-HHMMSS_{session_name}.md`
+
+**W5H Context Block (Required):**
+```markdown
+## Session Context (W5H)
+**Who**: NetADX AI performing [specific work]
+**What**: [Concrete objective and deliverables]
+**Why**: [Business justification linking to project goals]
+**How**: [Specific approach and tasks to address]
+
+**Git Context**: Current branch, related issues, planned commits
+**Files Context**: Current working dir files, recently modified files, related dependencies, and important project files that are relevant to the current session work
+```
+
+### 4.2. Progress Logging
+- Log ALL significant actions, decisions, and Git operations
+- Update session filename status as work progresses
+- Document both successes AND failures with lessons learned
+- Include verification command outputs as proof
+
+### 4.3. Documentation Standards
+- **Crate-Level**: Every crate has `//!` documentation explaining purpose
+- **Public APIs**: All `pub` items documented with `///` and examples
+- **README Files**: Project overview and per-crate usage instructions
+- **Real Data**: Use actual timestamps, commit hashes, issue numbers
+
+---
+
+## 5. Architecture & Implementation Principles
+
+### 5.1. MCP Framework Architecture
+1. **mcp-core is Sacred**: Protocol definitions only, no transport logic
+2. **All Logic is a Tool**: Business logic as `McpTool` trait implementations
+3. **Servers are Orchestrators**: Delegate to tools, manage lifecycle
+4. **Transports are Pipes**: Move bytes, no business logic
+5. **Dependency Scoping**: Add at lowest appropriate crate level
+
+### 5.2. Implementation Guidelines
+- **Examples are Blueprints**: Clean, runnable demonstrations
+- **AI Scaffolding**: Hardcoded responses with `// TODO: Integrate AI API`
+- **Resource Management**: Proper startup/shutdown without deadlocks
+
+---
+
+## 6. Environment & Tools Management
+
+### 6.1. Environment Awareness
+- Check OS, tool availability, paths before execution
+- Install missing tools via package managers
+- Use real-world data, never placeholders
+- Verify Git status before starting work
+
+### 6.2. GitHub Environment
+- **Organization**: `netadx1ai` (https://github.com/netadx1ai)
+- **Projects**: Use GitHub Projects for task tracking
+- **Fozen Organization**: `https://github.com/orgs/aiva-vn/`, READONLY, DO NOT CHANGE
+- **Primary Repo**: `mcp-boilerplate-rust`
+- **CLI Usage**: Leverage `gh` for issues, PRs, project management
+- **Authentication**: GitHub CLI configured and ready
+
+---
+
+## 7. Problem-Solving & Debugging Protocol
+
+### 7.1. Systematic Investigation
+1. **Identify Symptoms**: What exactly is observable?
+2. **Form Hypothesis**: What could cause this behavior?
+3. **Minimal Reproduction**: Create smallest test case
+4. **Root Cause Analysis**: Trace through code systematically
+5. **Fix Root Cause**: Not symptoms or workarounds
+6. **Verify Fix**: Prove it works and doesn't break other things
+7. **Document Learning**: Record what was discovered and why
+
+### 7.2. Debugging Tools & Patterns
+```rust
+// Timeout wrapper for hanging operations (CRITICAL for deadlock detection)
+let result = tokio::time::timeout(
+    Duration::from_secs(5),
+    suspicious_operation()
+).await;
+
+match result {
+    Ok(Ok(value)) => println!("✅ Operation completed: {:?}", value),
+    Ok(Err(e)) => println!("❌ Operation failed: {}", e),
+    Err(_) => println!("💥 DEADLOCK DETECTED - operation hung > 5s"),
+}
+
+// Debug logging during investigation
+println!("Debug: state={:?}, expected={}, actual={}", state, exp, act);
+
+// Resource cleanup pattern with scoped locks
+{
+    let _guard = acquire_resource().await?;
+    // Automatic cleanup on scope exit
+}
+
+// Deadlock debugging pattern (proven effective)
+{
+    println!("🔍 Acquiring read lock...");
+    let state = self.state.read().await;
+    println!("✅ Read lock acquired, state: {:?}", state.is_running);
+} // Lock released here - critical for preventing deadlocks
+
+println!("🔄 Calling async method that needs locks...");
+self.some_async_method().await?;
+```
+
+**Real Deadlock Case Study (2025-01-17):**
+- **Symptom**: `test_server_start_stop` hung indefinitely
+- **Mask**: 60-second hardcoded sleep hid the real issue
+- **Root Cause**: `stop()` held write lock while calling `shutdown()` that needed read lock
+- **Fix**: Applied scoped lock pattern - test now runs in 0.05s
+- **Impact**: 1200x+ performance improvement, eliminated production deadlock risk
+
+### 7.3. Anti-Patterns (NEVER DO)
+- Working around deadlocks instead of fixing them
+- Ignoring hanging or flaky tests
+- Assuming problems will resolve themselves
+- Skipping verification due to time pressure
+- Using long timeouts to mask architectural issues
+
+---
+
+## 8. Advanced Patterns & Best Practices
+
+### 8.1. Async State Management Pattern
+```rust
+// Standard pattern for safe state updates
+pub async fn update_operation(&self) -> Result<(), Error> {
+    // 1. Validate (scoped read lock)
+    {
+        let state = self.state.read().await;
+        if !state.can_update() { return Err(Error::InvalidState); }
+    }
+
+    // 2. Perform work (no locks held)
+    let result = self.do_async_work().await?;
+
+    // 3. Update state (scoped write lock)
+    {
+        let mut state = self.state.write().await;
+        state.apply_update(result);
+    }
+
+    Ok(())
+}
+```
+
+### 8.2. Performance Standards
+- **Build time**: < 30 seconds for full workspace
+- **Test suite**: < 5 seconds total execution
+- **Server startup**: < 2 seconds for examples
+- **Memory**: No obvious leaks or excessive allocation
+
+---
+
+## 9. The Core Philosophy
+
+### 9.1. Senior Engineer Mandate
+- **Act with Autonomy**: Research and decide, don't just ask
+- **Proactive Problem-Solving**: Anticipate and prevent issues
+- **Full Ownership**: Responsible for complete task lifecycle
+- **Deliver Solutions**: Fix problems, don't just report them
+
+### 9.2. Excellence Standards
+The difference between "mostly working" and "production-ready":
+- Thoroughness of verification over speed of completion
+- Investigation of anomalies over ignoring them
+- Fixing root causes over implementing workarounds
+- Documentation of learnings over silent fixes
+
+---
+
+## 🚀 QUICK REFERENCE CHEAT SHEET
+
+### Pre-Commit Checklist
+- [ ] `cargo fmt --all` ✅
+- [ ] `cargo clippy` (0 warnings) ✅
+- [ ] `cargo test` (all pass, < 5s) ✅
+- [ ] Manual verification ✅
+- [ ] Proper commit message ✅
+
+### Async Lock Rules
+```rust
+// ✅ Good: Scoped locks
+{ let data = state.read().await; use_immediately(data); }
+
+// ❌ Bad: Lock across async
+let data = state.write().await;
+async_call().await; // DEADLOCK RISK!
+```
+
+### Investigation Protocol
+1. Add timeout: `tokio::time::timeout(Duration::from_secs(5), op()).await`
+2. Add logging: `println!("Debug: {:?}", state)`
+3. Find root cause, fix it completely
+4. Document what was learned
+
+### Success Metrics
+- Build: < 30s | Tests: < 5s | 0 warnings | No hangs | Documented APIs
+
+### Deadlock Emergency Protocol
+1. **Detect**: Any test hanging > 5s = immediate investigation
+2. **Isolate**: Add timeout wrapper to confirm deadlock vs infinite loop
+3. **Identify**: Find write locks held across async calls
+4. **Fix**: Apply scoped lock pattern with `{}` blocks
+5. **Verify**: Fixed test should run in < 0.1s (not minutes!)
+
+### Real Performance Benchmarks (from production fixes)
+- Hanging test fix: 60s+ → 0.05s (1200x improvement)
+- Proper async patterns: Eliminates deadlock risk entirely
+- Scoped locks: Deterministic performance, no race conditions
+
+---
+
+**Remember**: The most valuable lesson is that small symptoms often reveal big problems. A hanging test revealed a deadlock. A clippy warning revealed maintainability debt. Excellence comes from investigating every anomaly completely.
+
+**Version**: 2.1 - Enhanced with real deadlock debugging case study
+**Last Updated**: 2025-01-17
+**Critical Update**: Added proven deadlock detection/fix protocols from MCP server debugging

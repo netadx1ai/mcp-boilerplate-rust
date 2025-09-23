@@ -24,6 +24,9 @@ Thumbs.db
 *.log
 logs/
 
+sessions/
+tasks/
+
 # Environment variables
 .env
 .env.local
@@ -40,6 +43,7 @@ logs/
 # Documentation
 /doc
 /docs/_build
+
 
 # Temporary files
 *.tmp
