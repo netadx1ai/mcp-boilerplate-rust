@@ -42,7 +42,7 @@ use rmcp::{handler::server::tool::ToolRouter, model::*, task_manager::OperationP
 use serde_json::{json, Value};
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use tracing::{error, info};
+use tracing::{error, info, instrument};
 
 use crate::metrics;
 
@@ -115,6 +115,7 @@ impl ProtocolHandler {
     ///
     /// This is the main entry point for SSE/WebSocket/HTTP transports.
     /// Parses JSON-RPC, routes to appropriate handler, returns JSON-RPC response.
+    #[instrument(skip(self, request_json), fields(request_len = request_json.len()))]
     pub async fn handle_request(&self, request_json: &str) -> Result<String> {
         let start_time = std::time::Instant::now();
 
@@ -166,6 +167,7 @@ impl ProtocolHandler {
     }
 
     /// Handle initialize request
+    #[instrument(skip(self, _request))]
     async fn handle_initialize(&self, id: Option<Value>, _request: Value) -> Value {
         info!("Initialize request");
 
@@ -441,6 +443,7 @@ impl ProtocolHandler {
     }
 
     /// Handle tools/call request
+    #[instrument(skip(self, request))]
     async fn handle_call_tool(&self, id: Option<Value>, request: Value) -> Value {
         let start_time = std::time::Instant::now();
 

@@ -19,7 +19,7 @@ use rmcp::{
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use tracing::info;
+use tracing::{info, instrument};
 
 use crate::metrics;
 use crate::prompts::PromptRegistry;
@@ -51,6 +51,7 @@ impl McpServer {
     }
 
     #[tool(description = "Echo back a message")]
+    #[instrument(skip(self, _ctx), fields(tool = "echo"))]
     async fn echo(
         &self,
         Parameters(req): Parameters<EchoRequest>,
@@ -96,6 +97,7 @@ impl McpServer {
     }
 
     #[tool(description = "Simple ping-pong test to verify connection")]
+    #[instrument(skip(self, _ctx), fields(tool = "ping"))]
     async fn ping(&self, _ctx: RequestContext<RoleServer>) -> Result<Json<PingResponse>, McpError> {
         let start_time = std::time::Instant::now();
         info!("Ping received");
@@ -104,6 +106,7 @@ impl McpServer {
     }
 
     #[tool(description = "Get information about the server capabilities")]
+    #[instrument(skip(self, _ctx), fields(tool = "info"))]
     async fn info(&self, _ctx: RequestContext<RoleServer>) -> Result<Json<InfoResponse>, McpError> {
         let start_time = std::time::Instant::now();
         info!("Info requested");
@@ -114,6 +117,7 @@ impl McpServer {
     #[tool(
         description = "Perform basic arithmetic operations (add, subtract, multiply, divide, modulo, power)"
     )]
+    #[instrument(skip(self, _ctx), fields(tool = "calculate"))]
     async fn calculate(
         &self,
         Parameters(req): Parameters<CalculateRequest>,
@@ -196,6 +200,7 @@ impl McpServer {
     }
 
     #[tool(description = "Evaluate a mathematical expression (supports +, -, *, /, parentheses)")]
+    #[instrument(skip(self, _ctx), fields(tool = "evaluate"))]
     async fn evaluate(
         &self,
         Parameters(req): Parameters<EvaluateRequest>,
@@ -313,6 +318,7 @@ impl McpServer {
         AdvancedTool::health_check(ctx).await
     }
 
+    #[instrument(skip(self))]
     pub async fn run(self) -> Result<()> {
         info!("Starting MCP stdio server");
         info!("Protocol: MCP 2025-03-26");
