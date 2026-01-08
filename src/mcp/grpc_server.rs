@@ -6,6 +6,8 @@
 #[cfg(feature = "grpc")]
 use crate::mcp::protocol_handler::ProtocolHandler;
 #[cfg(feature = "grpc")]
+use crate::metrics;
+#[cfg(feature = "grpc")]
 use crate::transport::grpc::GrpcTransport;
 #[cfg(feature = "grpc")]
 use crate::transport::Transport;
@@ -27,8 +29,8 @@ pub mod mcp_service {
 #[cfg(feature = "grpc")]
 use mcp_service::{
     mcp_server::{Mcp, McpServer},
-    JsonRpcRequest, JsonRpcResponse, ToolCallRequest, ToolCallResponse,
-    ToolsListRequest, ToolsListResponse, StreamRequest, StreamResponse,
+    JsonRpcRequest, JsonRpcResponse, StreamRequest, StreamResponse, ToolCallRequest,
+    ToolCallResponse, ToolsListRequest, ToolsListResponse,
 };
 
 /// gRPC server state
@@ -63,13 +65,17 @@ impl Mcp for McpService {
         request: Request<JsonRpcRequest>,
     ) -> Result<Response<JsonRpcResponse>, Status> {
         let req = request.into_inner();
-        
+
         {
             let mut total = self.state.total_requests.write().await;
             *total += 1;
         }
 
         info!("gRPC JSON-RPC request: {}", req.payload);
+
+        // Record metrics
+        metrics::record_request("grpc", "json_rpc", "received", 0.0);
+        metrics::record_bytes_received("grpc", req.payload.len() as u64);
 
         // Parse JSON-RPC request
         let json_request: serde_json::Value = match serde_json::from_str(&req.payload) {
@@ -85,7 +91,12 @@ impl Mcp for McpService {
 
         // Process through protocol handler
         let request_str = serde_json::to_string(&json_request).unwrap_or_default();
-        let response_str = match self.state.protocol_handler.handle_request(&request_str).await {
+        let response_str = match self
+            .state
+            .protocol_handler
+            .handle_request(&request_str)
+            .await
+        {
             Ok(s) => s,
             Err(e) => {
                 error!("Protocol handler error: {}", e);
@@ -99,6 +110,8 @@ impl Mcp for McpService {
             _ => response_str,
         };
 
+        metrics::record_bytes_sent("grpc", response_str.len() as u64);
+
         Ok(Response::new(JsonRpcResponse {
             payload: response_str,
         }))
@@ -111,6 +124,8 @@ impl Mcp for McpService {
     ) -> Result<Response<ToolsListResponse>, Status> {
         info!("gRPC list_tools request");
 
+        metrics::record_request("grpc", "tools/list", "received", 0.0);
+
         let json_request = serde_json::json!({
             "jsonrpc": "2.0",
             "id": 1,
@@ -119,16 +134,21 @@ impl Mcp for McpService {
         });
 
         let request_str = serde_json::to_string(&json_request).unwrap();
-        let tools_json = match self.state.protocol_handler.handle_request(&request_str).await {
+        let tools_json = match self
+            .state
+            .protocol_handler
+            .handle_request(&request_str)
+            .await
+        {
             Ok(s) => s,
             Err(e) => {
                 return Err(Status::internal(format!("Handler error: {}", e)));
             }
         };
 
-        Ok(Response::new(ToolsListResponse {
-            tools_json,
-        }))
+        metrics::record_bytes_sent("grpc", tools_json.len() as u64);
+
+        Ok(Response::new(ToolsListResponse { tools_json }))
     }
 
     /// Call a tool
@@ -137,8 +157,17 @@ impl Mcp for McpService {
         request: Request<ToolCallRequest>,
     ) -> Result<Response<ToolCallResponse>, Status> {
         let req = request.into_inner();
-        
-        info!("gRPC call_tool: {} with args: {}", req.tool_name, req.arguments_json);
+
+        info!(
+            "gRPC call_tool: {} with args: {}",
+            req.tool_name, req.arguments_json
+        );
+
+        metrics::record_request("grpc", "tools/call", "received", 0.0);
+        metrics::record_bytes_received(
+            "grpc",
+            (req.tool_name.len() + req.arguments_json.len()) as u64,
+        );
 
         let arguments: serde_json::Value = match serde_json::from_str(&req.arguments_json) {
             Ok(v) => v,
@@ -161,30 +190,31 @@ impl Mcp for McpService {
         });
 
         let request_str = serde_json::to_string(&json_request).unwrap();
-        let result_json = match self.state.protocol_handler.handle_request(&request_str).await {
+        let result_json = match self
+            .state
+            .protocol_handler
+            .handle_request(&request_str)
+            .await
+        {
             Ok(s) => s,
             Err(e) => {
                 return Err(Status::internal(format!("Handler error: {}", e)));
             }
         };
 
-        Ok(Response::new(ToolCallResponse {
-            result_json,
-        }))
+        Ok(Response::new(ToolCallResponse { result_json }))
     }
 
     /// Server streaming endpoint
-    type StreamResponsesStream = futures::stream::BoxStream<
-        'static,
-        Result<StreamResponse, Status>,
-    >;
+    type StreamResponsesStream =
+        futures::stream::BoxStream<'static, Result<StreamResponse, Status>>;
 
     async fn stream_responses(
         &self,
         request: Request<StreamRequest>,
     ) -> Result<Response<Self::StreamResponsesStream>, Status> {
         let req = request.into_inner();
-        
+
         info!("gRPC streaming request: {}", req.request_id);
 
         {
@@ -194,7 +224,7 @@ impl Mcp for McpService {
 
         // Create a stream of responses
         use futures::stream::{self, StreamExt};
-        
+
         // Example: Stream multiple chunks
         let chunks = vec![
             StreamResponse {
@@ -214,8 +244,7 @@ impl Mcp for McpService {
             },
         ];
 
-        let stream = stream::iter(chunks)
-            .map(Ok::<_, Status>);
+        let stream = stream::iter(chunks).map(Ok::<_, Status>);
 
         // Cleanup when stream ends
         let state_clone = self.state.clone();
@@ -287,7 +316,9 @@ mod tests {
     #[tokio::test]
     async fn test_grpc_server_state_creation() {
         let protocol_handler = Arc::new(ProtocolHandler::new());
-        let transport = Arc::new(RwLock::new(GrpcTransport::new("127.0.0.1:50051".to_string())));
+        let transport = Arc::new(RwLock::new(GrpcTransport::new(
+            "127.0.0.1:50051".to_string(),
+        )));
 
         let state = GrpcServerState {
             protocol_handler,
@@ -303,7 +334,9 @@ mod tests {
     #[test]
     fn test_service_creation() {
         let protocol_handler = Arc::new(ProtocolHandler::new());
-        let transport = Arc::new(RwLock::new(GrpcTransport::new("127.0.0.1:50052".to_string())));
+        let transport = Arc::new(RwLock::new(GrpcTransport::new(
+            "127.0.0.1:50052".to_string(),
+        )));
 
         let state = GrpcServerState {
             protocol_handler,

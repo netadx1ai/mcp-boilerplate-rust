@@ -1,26 +1,26 @@
 //! Stdio transport implementation for MCP protocol
-//! 
+//!
 //! This transport uses standard input/output for communication, making it ideal for:
 //! - CLI tools and desktop applications
 //! - Process spawning and IPC
 //! - Claude Desktop integration
-//! 
+//!
 //! # Important Notes
-//! 
+//!
 //! - **NO logging to stdout/stderr** - This would break JSON-RPC parsing
 //! - **ANSI codes disabled** - Clean JSON output only
 //! - **Synchronous message flow** - One request/response at a time
 
 use super::r#trait::{
-    Transport, TransportCapabilities, TransportConfig, TransportError, 
-    TransportFactory, TransportMessage, TransportStats,
+    Transport, TransportCapabilities, TransportConfig, TransportError, TransportFactory,
+    TransportMessage, TransportStats,
 };
 use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 
 /// Stdio transport implementation
-/// 
+///
 /// Reads JSON-RPC messages from stdin and writes responses to stdout.
 /// Each message is a complete JSON object on a single line.
 pub struct StdioTransport {
@@ -113,12 +113,12 @@ impl Transport for StdioTransport {
             .write_all(content_bytes)
             .await
             .map_err(|e| TransportError::SendError(e.to_string()))?;
-        
+
         stdout
             .write_all(b"\n")
             .await
             .map_err(|e| TransportError::SendError(e.to_string()))?;
-        
+
         stdout
             .flush()
             .await

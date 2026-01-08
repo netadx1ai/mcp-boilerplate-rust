@@ -12,6 +12,7 @@ A production-ready Rust implementation of the Model Context Protocol (MCP) with 
 
 - **6 Transport Modes** - stdio, SSE, WebSocket, HTTP, HTTP Streaming, gRPC
 - **11 Production Tools** - Complete suite with progress notifications
+- **Prometheus Metrics** - Built-in metrics collection and exposure
 - **Type-Safe** - Full Rust type safety with schemars validation
 - **High Performance** - Optimized binaries (2.4MB - 4.2MB)
 - **89 Tests** - Comprehensive test coverage (100% passing)
@@ -88,6 +89,7 @@ cargo run --release --features sse -- --mode sse --bind 127.0.0.1:8025
 - `GET /sse` - Event stream
 - `POST /rpc` - JSON-RPC
 - `GET /health` - Health check
+- `GET /metrics` - Prometheus metrics
 
 **Test:** Open `examples/sse_test_client.html` in browser
 
@@ -190,6 +192,7 @@ cargo build --release --features full
 - `http` - HTTP REST API transport
 - `database` - MongoDB integration
 - `auth` - JWT authentication
+- `metrics` - Prometheus metrics collection
 - `full` - All features
 
 ## Testing

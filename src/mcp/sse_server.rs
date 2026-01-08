@@ -1,12 +1,12 @@
 //! SSE MCP Server implementation
-//! 
+//!
 //! This module provides a complete SSE-based MCP server using Axum.
 //! Supports real-time progress notifications and multi-client broadcasting.
-//! 
+//!
 //! # Architecture
-//! 
+//!
 //! Uses the shared ProtocolHandler for consistent rmcp-based protocol handling:
-//! 
+//!
 //! ```text
 //! SSE Client (EventSource)
 //!     ↓
@@ -16,9 +16,9 @@
 //!     ↓
 //! Tool Implementations
 //! ```
-//! 
+//!
 //! # Features
-//! 
+//!
 //! - EventSource-compatible SSE endpoint
 //! - All 11 MCP tools available via SSE
 //! - Real-time progress notifications
@@ -26,24 +26,24 @@
 //! - CORS enabled for browser clients
 //! - Health check endpoint
 //! - Type-safe protocol handling with rmcp
-//! 
+//!
 //! # Endpoints
-//! 
+//!
 //! - `GET /sse` - SSE event stream (EventSource endpoint)
 //! - `POST /tools/call` - Call a tool (returns immediately, results via SSE)
 //! - `GET /tools` - List available tools
 //! - `GET /health` - Health check
-//! 
+//!
 //! # Example Client
-//! 
+//!
 //! ```javascript
 //! const eventSource = new EventSource('http://localhost:8025/sse');
-//! 
+//!
 //! eventSource.onmessage = (event) => {
 //!     const data = JSON.parse(event.data);
 //!     console.log('Received:', data);
 //! };
-//! 
+//!
 //! // Call a tool
 //! fetch('http://localhost:8025/tools/call', {
 //!     method: 'POST',
@@ -120,13 +120,15 @@ pub struct AckResponse {
 }
 
 /// Start SSE MCP server
-/// 
+///
 /// # Arguments
 /// * `bind_address` - Address to bind to (e.g., "127.0.0.1:8025")
-/// 
+///
 /// # Returns
 /// * `Result<()>` - Success or error
 #[cfg(feature = "sse")]
+use crate::metrics;
+
 pub async fn run_sse_server(bind_address: &str) -> anyhow::Result<()> {
     info!("Starting MCP SSE Server with ProtocolHandler");
     info!("Bind address: {}", bind_address);
@@ -157,6 +159,7 @@ pub async fn run_sse_server(bind_address: &str) -> anyhow::Result<()> {
         .route("/rpc", post(rpc_handler))
         .route("/tools", get(list_tools))
         .route("/tools/call", post(call_tool_legacy))
+        .route("/metrics", get(metrics_handler))
         .layer(cors)
         .with_state(state);
 
@@ -168,6 +171,7 @@ pub async fn run_sse_server(bind_address: &str) -> anyhow::Result<()> {
     info!("  POST /rpc        - JSON-RPC endpoint (recommended)");
     info!("  GET  /tools      - List tools");
     info!("  POST /tools/call - Call a tool (legacy, for compatibility)");
+    info!("  GET  /metrics    - Prometheus metrics");
 
     // Start server
     let listener = tokio::net::TcpListener::bind(bind_address).await?;
@@ -206,9 +210,26 @@ async fn root_handler() -> impl IntoResponse {
 async fn health_check() -> impl IntoResponse {
     Json(json!({
         "status": "healthy",
-        "transport": "sse",
         "timestamp": chrono::Utc::now().to_rfc3339()
     }))
+}
+
+/// Metrics endpoint - Prometheus format
+#[cfg(feature = "sse")]
+async fn metrics_handler() -> impl IntoResponse {
+    match metrics::gather_metrics() {
+        Ok(metrics) => (
+            StatusCode::OK,
+            [("Content-Type", "text/plain; version=0.0.4")],
+            metrics,
+        )
+            .into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Error gathering metrics: {}", e),
+        )
+            .into_response(),
+    }
 }
 
 /// SSE event stream handler
@@ -275,7 +296,7 @@ async fn sse_handler(
 }
 
 /// JSON-RPC handler (recommended endpoint)
-/// 
+///
 /// Accepts standard JSON-RPC 2.0 requests and uses ProtocolHandler
 #[cfg(feature = "sse")]
 async fn rpc_handler(
@@ -288,8 +309,8 @@ async fn rpc_handler(
     info!("JSON-RPC request (request_id: {})", request_id);
 
     // Parse JSON-RPC request
-    let json_rpc: JsonRpcRequest = serde_json::from_str(&body)
-        .map_err(|_| StatusCode::BAD_REQUEST)?;
+    let json_rpc: JsonRpcRequest =
+        serde_json::from_str(&body).map_err(|_| StatusCode::BAD_REQUEST)?;
 
     // Execute using ProtocolHandler
     let protocol_handler = state.protocol_handler.clone();
@@ -370,7 +391,11 @@ async fn list_tools(State(state): State<SseServerState>) -> impl IntoResponse {
         "params": {}
     });
 
-    match state.protocol_handler.handle_request(&request.to_string()).await {
+    match state
+        .protocol_handler
+        .handle_request(&request.to_string())
+        .await
+    {
         Ok(response) => {
             let response_json: serde_json::Value = serde_json::from_str(&response).unwrap();
             Json(response_json)
@@ -385,7 +410,7 @@ async fn list_tools(State(state): State<SseServerState>) -> impl IntoResponse {
 }
 
 /// Legacy tool call endpoint (for backward compatibility)
-/// 
+///
 /// Accepts simplified format and converts to JSON-RPC
 #[cfg(feature = "sse")]
 async fn call_tool_legacy(
@@ -443,7 +468,10 @@ async fn call_tool_legacy(
         }
 
         // Execute via protocol handler
-        match protocol_handler.handle_request(&json_rpc_request.to_string()).await {
+        match protocol_handler
+            .handle_request(&json_rpc_request.to_string())
+            .await
+        {
             Ok(response_str) => {
                 let response_json: serde_json::Value = serde_json::from_str(&response_str)
                     .unwrap_or(json!({"error": "Invalid response"}));
@@ -542,14 +570,18 @@ mod tests {
 
         // Test that protocol handler is functional by testing initialize
         let init_request = r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}"#;
-        let response = state.protocol_handler.handle_request(init_request).await.unwrap();
+        let response = state
+            .protocol_handler
+            .handle_request(init_request)
+            .await
+            .unwrap();
         assert!(response.contains("protocolVersion") || response.contains("protocol_version"));
     }
 
     #[tokio::test]
     async fn test_protocol_handler_integration() {
         let handler = ProtocolHandler::new();
-        
+
         // Test initialize
         let init_request = r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}"#;
         let response = handler.handle_request(init_request).await.unwrap();
@@ -569,7 +601,7 @@ mod tests {
     #[test]
     fn test_server_info() {
         use crate::mcp::protocol_handler::ServerInfo;
-        
+
         let info = ServerInfo::default();
         assert_eq!(info.name, "MCP Boilerplate Rust");
         assert_eq!(info.version, env!("CARGO_PKG_VERSION"));

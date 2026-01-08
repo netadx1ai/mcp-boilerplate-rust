@@ -2,6 +2,7 @@ use anyhow::Result;
 use clap::{Parser, ValueEnum};
 
 mod mcp;
+mod metrics;
 mod prompts;
 mod resources;
 mod tools;
@@ -27,7 +28,13 @@ use mcp::run_http_stream_server;
 #[cfg(feature = "grpc")]
 use mcp::run_grpc_server;
 
-#[cfg(any(feature = "http", feature = "sse", feature = "websocket", feature = "http-stream", feature = "grpc"))]
+#[cfg(any(
+    feature = "http",
+    feature = "sse",
+    feature = "websocket",
+    feature = "http-stream",
+    feature = "grpc"
+))]
 use tracing::info;
 
 #[cfg(feature = "http")]
@@ -67,7 +74,12 @@ struct Args {
     #[arg(short, long, help = "Enable verbose logging")]
     verbose: bool,
 
-    #[arg(short, long, help = "Bind address for SSE server", default_value = "127.0.0.1:8025")]
+    #[arg(
+        short,
+        long,
+        help = "Bind address for SSE server",
+        default_value = "127.0.0.1:8025"
+    )]
     bind: String,
 }
 
@@ -169,15 +181,15 @@ async fn run_stdio_server() -> Result<()> {
 #[cfg(feature = "websocket")]
 async fn run_websocket_server(bind_address: &str) -> Result<()> {
     info!("Starting WebSocket server on {}", bind_address);
-    
+
     let app = create_websocket_router();
-    
+
     let listener = tokio::net::TcpListener::bind(bind_address).await?;
     info!("WebSocket server listening on {}", bind_address);
     info!("Connect to ws://{}/ws", bind_address);
-    
+
     axum::serve(listener, app).await?;
-    
+
     Ok(())
 }
 

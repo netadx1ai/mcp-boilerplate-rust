@@ -313,13 +313,13 @@ mod tests {
     #[tokio::test]
     async fn test_double_initialization() {
         let mut transport = GrpcTransport::new("127.0.0.1:50062");
-        
+
         let result1 = transport.initialize().await;
         assert!(result1.is_ok());
-        
+
         let result2 = transport.initialize().await;
         assert!(result2.is_ok()); // Should be idempotent
-        
+
         assert!(transport.is_ready());
     }
 
@@ -349,7 +349,7 @@ mod tests {
     fn test_stats_tracking() {
         let transport = GrpcTransport::new("127.0.0.1:50065");
         let stats = transport.get_stats();
-        
+
         assert_eq!(stats.messages_sent, 0);
         assert_eq!(stats.messages_received, 0);
         assert_eq!(stats.bytes_sent, 0);

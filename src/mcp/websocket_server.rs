@@ -1,12 +1,12 @@
 //! WebSocket MCP Server Implementation
-//! 
+//!
 //! Provides bidirectional MCP protocol over WebSocket transport.
 //! Supports real-time tool execution with concurrent connections.
-//! 
+//!
 //! # Architecture
-//! 
+//!
 //! Uses the shared ProtocolHandler for consistent rmcp-based protocol handling:
-//! 
+//!
 //! ```text
 //! WebSocket Client
 //!     ↓
@@ -16,20 +16,20 @@
 //!     ↓
 //! Tool Implementations
 //! ```
-//! 
+//!
 //! # Features
-//! 
+//!
 //! - Bidirectional real-time communication
 //! - Multi-client support
 //! - Type-safe protocol handling with rmcp
 //! - Automatic connection management
 //! - Statistics tracking
-//! 
+//!
 //! # Example Client
-//! 
+//!
 //! ```javascript
 //! const ws = new WebSocket('ws://localhost:9001/ws');
-//! 
+//!
 //! ws.onopen = () => {
 //!     ws.send(JSON.stringify({
 //!         jsonrpc: '2.0',
@@ -38,7 +38,7 @@
 //!         params: {}
 //!     }));
 //! };
-//! 
+//!
 //! ws.onmessage = (event) => {
 //!     const response = JSON.parse(event.data);
 //!     console.log('Received:', response);
@@ -46,11 +46,13 @@
 //! ```
 
 use crate::mcp::protocol_handler::ProtocolHandler;
+use crate::metrics;
 use axum::{
     extract::{
         ws::{Message, WebSocket, WebSocketUpgrade},
         State,
     },
+    http::StatusCode,
     response::IntoResponse,
     routing::get,
     Json, Router,
@@ -96,6 +98,7 @@ pub fn create_router() -> Router {
         .route("/ws", get(websocket_handler))
         .route("/health", get(health_handler))
         .route("/stats", get(stats_handler))
+        .route("/metrics", get(metrics_handler))
         .with_state(state)
         .layer(
             CorsLayer::new()
@@ -115,7 +118,8 @@ async fn root_handler() -> Json<Value> {
         "endpoints": {
             "websocket": "/ws",
             "health": "/health",
-            "stats": "/stats"
+            "stats": "/stats",
+            "metrics": "/metrics"
         },
         "features": [
             "bidirectional",
@@ -149,6 +153,25 @@ async fn stats_handler(State(state): State<WsServerState>) -> Json<Value> {
     }))
 }
 
+/// Metrics handler
+#[cfg(feature = "websocket")]
+async fn metrics_handler() -> impl IntoResponse {
+    match metrics::gather_metrics() {
+        Ok(metrics) => (
+            StatusCode::OK,
+            [("Content-Type", "text/plain; version=0.0.4")],
+            metrics,
+        )
+            .into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Error gathering metrics: {}", e),
+        )
+            .into_response(),
+    }
+}
+
+/// WebSocket handler
 /// WebSocket upgrade handler
 async fn websocket_handler(
     ws: WebSocketUpgrade,
@@ -160,7 +183,7 @@ async fn websocket_handler(
 /// Handle WebSocket connection
 async fn handle_websocket(mut socket: WebSocket, state: WsServerState) {
     let connection_id = uuid::Uuid::new_v4().to_string();
-    
+
     info!("New WebSocket connection: {}", connection_id);
 
     // Increment active connections
@@ -168,6 +191,10 @@ async fn handle_websocket(mut socket: WebSocket, state: WsServerState) {
         let mut active = state.active_connections.write().await;
         *active += 1;
     }
+
+    // Record metrics
+    metrics::increment_active_connections();
+    metrics::record_connection("websocket");
 
     // Send welcome message
     let welcome = json!({
@@ -213,7 +240,7 @@ async fn handle_websocket(mut socket: WebSocket, state: WsServerState) {
 
             // Process request via ProtocolHandler
             let protocol_handler = state.protocol_handler.clone();
-            
+
             match protocol_handler.handle_request(&text).await {
                 Ok(response_str) => {
                     if socket.send(Message::Text(response_str)).await.is_err() {
@@ -222,7 +249,7 @@ async fn handle_websocket(mut socket: WebSocket, state: WsServerState) {
                 }
                 Err(e) => {
                     error!("Error handling request: {}", e);
-                    
+
                     let error_response = json!({
                         "jsonrpc": "2.0",
                         "id": null,
@@ -258,6 +285,9 @@ async fn handle_websocket(mut socket: WebSocket, state: WsServerState) {
         }
     }
 
+    // Record metrics
+    metrics::decrement_active_connections();
+
     info!("WebSocket connection terminated: {}", connection_id);
 }
 
@@ -270,32 +300,48 @@ mod tests {
         let state = WsServerState::new();
         assert_eq!(*state.active_connections.read().await, 0);
         assert_eq!(*state.total_requests.read().await, 0);
-        
+
         // Test that protocol handler is functional by testing initialize
         let init_request = r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}"#;
-        let response = state.protocol_handler.handle_request(init_request).await.unwrap();
+        let response = state
+            .protocol_handler
+            .handle_request(init_request)
+            .await
+            .unwrap();
         assert!(response.contains("protocolVersion") || response.contains("protocol_version"));
     }
 
     #[tokio::test]
     async fn test_protocol_handler_integration() {
         let state = WsServerState::new();
-        
+
         // Test initialize
         let init_request = r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}"#;
-        let response = state.protocol_handler.handle_request(init_request).await.unwrap();
+        let response = state
+            .protocol_handler
+            .handle_request(init_request)
+            .await
+            .unwrap();
         assert!(response.contains("protocolVersion") || response.contains("protocol_version"));
         assert!(response.contains("capabilities"));
 
         // Test tools/list
         let list_request = r#"{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}"#;
-        let response = state.protocol_handler.handle_request(list_request).await.unwrap();
+        let response = state
+            .protocol_handler
+            .handle_request(list_request)
+            .await
+            .unwrap();
         assert!(response.contains("tools"));
         assert!(response.contains("echo"));
 
         // Test echo tool
         let echo_request = r#"{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"echo","arguments":{"message":"test"}}}"#;
-        let response = state.protocol_handler.handle_request(echo_request).await.unwrap();
+        let response = state
+            .protocol_handler
+            .handle_request(echo_request)
+            .await
+            .unwrap();
         assert!(response.contains("result"));
     }
 
@@ -310,7 +356,11 @@ mod tests {
     async fn test_unknown_method() {
         let state = WsServerState::new();
         let request = r#"{"jsonrpc":"2.0","id":1,"method":"unknown_method","params":{}}"#;
-        let response = state.protocol_handler.handle_request(request).await.unwrap();
+        let response = state
+            .protocol_handler
+            .handle_request(request)
+            .await
+            .unwrap();
         assert!(response.contains("error"));
         assert!(response.contains("Method not found"));
     }
@@ -319,7 +369,11 @@ mod tests {
     async fn test_ping_tool() {
         let state = WsServerState::new();
         let request = r#"{"jsonrpc":"2.0","id":1,"method":"ping","params":{}}"#;
-        let response = state.protocol_handler.handle_request(request).await.unwrap();
+        let response = state
+            .protocol_handler
+            .handle_request(request)
+            .await
+            .unwrap();
         assert!(response.contains("pong"));
     }
 
@@ -327,7 +381,11 @@ mod tests {
     async fn test_calculate_tool() {
         let state = WsServerState::new();
         let request = r#"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"calculate","arguments":{"operation":"add","a":5,"b":3}}}"#;
-        let response = state.protocol_handler.handle_request(request).await.unwrap();
+        let response = state
+            .protocol_handler
+            .handle_request(request)
+            .await
+            .unwrap();
         assert!(response.contains("result"));
         assert!(response.contains("8"));
     }
@@ -336,7 +394,11 @@ mod tests {
     async fn test_evaluate_tool() {
         let state = WsServerState::new();
         let request = r#"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"evaluate","arguments":{"expression":"2+3*4"}}}"#;
-        let response = state.protocol_handler.handle_request(request).await.unwrap();
+        let response = state
+            .protocol_handler
+            .handle_request(request)
+            .await
+            .unwrap();
         assert!(response.contains("result"));
         assert!(response.contains("14"));
     }
@@ -349,34 +411,34 @@ mod tests {
     #[tokio::test]
     async fn test_connection_counter() {
         let state = WsServerState::new();
-        
+
         // Simulate connection
         {
             let mut active = state.active_connections.write().await;
             *active += 1;
         }
-        
+
         assert_eq!(*state.active_connections.read().await, 1);
-        
+
         // Simulate disconnect
         {
             let mut active = state.active_connections.write().await;
             *active -= 1;
         }
-        
+
         assert_eq!(*state.active_connections.read().await, 0);
     }
 
     #[tokio::test]
     async fn test_request_counter() {
         let state = WsServerState::new();
-        
+
         // Simulate requests
         for _ in 0..5 {
             let mut total = state.total_requests.write().await;
             *total += 1;
         }
-        
+
         assert_eq!(*state.total_requests.read().await, 5);
     }
 }

@@ -108,7 +108,10 @@ pub struct SimpleHealthResponse {
     pub timestamp: String,
 }
 
-pub fn create_long_task_response(task_name: String, duration_seconds: u32) -> SimpleLongTaskResponse {
+pub fn create_long_task_response(
+    task_name: String,
+    duration_seconds: u32,
+) -> SimpleLongTaskResponse {
     SimpleLongTaskResponse {
         status: "completed".to_string(),
         task_name,
@@ -131,14 +134,22 @@ pub fn create_batch_response(operations: Vec<String>) -> SimpleBatchResponse {
     }
 }
 
-pub fn create_transform_response(data: String, transformation: String) -> Result<SimpleTransformResponse, McpError> {
+pub fn create_transform_response(
+    data: String,
+    transformation: String,
+) -> Result<SimpleTransformResponse, McpError> {
     let result = match transformation.as_str() {
         "uppercase" => data.to_uppercase(),
         "lowercase" => data.to_lowercase(),
         "reverse" => data.chars().rev().collect(),
-        _ => return Err(McpError::InvalidParams(format!("Unknown transformation: {}", transformation))),
+        _ => {
+            return Err(McpError::InvalidParams(format!(
+                "Unknown transformation: {}",
+                transformation
+            )))
+        }
     };
-    
+
     Ok(SimpleTransformResponse {
         result,
         transformation,
@@ -146,16 +157,19 @@ pub fn create_transform_response(data: String, transformation: String) -> Result
     })
 }
 
-pub fn create_upload_response(filename: String, size_bytes: u64) -> Result<SimpleUploadResponse, McpError> {
+pub fn create_upload_response(
+    filename: String,
+    size_bytes: u64,
+) -> Result<SimpleUploadResponse, McpError> {
     const MAX_SIZE: u64 = 100 * 1024 * 1024; // 100MB
-    
+
     if size_bytes > MAX_SIZE {
         return Err(McpError::InvalidParams(format!(
             "File size {} bytes exceeds maximum of {} bytes",
             size_bytes, MAX_SIZE
         )));
     }
-    
+
     Ok(SimpleUploadResponse {
         status: "uploaded".to_string(),
         filename,

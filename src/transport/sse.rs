@@ -1,36 +1,36 @@
 //! SSE (Server-Sent Events) transport implementation for MCP protocol
-//! 
+//!
 //! This transport provides server-to-client push notifications using SSE,
 //! making it ideal for:
 //! - Real-time progress updates
 //! - Browser-based clients
 //! - Live notifications
 //! - Multi-client broadcasting
-//! 
+//!
 //! # Features
-//! 
+//!
 //! - One-way server → client communication
 //! - Multiple simultaneous clients
 //! - Automatic reconnection support
 //! - Browser EventSource API compatible
 //! - Efficient event streaming
-//! 
+//!
 //! # Example
-//! 
+//!
 //! ```rust,ignore
 //! use mcp_boilerplate_rust::transport::{SseTransport, Transport};
-//! 
+//!
 //! let mut transport = SseTransport::new("127.0.0.1:8025");
 //! transport.initialize().await?;
-//! 
+//!
 //! // Broadcast to all connected clients
 //! transport.broadcast(progress_update).await?;
 //! ```
 
 #[cfg(feature = "sse")]
 use super::r#trait::{
-    Transport, TransportCapabilities, TransportConfig, TransportError,
-    TransportFactory, TransportMessage, TransportStats,
+    Transport, TransportCapabilities, TransportConfig, TransportError, TransportFactory,
+    TransportMessage, TransportStats,
 };
 
 #[cfg(feature = "sse")]
@@ -55,7 +55,7 @@ use tokio::sync::broadcast;
 type ClientId = String;
 
 /// SSE transport implementation
-/// 
+///
 /// Manages multiple SSE connections and broadcasts events to all connected clients.
 /// Uses Axum's SSE support for efficient event streaming.
 #[cfg(feature = "sse")]
@@ -157,9 +157,7 @@ impl SseTransport {
     /// Send an event to all connected clients
     pub async fn send_event(&self, message: TransportMessage) -> Result<(), TransportError> {
         let tx = self.tx.lock().unwrap();
-        let sender = tx
-            .as_ref()
-            .ok_or_else(|| TransportError::NotInitialized)?;
+        let sender = tx.as_ref().ok_or_else(|| TransportError::NotInitialized)?;
 
         sender
             .send(message.clone())
@@ -182,12 +180,7 @@ impl SseTransport {
 
     /// Get list of connected client IDs
     pub fn connected_clients(&self) -> Vec<ClientId> {
-        self.clients
-            .lock()
-            .unwrap()
-            .keys()
-            .cloned()
-            .collect()
+        self.clients.lock().unwrap().keys().cloned().collect()
     }
 }
 
@@ -376,13 +369,13 @@ mod tests {
 
         let message = TransportMessage::with_metadata("test event".to_string(), "sse");
         let result = transport.broadcast(message).await;
-        
+
         // Broadcast will fail if no clients are connected, which is expected in tests
         // Just verify the transport is initialized
         let state = transport.state.lock().unwrap();
         assert!(state.initialized);
         drop(state);
-        
+
         let stats = transport.stats();
         // Messages are only counted when actually sent to clients
         assert_eq!(stats.messages_sent, 0);

@@ -4,6 +4,7 @@
 //! Supports large data transfers and progressive response streaming.
 
 use crate::mcp::protocol_handler::ProtocolHandler;
+use crate::metrics;
 use crate::transport::http_stream::HttpStreamTransport;
 use crate::transport::{Transport, TransportMessage};
 use axum::{
@@ -22,6 +23,9 @@ use tokio::sync::{broadcast, RwLock};
 use tower_http::cors::{Any, CorsLayer};
 use tracing::info;
 
+#[cfg(feature = "http-stream")]
+use axum::response::IntoResponse;
+
 const CHUNK_SIZE: usize = 8192; // 8KB chunks
 
 /// HTTP streaming server state
@@ -34,16 +38,16 @@ pub struct HttpStreamServerState {
     pub broadcast_tx: broadcast::Sender<Vec<u8>>,
 }
 
-
-
 /// Start HTTP streaming server
 pub async fn run_http_stream_server(bind_address: &str) -> anyhow::Result<()> {
     info!("Starting MCP HTTP Streaming Server with ProtocolHandler");
     info!("Bind address: {}", bind_address);
 
     let protocol_handler = Arc::new(ProtocolHandler::new());
-    let transport = Arc::new(RwLock::new(HttpStreamTransport::new(bind_address.to_string())));
-    
+    let transport = Arc::new(RwLock::new(HttpStreamTransport::new(
+        bind_address.to_string(),
+    )));
+
     // Initialize transport
     {
         let mut t = transport.write().await;
@@ -74,6 +78,7 @@ pub async fn run_http_stream_server(bind_address: &str) -> anyhow::Result<()> {
         .route("/tools", get(list_tools_handler))
         .route("/tools/call", post(call_tool_handler))
         .route("/stats", get(stats_handler))
+        .route("/metrics", get(metrics_handler))
         .layer(cors)
         .with_state(state);
 
@@ -87,6 +92,7 @@ pub async fn run_http_stream_server(bind_address: &str) -> anyhow::Result<()> {
     info!("  GET  /tools      - List tools");
     info!("  POST /tools/call - Call a tool");
     info!("  GET  /stats      - Server statistics");
+    info!("  GET  /metrics    - Prometheus metrics");
 
     let listener = tokio::net::TcpListener::bind(bind_address).await?;
     axum::serve(listener, app).await?;
@@ -105,7 +111,8 @@ async fn root_handler(State(state): State<HttpStreamServerState>) -> Json<Value>
             "stream": "/stream",
             "rpc": "/rpc",
             "tools": "/tools",
-            "stats": "/stats"
+            "stats": "/stats",
+            "metrics": "/metrics"
         },
         "features": {
             "chunked_transfer": true,
@@ -133,6 +140,24 @@ async fn health_handler(State(state): State<HttpStreamServerState>) -> Json<Valu
     }))
 }
 
+/// Metrics endpoint - Prometheus format
+#[cfg(feature = "http-stream")]
+async fn metrics_handler() -> impl IntoResponse {
+    match metrics::gather_metrics() {
+        Ok(metrics) => (
+            StatusCode::OK,
+            [("Content-Type", "text/plain; version=0.0.4")],
+            metrics,
+        )
+            .into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Error gathering metrics: {}", e),
+        )
+            .into_response(),
+    }
+}
+
 /// Stream handler - creates chunked streaming response
 async fn stream_handler(State(state): State<HttpStreamServerState>) -> Response {
     let stream_id = uuid::Uuid::new_v4().to_string();
@@ -143,12 +168,15 @@ async fn stream_handler(State(state): State<HttpStreamServerState>) -> Response 
         *active += 1;
     }
 
+    // Record metrics
+    metrics::increment_active_connections();
+    metrics::record_connection("http-stream");
+
     // Create a sample data stream (in production, this would stream real MCP data)
     let sample_data = generate_sample_data();
     let chunks: Vec<Vec<u8>> = chunk_data(sample_data, CHUNK_SIZE);
 
-    let stream = stream::iter(chunks)
-        .map(|chunk| Ok::<_, Infallible>(chunk));
+    let stream = stream::iter(chunks).map(|chunk| Ok::<_, Infallible>(chunk));
 
     // Cleanup when stream ends
     let cleanup_state = state.clone();
@@ -219,20 +247,26 @@ async fn rpc_handler(
 
     // Process JSON-RPC request through protocol handler
     let request_str = serde_json::to_string(&request).unwrap_or_default();
-    let response_str = state.protocol_handler.handle_request(&request_str).await.unwrap_or_else(|e| {
-        serde_json::json!({
-            "jsonrpc": "2.0",
-            "error": {
-                "code": -32603,
-                "message": format!("Internal error: {}", e)
-            }
-        }).to_string()
-    });
-    let response: serde_json::Value = serde_json::from_str(&response_str).unwrap_or_else(|_| serde_json::json!({}));
+    let response_str = state
+        .protocol_handler
+        .handle_request(&request_str)
+        .await
+        .unwrap_or_else(|e| {
+            serde_json::json!({
+                "jsonrpc": "2.0",
+                "error": {
+                    "code": -32603,
+                    "message": format!("Internal error: {}", e)
+                }
+            })
+            .to_string()
+        });
+    let response: serde_json::Value =
+        serde_json::from_str(&response_str).unwrap_or_else(|_| serde_json::json!({}));
 
     // Convert response to streaming chunks
     let response_bytes = serde_json::to_vec(&response).unwrap();
-    
+
     // For small responses, return directly
     if response_bytes.len() < CHUNK_SIZE {
         return Response::builder()
@@ -264,8 +298,13 @@ async fn list_tools_handler(State(state): State<HttpStreamServerState>) -> Json<
     });
 
     let request_str = serde_json::to_string(&request).unwrap();
-    let response_str = state.protocol_handler.handle_request(&request_str).await.unwrap_or_default();
-    let response: serde_json::Value = serde_json::from_str(&response_str).unwrap_or_else(|_| serde_json::json!({}));
+    let response_str = state
+        .protocol_handler
+        .handle_request(&request_str)
+        .await
+        .unwrap_or_default();
+    let response: serde_json::Value =
+        serde_json::from_str(&response_str).unwrap_or_else(|_| serde_json::json!({}));
     Json(response)
 }
 
@@ -290,8 +329,13 @@ async fn call_tool_handler(
     });
 
     let request_str = serde_json::to_string(&request).unwrap();
-    let response_str = state.protocol_handler.handle_request(&request_str).await.unwrap_or_default();
-    let response: serde_json::Value = serde_json::from_str(&response_str).unwrap_or_else(|_| serde_json::json!({}));
+    let response_str = state
+        .protocol_handler
+        .handle_request(&request_str)
+        .await
+        .unwrap_or_default();
+    let response: serde_json::Value =
+        serde_json::from_str(&response_str).unwrap_or_else(|_| serde_json::json!({}));
     let response_bytes = serde_json::to_vec(&response).unwrap();
 
     // Stream large tool responses
@@ -369,7 +413,7 @@ mod tests {
     fn test_chunk_data() {
         let data = vec![1u8; 20000];
         let chunks = chunk_data(data, CHUNK_SIZE);
-        
+
         assert!(chunks.len() > 1);
         assert_eq!(chunks[0].len(), CHUNK_SIZE);
     }
@@ -378,7 +422,7 @@ mod tests {
     fn test_generate_sample_data() {
         let data = generate_sample_data();
         assert!(data.len() > 0);
-        
+
         let parsed: Value = serde_json::from_slice(&data).unwrap();
         assert_eq!(parsed["type"], "stream");
     }
@@ -386,7 +430,9 @@ mod tests {
     #[tokio::test]
     async fn test_server_state_creation() {
         let protocol_handler = Arc::new(ProtocolHandler::new());
-        let transport = Arc::new(RwLock::new(HttpStreamTransport::new("127.0.0.1:8026".to_string())));
+        let transport = Arc::new(RwLock::new(HttpStreamTransport::new(
+            "127.0.0.1:8026".to_string(),
+        )));
         let (broadcast_tx, _) = broadcast::channel::<Vec<u8>>(100);
 
         let state = HttpStreamServerState {

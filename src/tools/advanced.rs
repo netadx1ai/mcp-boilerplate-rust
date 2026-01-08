@@ -75,7 +75,7 @@ impl AdvancedTool {
         ctx: RequestContext<RoleServer>,
     ) -> Result<Json<ProcessDataResponse>, McpError> {
         let req = params.0;
-        
+
         if req.items == 0 {
             return Err(McpError::invalid_params(
                 "Items must be greater than 0",
@@ -90,32 +90,37 @@ impl AdvancedTool {
             ));
         }
 
-        info!("Processing {} items with {}ms delay", req.items, req.delay_ms);
-        
+        info!(
+            "Processing {} items with {}ms delay",
+            req.items, req.delay_ms
+        );
+
         let peer = ctx.peer.clone();
         let start_time = std::time::Instant::now();
-        
+
         // Send progress notifications
         for i in 0..req.items {
             tokio::time::sleep(tokio::time::Duration::from_millis(req.delay_ms)).await;
-            
+
             // Notify progress every 10 items or on last item
             if i % 10 == 0 || i == req.items - 1 {
                 let _ = peer
                     .notify_progress(ProgressNotificationParam {
-                        progress_token: ProgressToken(rmcp::model::NumberOrString::String("process_data".into())),
+                        progress_token: ProgressToken(rmcp::model::NumberOrString::String(
+                            "process_data".into(),
+                        )),
                         progress: (i + 1) as f64,
                         total: Some(req.items as f64),
                         message: None,
                     })
                     .await;
-                
+
                 info!("Progress: {}/{} items", i + 1, req.items);
             }
         }
-        
+
         let elapsed = start_time.elapsed().as_millis() as u64;
-        
+
         Ok(Json(ProcessDataResponse {
             items_processed: req.items,
             total_time_ms: elapsed,
@@ -129,7 +134,7 @@ impl AdvancedTool {
         ctx: RequestContext<RoleServer>,
     ) -> Result<Json<BatchResponse>, McpError> {
         let req = params.0;
-        
+
         if req.batch_size == 0 || req.total_batches == 0 {
             return Err(McpError::invalid_params(
                 "Batch size and total batches must be greater than 0",
@@ -141,21 +146,23 @@ impl AdvancedTool {
             "Processing {} batches of {} items",
             req.total_batches, req.batch_size
         );
-        
+
         let peer = ctx.peer.clone();
-        
+
         for batch in 0..req.total_batches {
             tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
-            
+
             let _ = peer
                 .notify_progress(ProgressNotificationParam {
-                    progress_token: ProgressToken(rmcp::model::NumberOrString::String("batch_process".into())),
+                    progress_token: ProgressToken(rmcp::model::NumberOrString::String(
+                        "batch_process".into(),
+                    )),
                     progress: (batch + 1) as f64,
                     total: Some(req.total_batches as f64),
                     message: None,
                 })
                 .await;
-            
+
             let _ = peer
                 .notify_logging_message(LoggingMessageNotificationParam {
                     level: LoggingLevel::Info,
@@ -167,10 +174,10 @@ impl AdvancedTool {
                     }),
                 })
                 .await;
-            
+
             info!("Batch {}/{} completed", batch + 1, req.total_batches);
         }
-        
+
         Ok(Json(BatchResponse {
             batches_completed: req.total_batches,
             items_processed: req.batch_size * req.total_batches,
@@ -185,12 +192,9 @@ impl AdvancedTool {
         ctx: RequestContext<RoleServer>,
     ) -> Result<Json<TransformResponse>, McpError> {
         let req = params.0;
-        
+
         if req.data.is_empty() {
-            return Err(McpError::invalid_params(
-                "Data array cannot be empty",
-                None,
-            ));
+            return Err(McpError::invalid_params("Data array cannot be empty", None));
         }
 
         if req.data.len() > 10000 {
@@ -200,11 +204,15 @@ impl AdvancedTool {
             ));
         }
 
-        info!("Transforming {} items with operation: {}", req.data.len(), req.operation);
-        
+        info!(
+            "Transforming {} items with operation: {}",
+            req.data.len(),
+            req.operation
+        );
+
         let peer = ctx.peer.clone();
         let original_count = req.data.len();
-        
+
         let _ = peer
             .notify_logging_message(LoggingMessageNotificationParam {
                 level: LoggingLevel::Debug,
@@ -215,21 +223,23 @@ impl AdvancedTool {
                 }),
             })
             .await;
-        
+
         let mut result = Vec::new();
-        
+
         for (idx, item) in req.data.iter().enumerate() {
             if idx % 100 == 0 && idx > 0 {
                 let _ = peer
                     .notify_progress(ProgressNotificationParam {
-                        progress_token: ProgressToken(rmcp::model::NumberOrString::String("transform".into())),
+                        progress_token: ProgressToken(rmcp::model::NumberOrString::String(
+                            "transform".into(),
+                        )),
                         progress: idx as f64,
                         total: Some(original_count as f64),
                         message: None,
                     })
                     .await;
             }
-            
+
             let transformed = match req.operation.as_str() {
                 "uppercase" => {
                     if let Some(s) = item.as_str() {
@@ -255,7 +265,8 @@ impl AdvancedTool {
                 "double" => {
                     if let Some(n) = item.as_f64() {
                         serde_json::Value::Number(
-                            serde_json::Number::from_f64(n * 2.0).unwrap_or(serde_json::Number::from(0)),
+                            serde_json::Number::from_f64(n * 2.0)
+                                .unwrap_or(serde_json::Number::from(0)),
                         )
                     } else {
                         item.clone()
@@ -271,10 +282,10 @@ impl AdvancedTool {
                     ));
                 }
             };
-            
+
             result.push(transformed);
         }
-        
+
         Ok(Json(TransformResponse {
             original_count,
             transformed_count: result.len(),
@@ -289,24 +300,26 @@ impl AdvancedTool {
         ctx: RequestContext<RoleServer>,
     ) -> Result<CallToolResult, McpError> {
         info!("Simulating file upload");
-        
+
         let peer = ctx.peer.clone();
         let total_chunks = 20;
-        
+
         for chunk in 0..total_chunks {
             tokio::time::sleep(tokio::time::Duration::from_millis(150)).await;
-            
+
             let progress = ((chunk + 1) as f64 / total_chunks as f64) * 100.0;
-            
+
             let _ = peer
                 .notify_progress(ProgressNotificationParam {
-                    progress_token: ProgressToken(rmcp::model::NumberOrString::String("upload".into())),
+                    progress_token: ProgressToken(rmcp::model::NumberOrString::String(
+                        "upload".into(),
+                    )),
                     progress: (chunk + 1) as f64,
                     total: Some(total_chunks as f64),
                     message: None,
                 })
                 .await;
-            
+
             let _ = peer
                 .notify_logging_message(LoggingMessageNotificationParam {
                     level: LoggingLevel::Info,
@@ -318,10 +331,10 @@ impl AdvancedTool {
                     }),
                 })
                 .await;
-            
+
             info!("Upload progress: {:.1}%", progress);
         }
-        
+
         Ok(CallToolResult::success(vec![Content::text(
             serde_json::json!({
                 "status": "uploaded",
@@ -333,13 +346,11 @@ impl AdvancedTool {
     }
 
     /// Health check with system info
-    pub async fn health_check(
-        ctx: RequestContext<RoleServer>,
-    ) -> Result<CallToolResult, McpError> {
+    pub async fn health_check(ctx: RequestContext<RoleServer>) -> Result<CallToolResult, McpError> {
         info!("Health check requested");
-        
+
         let peer = ctx.peer.clone();
-        
+
         let _ = peer
             .notify_logging_message(LoggingMessageNotificationParam {
                 level: LoggingLevel::Debug,
@@ -347,7 +358,7 @@ impl AdvancedTool {
                 data: serde_json::json!({"check": "starting"}),
             })
             .await;
-        
+
         let health_data = serde_json::json!({
             "status": "healthy",
             "uptime_seconds": 0,
@@ -355,7 +366,7 @@ impl AdvancedTool {
             "timestamp": Utc::now().to_rfc3339(),
             "version": env!("CARGO_PKG_VERSION")
         });
-        
+
         Ok(CallToolResult::success(vec![Content::text(
             serde_json::to_string_pretty(&health_data).unwrap(),
         )]))
@@ -388,7 +399,7 @@ mod tests {
             serde_json::Value::String("hello".to_string()),
             serde_json::Value::String("world".to_string()),
         ];
-        
+
         assert_eq!(data.len(), 2);
     }
 }
