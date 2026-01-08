@@ -1,0 +1,55 @@
+# MCP Boilerplate Rust - Docker Compose
+# Simple Docker Compose setup for local development and testing
+
+version: '3.8'
+
+services:
+  mcp-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mcp-boilerplate-rust
+    ports:
+      - "${PORT:-8025}:8025"
+    environment:
+      - RUST_LOG=${RUST_LOG:-info,mcp_boilerplate_rust=debug}
+      - HOST=0.0.0.0
+      - PORT=8025
+      - MONGODB_URI=${MONGODB_URI:-mongodb://mongo:27017}
+      - MONGODB_DATABASE=${MONGODB_DATABASE:-mcp_db}
+      - JWT_SECRET=${JWT_SECRET:-your_secret_key_here}
+    networks:
+      - mcp-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8025/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+  mongo:
+    image: mongo:7
+    container_name: mcp-mongo
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_DATABASE=mcp_db
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - mcp-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  mcp-network:
+    driver: bridge
+
+volumes:
+  mongo-data:
+    driver: local

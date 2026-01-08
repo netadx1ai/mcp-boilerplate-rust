@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "mcp-boilerplate-rust-http": {
+      "command": "npx",
+      "args": ["-y", "@netadx1ai/mcp-stdio-wrapper@latest"],
+      "env": {
+        "API_URL": "http://localhost:8025",
+        "JWT_TOKEN": "dummy-token-for-testing",
+        "LOG_FILE": "/tmp/mcp-http-wrapper.log"
+      }
+    }
+  }
+}

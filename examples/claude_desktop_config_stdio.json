@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "mcp-boilerplate-rust": {
+      "command": "/Users/hoangiso/Desktop/mcp-boilerplate-rust/target/release/mcp-boilerplate-rust",
+      "args": ["--mode", "stdio"],
+      "env": {
+        "RUST_LOG": "info,mcp_boilerplate_rust=debug"
+      }
+    }
+  }
+}
