@@ -1,6 +1,6 @@
 # Documentation Index
 
-**MCP Boilerplate Rust v0.4.0**  
+**MCP Boilerplate Rust v0.5.0**
 **Last Updated:** 2026-01-09 (HCMC Timezone)
 
 ---
@@ -218,6 +218,7 @@ Implement advanced features
 - **2026-01-08:** Consolidated troubleshooting and integration guides
 - **2026-01-08:** Archived historical session notes
 - **2026-01-08:** Created comprehensive navigation
+- **2026-01-09:** Released v0.5.0 with OpenTelemetry and gRPC-Web support
 
 ---
 
