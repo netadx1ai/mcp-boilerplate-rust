@@ -1,8 +1,7 @@
 use rmcp::{
-    ErrorData as McpError,
     handler::server::tool::ToolRouter,
     handler::server::wrapper::{Json, Parameters},
-    tool, tool_router,
+    tool, tool_router, ErrorData as McpError,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -61,9 +60,9 @@ impl CalculatorTool {
         params: Parameters<CalculateRequest>,
     ) -> Result<Json<CalculateResponse>, McpError> {
         let req = params.0;
-        
+
         info!("Calculate: {} {} {}", req.a, req.operation, req.b);
-        
+
         let result = match req.operation.to_lowercase().as_str() {
             "add" | "+" => req.a + req.b,
             "subtract" | "-" => req.a - req.b,
@@ -120,7 +119,7 @@ impl CalculatorTool {
         params: Parameters<EvaluateRequest>,
     ) -> Result<Json<EvaluateResponse>, McpError> {
         let expression = params.0.expression.trim();
-        
+
         if expression.is_empty() {
             return Err(McpError::invalid_params(
                 "Expression cannot be empty".to_string(),
@@ -138,7 +137,7 @@ impl CalculatorTool {
         info!("Evaluate: {}", expression);
 
         let result = evaluate_expression(expression).map_err(|e| {
-            McpError::invalid_params(format!("Failed to evaluate expression: {}", e), None)
+            McpError::invalid_params(format!("Failed to evaluate expression: {e}"), None)
         })?;
 
         if !result.is_finite() {
@@ -164,19 +163,19 @@ impl Default for CalculatorTool {
 
 fn evaluate_expression(expr: &str) -> Result<f64, String> {
     let expr = expr.replace(" ", "");
-    
+
     for c in expr.chars() {
         if !c.is_ascii_digit() && !matches!(c, '+' | '-' | '*' | '/' | '(' | ')' | '.') {
-            return Err(format!("Invalid character in expression: '{}'", c));
+            return Err(format!("Invalid character in expression: '{c}'"));
         }
     }
-    
+
     parse_expression(&expr, 0).map(|(result, _)| result)
 }
 
 fn parse_expression(expr: &str, pos: usize) -> Result<(f64, usize), String> {
     let (mut left, mut pos) = parse_term(expr, pos)?;
-    
+
     while pos < expr.len() {
         let op = expr.chars().nth(pos).unwrap();
         match op {
@@ -190,16 +189,16 @@ fn parse_expression(expr: &str, pos: usize) -> Result<(f64, usize), String> {
                 pos = new_pos;
             }
             ')' => break,
-            _ => return Err(format!("Unexpected character at position {}: '{}'", pos, op)),
+            _ => return Err(format!("Unexpected character at position {pos}: '{op}'")),
         }
     }
-    
+
     Ok((left, pos))
 }
 
 fn parse_term(expr: &str, pos: usize) -> Result<(f64, usize), String> {
     let (mut left, mut pos) = parse_factor(expr, pos)?;
-    
+
     while pos < expr.len() {
         let op = expr.chars().nth(pos).unwrap();
         match op {
@@ -216,10 +215,10 @@ fn parse_term(expr: &str, pos: usize) -> Result<(f64, usize), String> {
                 pos = new_pos;
             }
             '+' | '-' | ')' => break,
-            _ => return Err(format!("Unexpected character at position {}: '{}'", pos, op)),
+            _ => return Err(format!("Unexpected character at position {pos}: '{op}'")),
         }
     }
-    
+
     Ok((left, pos))
 }
 
@@ -227,9 +226,9 @@ fn parse_factor(expr: &str, pos: usize) -> Result<(f64, usize), String> {
     if pos >= expr.len() {
         return Err("Unexpected end of expression".to_string());
     }
-    
+
     let ch = expr.chars().nth(pos).unwrap();
-    
+
     if ch == '(' {
         let (result, new_pos) = parse_expression(expr, pos + 1)?;
         if new_pos >= expr.len() || expr.chars().nth(new_pos).unwrap() != ')' {
@@ -246,14 +245,14 @@ fn parse_factor(expr: &str, pos: usize) -> Result<(f64, usize), String> {
     } else if ch.is_ascii_digit() || ch == '.' {
         parse_number(expr, pos)
     } else {
-        Err(format!("Unexpected character at position {}: '{}'", pos, ch))
+        Err(format!("Unexpected character at position {pos}: '{ch}'"))
     }
 }
 
 fn parse_number(expr: &str, pos: usize) -> Result<(f64, usize), String> {
     let mut end = pos;
     let mut has_dot = false;
-    
+
     while end < expr.len() {
         let ch = expr.chars().nth(end).unwrap();
         if ch.is_ascii_digit() {
@@ -265,15 +264,16 @@ fn parse_number(expr: &str, pos: usize) -> Result<(f64, usize), String> {
             break;
         }
     }
-    
+
     if end == pos {
-        return Err(format!("Expected number at position {}", pos));
+        return Err(format!("Expected number at position {pos}"));
     }
-    
+
     let num_str = &expr[pos..end];
-    let num = num_str.parse::<f64>()
-        .map_err(|_| format!("Invalid number: '{}'", num_str))?;
-    
+    let num = num_str
+        .parse::<f64>()
+        .map_err(|_| format!("Invalid number: '{num_str}'"))?;
+
     Ok((num, end))
 }
 

@@ -1,6 +1,6 @@
+use crate::types::McpError;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use crate::types::McpError;
 
 // Security: Max message size 10KB to prevent memory issues
 const MAX_MESSAGE_LENGTH: usize = 10 * 1024;
@@ -40,7 +40,7 @@ pub fn create_echo_response(message: String) -> Result<EchoResponse, McpError> {
     }
     if message.is_empty() {
         return Err(McpError::InvalidParams(
-            "Message cannot be empty".to_string()
+            "Message cannot be empty".to_string(),
         ));
     }
     Ok(EchoResponse {
