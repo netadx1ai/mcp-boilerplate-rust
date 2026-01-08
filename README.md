@@ -515,4 +515,16 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines.
 
 ---
 
+## Get Started Today
+
+Ready to unlock the power of AI for your organization?
+
+🌐 Visit: https://netadx.ai  
+📧 Contact: hello@netadx.ai  
+📅 Book Consultation: Free 30-minute discovery call available
+
+"Empowering businesses through intelligent automation and custom AI solutions"
+
+---
+
 **Ready for production use with Claude Desktop!**
