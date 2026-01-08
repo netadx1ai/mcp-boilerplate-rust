@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### Observability
+- **Prometheus Metrics** - Comprehensive metrics collection (requests, tools, connections, errors)
+- **Metrics Endpoint** - `/metrics` endpoint available on SSE, WebSocket, and HTTP Stream transports
+- **Instrumentation** - Automated tracking for ProtocolHandler and all transports
+
 #### Advanced Features
 - **Progress Notifications** - Real-time updates during tool execution via `ProgressNotificationParam`
 - **RequestContext Integration** - All 11 tools now use `RequestContext<RoleServer>` for bidirectional communication
@@ -153,6 +158,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 | RequestContext | No | No | Yes |
 | Output Schemas | No | Yes | Yes |
 | Icons & Annotations | No | Yes | No |
+| Observability | No | No | Yes |
 | Documentation Lines | ~1K | ~2K | ~9.3K |
 | Test Coverage | Basic | Comprehensive | Enhanced |
 | Professional B2B Style | No | No | Yes |
@@ -189,6 +195,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 **New Features Available:**
 - 6 new advanced tools with progress tracking
+- Prometheus metrics collection
 - Real-time progress notifications
 - System health monitoring
 - Comprehensive documentation
