@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.4.0-rc] - 2026-01-08
+## [0.4.0] - 2026-01-09
 
 ### Added
 
@@ -85,11 +85,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - ANSI escape code issues in stdio mode (already fixed)
 - Documentation duplication removed
 - Confusing navigation paths clarified
+- Emoji/icon usage removed for B2B professional style
 
 ### Removed
 - Duplicate documentation files (6 files)
 - Obsolete session checklists
 - Redundant tool quick references
+- Emojis and icons from all documentation
 
 ---
 
@@ -143,22 +145,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Version Comparison
 
-| Feature | v0.3.0 | v0.3.1 | v0.4.0-rc |
-|---------|--------|--------|-----------|
+| Feature | v0.3.0 | v0.3.1 | v0.4.0 |
+|---------|--------|--------|--------|
 | Tools | 3 | 5 | 11 |
 | Protocol | 2024-11-05 | 2025-03-26 | 2025-03-26 |
-| Progress Notifications | ❌ | ❌ | ✅ |
-| RequestContext | ❌ | ❌ | ✅ |
-| Output Schemas | ❌ | ✅ | ✅ |
-| Icons & Annotations | ❌ | ✅ | ✅ |
+| Progress Notifications | No | No | Yes |
+| RequestContext | No | No | Yes |
+| Output Schemas | No | Yes | Yes |
+| Icons & Annotations | No | Yes | No |
 | Documentation Lines | ~1K | ~2K | ~9.3K |
 | Test Coverage | Basic | Comprehensive | Enhanced |
+| Professional B2B Style | No | No | Yes |
 
 ---
 
 ## Upgrade Guide
 
-### From v0.3.1 to v0.4.0-rc
+### From v0.3.1 to v0.4.0
 
 **Breaking Changes:**
 1. Update tool signatures to include `RequestContext`:
@@ -194,7 +197,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Future Roadmap
 
-### v0.4.0 (Stable Release)
+### v0.4.1 (Next Patch)
 - [ ] Resolve task_handler macro compatibility
 - [ ] Complete task lifecycle implementation (SEP-1686)
 - [ ] Production deployment guide

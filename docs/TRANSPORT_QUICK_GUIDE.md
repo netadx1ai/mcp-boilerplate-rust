@@ -6,7 +6,7 @@
 
 ---
 
-## 🚀 Quick Start
+##  Quick Start
 
 Choose your transport based on your use case:
 
@@ -19,7 +19,7 @@ Choose your transport based on your use case:
 
 ---
 
-## 📡 Transport Modes
+##  Transport Modes
 
 ### 1. Stdio (Default)
 
@@ -275,7 +275,7 @@ curl -X POST http://localhost:3000/tools/ping
 
 ---
 
-## 🔧 Build Configurations
+##  Build Configurations
 
 ### Minimal (Stdio only)
 ```bash
@@ -343,17 +343,17 @@ curl -N http://localhost:8025/sse
 
 ---
 
-## 📊 Transport Comparison
+##  Transport Comparison
 
 | Feature | stdio | SSE | WebSocket | HTTP |
 |---------|-------|-----|-----------|------|
-| **Bidirectional** | ✅ | ❌ | ✅ | ❌ |
-| **Multi-client** | ❌ | ✅ | ✅ | ✅ |
-| **Browser support** | ❌ | ✅ | ✅ | ✅ |
-| **Real-time push** | N/A | ✅ | ✅ | ❌ |
-| **Low latency** | ✅ | 🟡 | ✅ | 🟡 |
-| **Auto-reconnect** | N/A | ✅ | ❌ | N/A |
-| **Network required** | ❌ | ✅ | ✅ | ✅ |
+| **Bidirectional** | Complete | No | Complete | No |
+| **Multi-client** | No | Complete | Complete | Complete |
+| **Browser support** | No | Complete | Complete | Complete |
+| **Real-time push** | N/A | Complete | Complete | No |
+| **Low latency** | Complete | 🟡 | Complete | 🟡 |
+| **Auto-reconnect** | N/A | Complete | No | N/A |
+| **Network required** | No | Complete | Complete | Complete |
 | **Complexity** | Low | Medium | Medium | Low |
 
 ---
@@ -464,7 +464,7 @@ RUST_LOG=debug cargo run --features sse -- --mode sse --verbose
 
 ---
 
-## 🎯 Common Use Cases
+##  Common Use Cases
 
 ### Claude Desktop Integration
 ```bash
@@ -492,7 +492,7 @@ cargo run --release --features sse -- --mode sse --bind 0.0.0.0:8025
 
 ---
 
-## ✅ Quick Verification
+## Complete Quick Verification
 
 ```bash
 # 1. Build succeeds
@@ -520,6 +520,6 @@ Expected output:
 
 ---
 
-**Ready to go!** 🚀
+**Ready to go!** 
 
 Choose your transport, build, and deploy. All modes are production-ready and fully tested.

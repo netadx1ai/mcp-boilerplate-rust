@@ -1,6 +1,6 @@
 # MCP Boilerplate Rust
 
-**Version 0.4.0** | 🚀 Production-Ready Multi-Transport MCP Server | ⚡ 6 Transport Modes
+**Version 0.4.0** | Production-Ready Multi-Transport MCP Server | 6 Transport Modes
 
 A production-ready Rust implementation of the Model Context Protocol (MCP) with advanced multi-transport support, comprehensive tooling, and enterprise-grade features.
 
@@ -8,7 +8,7 @@ A production-ready Rust implementation of the Model Context Protocol (MCP) with 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Tests](https://img.shields.io/badge/tests-89%20passing-brightgreen.svg)]()
 
-## 🎯 Features
+## Features
 
 - **6 Transport Modes** - stdio, SSE, WebSocket, HTTP, HTTP Streaming, gRPC
 - **11 Production Tools** - Complete suite with progress notifications
@@ -19,7 +19,7 @@ A production-ready Rust implementation of the Model Context Protocol (MCP) with 
 - **Browser Clients** - Interactive test clients included
 - **Docker Ready** - Containerization support
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 
@@ -56,7 +56,7 @@ npx @modelcontextprotocol/inspector cargo run --release -- --mode stdio
 
 Open http://localhost:5173 to interact with all 11 tools.
 
-## 📡 Transport Modes
+## Transport Modes
 
 ### 1. Stdio (Default)
 **Best for:** Desktop apps, Claude Desktop, CLI tools
@@ -139,7 +139,7 @@ grpcurl -plaintext 127.0.0.1:50051 mcp.Mcp/HealthCheck
 cargo run --release --features http -- --mode http
 ```
 
-## 🛠️ Available Tools
+## Available Tools
 
 ### Basic Tools (5)
 | Tool | Description | Example |
@@ -160,7 +160,7 @@ cargo run --release --features http -- --mode http
 | `health_check` | System health | Health monitoring |
 | `long_task` | Long operation | 10s task with progress |
 
-## 📦 Build Options
+## Build Options
 
 ### Feature Flags
 
@@ -192,7 +192,7 @@ cargo build --release --features full
 - `auth` - JWT authentication
 - `full` - All features
 
-## 🧪 Testing
+## Testing
 
 ```bash
 # Run all tests
@@ -210,7 +210,7 @@ cargo test --features full -- --test-threads=1
 
 **Test Results:** 89 tests passing, 0 failing
 
-## 🐳 Docker Deployment
+## Docker Deployment
 
 ### Build Image
 
@@ -232,7 +232,7 @@ docker run -p 9001:9001 mcp-server \
 docker run -p 8025:8025 -p 9001:9001 -p 8026:8026 -p 50051:50051 mcp-server
 ```
 
-## 📊 Performance
+## Performance
 
 ### Benchmarks (MacBook Pro M1)
 
@@ -251,7 +251,7 @@ docker run -p 8025:8025 -p 9001:9001 -p 8026:8026 -p 50051:50051 mcp-server
 | Minimal (stdio) | 2.4 MB | 30s |
 | Full features | 4.2 MB | 45s |
 
-## 📚 Documentation
+## Documentation
 
 ### Getting Started
 - [START_HERE.md](START_HERE.md) - Quick start guide (5 min read)
@@ -271,7 +271,7 @@ docker run -p 8025:8025 -p 9001:9001 -p 8026:8026 -p 50051:50051 mcp-server
 - `examples/websocket_test_client.html` - WebSocket browser client
 - `examples/advanced_features_demo.md` - Advanced features demo
 
-## 🔧 Configuration
+## Configuration
 
 ### Environment Variables
 
@@ -301,7 +301,7 @@ Options:
   -V, --version          Print version
 ```
 
-## 🏗️ Project Structure
+## Project Structure
 
 ```
 mcp-boilerplate-rust/
@@ -332,7 +332,7 @@ mcp-boilerplate-rust/
 └── tests/                      # Integration tests
 ```
 
-## 🔐 Security
+## Security
 
 ### Production Checklist
 
@@ -359,7 +359,7 @@ CorsLayer::new()
 
 For production, restrict to specific origins.
 
-## 🐛 Troubleshooting
+## Troubleshooting
 
 ### Port Already in Use
 ```bash
@@ -390,7 +390,7 @@ cargo build --release --features full
 cargo update
 ```
 
-## 🤝 Contributing
+## Contributing
 
 Contributions are welcome! Please:
 
@@ -400,11 +400,11 @@ Contributions are welcome! Please:
 4. Ensure all tests pass
 5. Submit a pull request
 
-## 📄 License
+## License
 
 MIT License - see [LICENSE](LICENSE) file for details
 
-## 🔗 Links
+## Links
 
 - **GitHub:** https://github.com/netadx/mcp-boilerplate-rust
 - **MCP Protocol:** https://modelcontextprotocol.io
@@ -412,20 +412,20 @@ MIT License - see [LICENSE](LICENSE) file for details
 - **Website:** https://netadx.ai
 - **Email:** hello@netadx.ai
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - Built with [rmcp](https://github.com/modelcontextprotocol/rust-sdk) - Official Rust MCP SDK
 - Inspired by the Model Context Protocol specification
 - Community feedback and contributions
 
-## 📈 Roadmap
+## Roadmap
 
 ### Current Version (0.4.0)
-- ✅ 6 transport modes
-- ✅ 11 production tools
-- ✅ Comprehensive testing
-- ✅ Browser clients
-- ✅ Docker support
+- 6 transport modes
+- 11 production tools
+- Comprehensive testing
+- Browser clients
+- Docker support
 
 ### Next Version (0.5.0)
 - [ ] gRPC-Web gateway for browser support
@@ -441,21 +441,4 @@ MIT License - see [LICENSE](LICENSE) file for details
 - [ ] Auto-scaling
 - [ ] Performance dashboards
 
-## 🎯 Use Cases
-
-- **Desktop Applications** - Use stdio for Claude Desktop integration
-- **Web Applications** - Use SSE for push notifications
-- **Chat Applications** - Use WebSocket for real-time messaging
-- **File Services** - Use HTTP Streaming for large transfers
-- **Microservices** - Use gRPC for inter-service communication
-- **Mobile Apps** - Use HTTP or gRPC for backend APIs
-- **IoT Devices** - Use stdio or gRPC for device communication
-
----
-
-**Status:** Production Ready ✅  
-**Version:** 0.4.0  
-**Last Updated:** 2026-01-09  
-**Maintained by:** NetADX Team
-
-⭐ Star this repo if you find it useful!
+## Use

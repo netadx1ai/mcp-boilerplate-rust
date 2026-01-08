@@ -228,6 +228,6 @@ MIT License - see [LICENSE](LICENSE)
 
 ---
 
-**You're ready to go!** 🚀
+**You're ready to go!**
 
 Choose your transport mode, build, and start developing with MCP.
