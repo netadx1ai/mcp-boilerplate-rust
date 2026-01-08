@@ -13,7 +13,7 @@ This document tracks the implementation status of all MCP features in the Rust b
 
 | Feature | Status | Count | Notes |
 |---------|--------|-------|-------|
-| Tools | ✅ Complete | 5 | echo, ping, info, calculate, evaluate |
+| Tools | ✅ Complete | 5 | echo, ping, info, calculate, evaluate (with output schemas) |
 | Prompts | ✅ Complete | 3 | code_review, explain_code, debug_help (with icons) |
 | Resources | ✅ Complete | 4 | config, capabilities, docs, stats (with icons & annotations) |
 | Logging | ✅ Complete | - | Disabled in stdio, enabled in HTTP |
@@ -21,6 +21,7 @@ This document tracks the implementation status of all MCP features in the Rust b
 | Icons | ✅ Complete | - | All prompts and resources have icons |
 | Annotations | ✅ Complete | - | Resources have audience, priority, timestamps |
 | Enhanced Errors | ✅ Complete | - | Tool execution errors for LLM self-correction |
+| Output Schemas | ✅ Complete | 5 | All tools have automatic JSON schema generation |
 
 ## Detailed Status
 
@@ -36,6 +37,7 @@ All tools are fully implemented with input validation and error handling.
   - Non-empty check
   - UTF-8 validation
 - **Error Handling**: Returns tool execution errors (not protocol errors) for validation failures
+- **Output Schema**: `EchoResponse` - message, timestamp (auto-generated)
 - **Output**: JSON with message and RFC3339 timestamp
 - **Tests**: ✅ Passing
 
@@ -43,6 +45,7 @@ All tools are fully implemented with input validation and error handling.
 - **Status**: ✅ Production Ready
 - **Description**: Simple ping-pong connectivity test
 - **Input**: None
+- **Output Schema**: `PingResponse` - response, timestamp (auto-generated)
 - **Output**: JSON with "pong" response and timestamp
 - **Tests**: ✅ Passing
 
