@@ -1,7 +1,7 @@
 # Transport Quick Start Guide
 
 **Last Updated:** 2026-01-09 (HCMC Timezone)  
-**Version:** v0.5.0-dev  
+**Version:** v0.5.0
 **Status:** Production Ready
 
 ---
@@ -16,6 +16,7 @@ Choose your transport based on your use case:
 | **SSE** | Browser notifications, live updates | `cargo run --features sse -- --mode sse` |
 | **WebSocket** | Real-time chat, bidirectional | `cargo run --features websocket -- --mode websocket` |
 | **HTTP** | REST API, simple integration | `cargo run --features http -- --mode http` |
+| **gRPC** | Microservices, high performance | `cargo run --features grpc -- --mode grpc` |
 
 ---
 
@@ -275,6 +276,33 @@ curl -X POST http://localhost:3000/tools/ping
 
 ---
 
+### 5. gRPC & gRPC-Web
+
+**Best for:** Microservices, high-performance APIs, internal services, browser clients
+
+```bash
+# Build with gRPC feature
+cargo build --release --features grpc
+
+# Run (default: 127.0.0.1:50051)
+./target/release/mcp-boilerplate-rust --mode grpc
+```
+
+**Features:**
+- Protocol Buffers serialization
+- HTTP/2 multiplexing
+- gRPC-Web support (Browser compatible)
+- Bidirectional streaming
+- Sub-5ms latency
+
+**Test with grpcurl:**
+```bash
+grpcurl -plaintext 127.0.0.1:50051 list
+grpcurl -plaintext 127.0.0.1:50051 mcp.Mcp/HealthCheck
+```
+
+---
+
 ##  Build Configurations
 
 ### Minimal (Stdio only)
@@ -293,6 +321,9 @@ cargo build --release --features websocket
 
 # HTTP only
 cargo build --release --features http
+
+# gRPC only
+cargo build --release --features grpc
 ```
 
 ### Multiple Transports
@@ -329,7 +360,7 @@ cargo test --features sse -- transport::sse
 cargo test --features websocket -- transport::websocket
 
 # All transport tests
-cargo test --features "sse,websocket,http-stream"
+cargo test --features "sse,websocket,http-stream,grpc"
 ```
 
 ### Integration Testing
@@ -345,16 +376,16 @@ curl -N http://localhost:8025/sse
 
 ##  Transport Comparison
 
-| Feature | stdio | SSE | WebSocket | HTTP |
-|---------|-------|-----|-----------|------|
-| **Bidirectional** | Complete | No | Complete | No |
-| **Multi-client** | No | Complete | Complete | Complete |
-| **Browser support** | No | Complete | Complete | Complete |
-| **Real-time push** | N/A | Complete | Complete | No |
-| **Low latency** | Complete | 🟡 | Complete | 🟡 |
-| **Auto-reconnect** | N/A | Complete | No | N/A |
-| **Network required** | No | Complete | Complete | Complete |
-| **Complexity** | Low | Medium | Medium | Low |
+| Feature | stdio | SSE | WebSocket | HTTP | gRPC |
+|---------|-------|-----|-----------|------|------|
+| **Bidirectional** | Complete | No | Complete | No | Complete |
+| **Multi-client** | No | Complete | Complete | Complete | Complete |
+| **Browser support** | No | Complete | Complete | Complete | Complete |
+| **Real-time push** | N/A | Complete | Complete | No | Complete |
+| **Low latency** | Complete | 🟡 | Complete | 🟡 | Complete |
+| **Auto-reconnect** | N/A | Complete | No | N/A | Client-side |
+| **Network required** | No | Complete | Complete | Complete | Complete |
+| **Complexity** | Low | Medium | Medium | Low | High |
 
 ---
 
@@ -488,6 +519,12 @@ cargo run --release --features http -- --mode http
 ```bash
 # Use SSE for server-push notifications
 cargo run --release --features sse -- --mode sse --bind 0.0.0.0:8025
+```
+
+### High Performance Backend
+```bash
+# Use gRPC for microservices
+cargo run --release --features grpc -- --mode grpc --bind 0.0.0.0:50051
 ```
 
 ---
