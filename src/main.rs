@@ -5,6 +5,7 @@ mod mcp;
 mod prompts;
 mod resources;
 mod tools;
+mod transport;
 mod types;
 mod utils;
 
@@ -14,7 +15,10 @@ mod middleware;
 use mcp::McpServer;
 use utils::Logger;
 
-#[cfg(feature = "http")]
+#[cfg(feature = "sse")]
+use mcp::run_sse_server;
+
+#[cfg(any(feature = "http", feature = "sse"))]
 use tracing::info;
 
 #[cfg(feature = "http")]
@@ -34,6 +38,8 @@ enum ServerMode {
     Stdio,
     #[cfg(feature = "http")]
     Http,
+    #[cfg(feature = "sse")]
+    Sse,
 }
 
 #[derive(Parser, Debug)]
@@ -45,6 +51,9 @@ struct Args {
 
     #[arg(short, long, help = "Enable verbose logging")]
     verbose: bool,
+
+    #[arg(short, long, help = "Bind address for SSE server", default_value = "127.0.0.1:8025")]
+    bind: String,
 }
 
 #[tokio::main]
@@ -52,6 +61,9 @@ async fn main() -> Result<()> {
     dotenv::dotenv().ok();
 
     let args = Args::parse();
+
+    // Initialize transport registry
+    transport::init_registry();
 
     // For stdio mode, disable logging to avoid interfering with JSON-RPC
     // Claude Desktop can't parse logs mixed with JSON responses
@@ -75,6 +87,19 @@ async fn main() -> Result<()> {
             info!("Using official rmcp SDK v0.12");
             info!("Starting MCP server in HTTP mode");
             run_http_server().await?;
+        }
+        #[cfg(feature = "sse")]
+        ServerMode::Sse => {
+            if args.verbose {
+                std::env::set_var("RUST_LOG", "debug,mcp_boilerplate_rust=trace");
+            } else {
+                std::env::set_var("RUST_LOG", "info");
+            }
+            Logger::init();
+            info!("MCP Boilerplate Rust v{}", env!("CARGO_PKG_VERSION"));
+            info!("Using official rmcp SDK v0.12");
+            info!("Starting MCP server in SSE mode");
+            run_sse_server(&args.bind).await?;
         }
     }
 

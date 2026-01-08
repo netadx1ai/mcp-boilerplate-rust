@@ -49,6 +49,9 @@ pub mod r#trait;
 pub mod registry;
 pub mod stdio;
 
+#[cfg(feature = "sse")]
+pub mod sse;
+
 // Re-export core types for convenience
 pub use r#trait::{
     Transport, TransportCapabilities, TransportConfig, TransportError,
@@ -56,6 +59,9 @@ pub use r#trait::{
 };
 pub use registry::TransportRegistry;
 pub use stdio::StdioTransport;
+
+#[cfg(feature = "sse")]
+pub use sse::SseTransport;
 
 /// Initialize the global transport registry with default transports
 /// 
@@ -70,8 +76,16 @@ pub fn init_registry() {
         eprintln!("Failed to register stdio transport: {}", e);
     }
     
+    // Register SSE transport (when feature enabled)
+    #[cfg(feature = "sse")]
+    {
+        let sse_factory = std::sync::Arc::new(sse::SseTransportFactory);
+        if let Err(e) = registry.register("sse", sse_factory) {
+            eprintln!("Failed to register SSE transport: {}", e);
+        }
+    }
+    
     // Future transports will be registered here:
-    // - SSE transport (when feature = "sse" is enabled)
     // - WebSocket transport (when feature = "websocket" is enabled)
     // - HTTP streaming (when feature = "http-stream" is enabled)
     // - RPC transport (when feature = "rpc" is enabled)
@@ -95,5 +109,8 @@ mod tests {
         let available = registry.list_available();
         assert!(!available.is_empty());
         assert!(available.contains(&"stdio".to_string()));
+        
+        #[cfg(feature = "sse")]
+        assert!(available.contains(&"sse".to_string()));
     }
 }
