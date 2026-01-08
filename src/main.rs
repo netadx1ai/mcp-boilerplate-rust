@@ -42,7 +42,7 @@ enum ServerMode {
 struct Args {
     #[arg(short, long, value_enum, default_value = "stdio")]
     mode: ServerMode,
-    
+
     #[arg(short, long, help = "Enable verbose logging")]
     verbose: bool,
 }
@@ -50,9 +50,9 @@ struct Args {
 #[tokio::main]
 async fn main() -> Result<()> {
     dotenv::dotenv().ok();
-    
+
     let args = Args::parse();
-    
+
     // For stdio mode, disable logging to avoid interfering with JSON-RPC
     // Claude Desktop can't parse logs mixed with JSON responses
     match args.mode {
@@ -113,18 +113,27 @@ async fn run_http_server() -> Result<()> {
         .route("/", get(health_check))
         .route("/health", get(health_check))
         .route("/tools", get(list_tools))
-        .route("/tools/echo", post({
-            let tool = Arc::clone(&echo_tool);
-            move |payload| handle_echo_tool(tool, payload)
-        }))
-        .route("/tools/ping", post({
-            let tool = Arc::clone(&echo_tool);
-            move |payload| handle_ping_tool(tool, payload)
-        }))
-        .route("/tools/info", post({
-            let tool = Arc::clone(&echo_tool);
-            move |payload| handle_info_tool(tool, payload)
-        }))
+        .route(
+            "/tools/echo",
+            post({
+                let tool = Arc::clone(&echo_tool);
+                move |payload| handle_echo_tool(tool, payload)
+            }),
+        )
+        .route(
+            "/tools/ping",
+            post({
+                let tool = Arc::clone(&echo_tool);
+                move |payload| handle_ping_tool(tool, payload)
+            }),
+        )
+        .route(
+            "/tools/info",
+            post({
+                let tool = Arc::clone(&echo_tool);
+                move |payload| handle_info_tool(tool, payload)
+            }),
+        )
         .layer(cors)
         .with_state(state);
 
@@ -221,32 +230,44 @@ async fn handle_echo_tool(
         Ok(req) => {
             let params = rmcp::handler::server::wrapper::Parameters(req);
             match tool.echo(params).await {
-                Ok(result) => (StatusCode::OK, Json(json!({
-                    "content": [{
-                        "type": "text",
-                        "text": serde_json::to_string_pretty(&result.0).unwrap()
-                    }],
-                    "is_error": false,
-                    "timestamp": chrono::Utc::now().to_rfc3339()
-                }))).into_response(),
-                Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({
-                    "content": [{
-                        "type": "text",
-                        "text": e.message
-                    }],
-                    "is_error": true,
-                    "timestamp": chrono::Utc::now().to_rfc3339()
-                }))).into_response(),
+                Ok(result) => (
+                    StatusCode::OK,
+                    Json(json!({
+                        "content": [{
+                            "type": "text",
+                            "text": serde_json::to_string_pretty(&result.0).unwrap()
+                        }],
+                        "is_error": false,
+                        "timestamp": chrono::Utc::now().to_rfc3339()
+                    })),
+                )
+                    .into_response(),
+                Err(e) => (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(json!({
+                        "content": [{
+                            "type": "text",
+                            "text": e.message
+                        }],
+                        "is_error": true,
+                        "timestamp": chrono::Utc::now().to_rfc3339()
+                    })),
+                )
+                    .into_response(),
             }
         }
-        Err(e) => (StatusCode::BAD_REQUEST, Json(json!({
-            "content": [{
-                "type": "text",
-                "text": format!("Invalid request: {}", e)
-            }],
-            "is_error": true,
-            "timestamp": chrono::Utc::now().to_rfc3339()
-        }))).into_response(),
+        Err(e) => (
+            StatusCode::BAD_REQUEST,
+            Json(json!({
+                "content": [{
+                    "type": "text",
+                    "text": format!("Invalid request: {}", e)
+                }],
+                "is_error": true,
+                "timestamp": chrono::Utc::now().to_rfc3339()
+            })),
+        )
+            .into_response(),
     }
 }
 
@@ -256,22 +277,30 @@ async fn handle_ping_tool(
     Json(_payload): Json<serde_json::Value>,
 ) -> impl IntoResponse {
     match tool.ping().await {
-        Ok(result) => (StatusCode::OK, Json(json!({
-            "content": [{
-                "type": "text",
-                "text": serde_json::to_string_pretty(&result.0).unwrap()
-            }],
-            "is_error": false,
-            "timestamp": chrono::Utc::now().to_rfc3339()
-        }))).into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({
-            "content": [{
-                "type": "text",
-                "text": e.message
-            }],
-            "is_error": true,
-            "timestamp": chrono::Utc::now().to_rfc3339()
-        }))).into_response(),
+        Ok(result) => (
+            StatusCode::OK,
+            Json(json!({
+                "content": [{
+                    "type": "text",
+                    "text": serde_json::to_string_pretty(&result.0).unwrap()
+                }],
+                "is_error": false,
+                "timestamp": chrono::Utc::now().to_rfc3339()
+            })),
+        )
+            .into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({
+                "content": [{
+                    "type": "text",
+                    "text": e.message
+                }],
+                "is_error": true,
+                "timestamp": chrono::Utc::now().to_rfc3339()
+            })),
+        )
+            .into_response(),
     }
 }
 
@@ -281,21 +310,29 @@ async fn handle_info_tool(
     Json(_payload): Json<serde_json::Value>,
 ) -> impl IntoResponse {
     match tool.info().await {
-        Ok(result) => (StatusCode::OK, Json(json!({
-            "content": [{
-                "type": "text",
-                "text": serde_json::to_string_pretty(&result.0).unwrap()
-            }],
-            "is_error": false,
-            "timestamp": chrono::Utc::now().to_rfc3339()
-        }))).into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({
-            "content": [{
-                "type": "text",
-                "text": e.message
-            }],
-            "is_error": true,
-            "timestamp": chrono::Utc::now().to_rfc3339()
-        }))).into_response(),
+        Ok(result) => (
+            StatusCode::OK,
+            Json(json!({
+                "content": [{
+                    "type": "text",
+                    "text": serde_json::to_string_pretty(&result.0).unwrap()
+                }],
+                "is_error": false,
+                "timestamp": chrono::Utc::now().to_rfc3339()
+            })),
+        )
+            .into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({
+                "content": [{
+                    "type": "text",
+                    "text": e.message
+                }],
+                "is_error": true,
+                "timestamp": chrono::Utc::now().to_rfc3339()
+            })),
+        )
+            .into_response(),
     }
 }

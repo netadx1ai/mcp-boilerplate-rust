@@ -1,7 +1,7 @@
 #[cfg(feature = "http")]
-use std::env;
-#[cfg(feature = "http")]
 use anyhow::Result;
+#[cfg(feature = "http")]
+use std::env;
 
 pub struct Config {
     pub host: String,

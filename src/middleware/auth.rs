@@ -7,7 +7,7 @@ use axum::{
     Json,
 };
 #[cfg(all(feature = "http", feature = "auth"))]
-use jsonwebtoken::{decode, DecodingKey, Validation, Algorithm};
+use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
 #[cfg(all(feature = "http", feature = "auth"))]
 use serde::{Deserialize, Serialize};
 #[cfg(all(feature = "http", feature = "auth"))]
@@ -103,11 +103,11 @@ pub async fn optional_auth_middleware(
 ) -> Response {
     if let Some(token) = AuthMiddleware::extract_token(&headers) {
         let secret = std::env::var("JWT_SECRET").unwrap_or_else(|_| "default_secret".to_string());
-        
+
         if let Ok(claims) = AuthMiddleware::verify_token(&token, &secret) {
             request.extensions_mut().insert(claims);
         }
     }
-    
+
     next.run(request).await
 }

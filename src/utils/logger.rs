@@ -1,4 +1,4 @@
-use tracing::{info, warn, error, debug};
+use tracing::{debug, error, info, warn};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 pub struct Logger;
@@ -13,7 +13,7 @@ impl Logger {
             .with(
                 tracing_subscriber::fmt::layer()
                     .with_ansi(false)
-                    .with_target(false)
+                    .with_target(false),
             )
             .init();
     }

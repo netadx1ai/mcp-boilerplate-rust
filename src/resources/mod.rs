@@ -1,5 +1,5 @@
 use rmcp::model::{
-    Annotated, RawResource, ReadResourceResult, ResourceContents,
+    Annotated, Annotations, Icon, RawResource, ReadResourceResult, ResourceContents, Role,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -36,7 +36,8 @@ impl ResourceRegistry {
             ResourceMetadata {
                 uri: "info://capabilities".to_string(),
                 name: "Server Capabilities".to_string(),
-                description: "List of enabled MCP capabilities (tools, prompts, resources)".to_string(),
+                description: "List of enabled MCP capabilities (tools, prompts, resources)"
+                    .to_string(),
                 mime_type: "application/json".to_string(),
             },
         );
@@ -67,18 +68,72 @@ impl ResourceRegistry {
     pub fn list_resources(&self) -> Vec<Annotated<RawResource>> {
         self.resources
             .values()
-            .map(|meta| Annotated {
-                raw: RawResource {
-                    uri: meta.uri.clone(),
-                    name: meta.name.clone(),
-                    title: None,
-                    description: Some(meta.description.clone()),
-                    mime_type: Some(meta.mime_type.clone()),
-                    size: None,
-                    icons: None,
-                    meta: None,
-                },
-                annotations: None,
+            .map(|meta| {
+                let (icons, annotations) = match meta.uri.as_str() {
+                    "config://server" => (
+                        Some(vec![Icon {
+                            src: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjMiLz48cGF0aCBkPSJNMTIgMXYyIi8+PHBhdGggZD0iTTEyIDIxdjIiLz48cGF0aCBkPSJNNC4yMiA0LjIybDEuNDIgMS40MiIvPjxwYXRoIGQ9Ik0xOC4zNiAxOC4zNmwxLjQyIDEuNDIiLz48cGF0aCBkPSJNMSAxMmgyIi8+PHBhdGggZD0iTTIxIDEyaDIiLz48cGF0aCBkPSJNNC4yMiAxOS43OGwxLjQyLTEuNDIiLz48cGF0aCBkPSJNMTguMzYgNS42NGwxLjQyLTEuNDIiLz48L3N2Zz4=".to_string(),
+                            mime_type: Some("image/svg+xml".to_string()),
+                            sizes: Some(vec!["any".to_string()]),
+                        }]),
+                        Some(Annotations {
+                            audience: Some(vec![Role::User]),
+                            priority: Some(0.9),
+                            last_modified: Some(chrono::Utc::now()),
+                        }),
+                    ),
+                    "info://capabilities" => (
+                        Some(vec![Icon {
+                            src: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjEwIi8+PGxpbmUgeDE9IjEyIiB5MT0iMTYiIHgyPSIxMiIgeTI9IjEyIi8+PGxpbmUgeDE9IjEyIiB5MT0iOCIgeDI9IjEyLjAxIiB5Mj0iOCIvPjwvc3ZnPg==".to_string(),
+                            mime_type: Some("image/svg+xml".to_string()),
+                            sizes: Some(vec!["any".to_string()]),
+                        }]),
+                        Some(Annotations {
+                            audience: Some(vec![Role::User, Role::Assistant]),
+                            priority: Some(0.8),
+                            last_modified: Some(chrono::Utc::now()),
+                        }),
+                    ),
+                    "doc://quick-start" => (
+                        Some(vec![Icon {
+                            src: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxwYXRoIGQ9Ik0yIDNoNmEyIDIgMCAwIDEgMiAydjE0YTIgMiAwIDAgMS0yIDJIMnYtMnYtMnYtMnYtMnYtMnYtMnYtMnYtMnoiLz48cGF0aCBkPSJNMjIgM2gtNmEyIDIgMCAwIDAtMiAydjE0YTIgMiAwIDAgMCAyIDJoNnYtMnYtMnYtMnYtMnYtMnYtMnYtMnYtMnoiLz48L3N2Zz4=".to_string(),
+                            mime_type: Some("image/svg+xml".to_string()),
+                            sizes: Some(vec!["any".to_string()]),
+                        }]),
+                        Some(Annotations {
+                            audience: Some(vec![Role::User]),
+                            priority: Some(0.7),
+                            last_modified: Some(chrono::Utc::now()),
+                        }),
+                    ),
+                    "stats://usage" => (
+                        Some(vec![Icon {
+                            src: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxsaW5lIHgxPSIxMiIgeTE9IjIwIiB4Mj0iMTIiIHkyPSIxMCIvPjxsaW5lIHgxPSIxOCIgeTE9IjIwIiB4Mj0iMTgiIHkyPSI0Ii8+PGxpbmUgeDE9IjYiIHkxPSIyMCIgeDI9IjYiIHkyPSIxNiIvPjwvc3ZnPg==".to_string(),
+                            mime_type: Some("image/svg+xml".to_string()),
+                            sizes: Some(vec!["any".to_string()]),
+                        }]),
+                        Some(Annotations {
+                            audience: Some(vec![Role::User]),
+                            priority: Some(0.5),
+                            last_modified: Some(chrono::Utc::now()),
+                        }),
+                    ),
+                    _ => (None, None),
+                };
+
+                Annotated {
+                    raw: RawResource {
+                        uri: meta.uri.clone(),
+                        name: meta.name.clone(),
+                        title: None,
+                        description: Some(meta.description.clone()),
+                        mime_type: Some(meta.mime_type.clone()),
+                        size: None,
+                        icons,
+                        meta: None,
+                    },
+                    annotations,
+                }
             })
             .collect()
     }
@@ -87,7 +142,7 @@ impl ResourceRegistry {
         let meta = self
             .resources
             .get(uri)
-            .ok_or_else(|| format!("Resource '{}' not found", uri))?;
+            .ok_or_else(|| format!("Resource '{uri}' not found"))?;
 
         let content = self.get_resource_content(uri)?;
 
@@ -106,8 +161,8 @@ impl ResourceRegistry {
             "config://server" => Ok(serde_json::to_string_pretty(&serde_json::json!({
                 "name": "mcp-boilerplate-rust",
                 "version": env!("CARGO_PKG_VERSION"),
-                "protocol": "MCP 2024-11-05",
-                "sdk": "rmcp v0.12.0",
+                "protocol": "MCP 2025-03-26",
+                "sdk": "rmcp (local)",
                 "mode": "stdio",
                 "features": {
                     "tools": true,
@@ -155,8 +210,8 @@ impl ResourceRegistry {
                 "MCP Boilerplate Rust - Quick Start\n\
                 =====================================\n\n\
                 Version: {}\n\
-                Protocol: MCP 2024-11-05\n\
-                SDK: rmcp v0.12.0\n\n\
+                Protocol: MCP 2025-03-26\n\
+                SDK: rmcp (local)\n\n\
                 Available Tools:\n\
                 - echo: Echo back a message with validation\n\
                 - ping: Simple connectivity test\n\
@@ -188,7 +243,7 @@ impl ResourceRegistry {
                     "server": {
                         "uptime": "N/A (stateless)",
                         "mode": "stdio",
-                        "protocol": "MCP 2024-11-05"
+                        "protocol": "MCP 2025-03-26"
                     },
                     "tools": {
                         "total_calls": "N/A (stateless)",
@@ -208,7 +263,7 @@ impl ResourceRegistry {
                 .unwrap())
             }
 
-            _ => Err(format!("Unknown resource URI: {}", uri)),
+            _ => Err(format!("Unknown resource URI: {uri}")),
         }
     }
 }

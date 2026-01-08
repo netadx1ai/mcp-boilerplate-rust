@@ -7,8 +7,8 @@ This file provides guidance to Claude (AI assistant) when working with code in t
 **MCP Boilerplate Rust** is a production-ready Model Context Protocol (MCP) server implementation in Rust with dual transport support (stdio + HTTP). This is a reference implementation and starting template for Rust-based MCP servers.
 
 **Version:** 0.3.1  
-**Protocol:** MCP 2024-11-05  
-**SDK:** rmcp v0.12.0 (official Rust SDK)  
+**Protocol:** MCP 2025-03-26  
+**SDK:** rmcp (local development build)  
 **Status:** Production ready
 
 ## Quick Reference
@@ -152,12 +152,13 @@ if message.len() > MAX_MESSAGE_SIZE {
 }
 ```
 
-## Available Tools
+### Available Tools
 
 ### 1. echo
 **Purpose:** Message validation and timestamping  
 **Input:** `message` (string, 1-10,240 bytes, non-empty)  
 **Output:** `{ message, timestamp }`  
+**Error Handling:** Returns tool execution errors for validation failures (LLM self-correction)  
 **File:** `src/tools/echo.rs`
 
 ### 2. ping
@@ -171,6 +172,20 @@ if message.len() > MAX_MESSAGE_SIZE {
 **Input:** None  
 **Output:** `{ tool, version, description }`  
 **File:** `src/tools/echo.rs`
+
+### 4. calculate
+**Purpose:** Basic arithmetic operations  
+**Input:** `a` (number), `b` (number), `operation` (add/subtract/multiply/divide/modulo/power)  
+**Output:** `{ operation, a, b, result, timestamp }`  
+**Error Handling:** Returns helpful error messages for division by zero, invalid operations  
+**File:** `src/tools/calculator.rs`
+
+### 5. evaluate
+**Purpose:** Mathematical expression evaluator  
+**Input:** `expression` (string, mathematical expression with +, -, *, /, parentheses)  
+**Output:** `{ expression, result, timestamp }`  
+**Error Handling:** Returns detailed error messages for parsing failures  
+**File:** `src/tools/calculator.rs`
 
 ## Adding New Tools
 
@@ -290,13 +305,14 @@ cargo build --release
 **Cause:** Logging output interfering with JSON  
 **Solution:** Ensure `RUST_LOG=off` in stdio mode
 
-### Issue: Tools Not Appearing
+**Issue: Tools Not Appearing**
 
 **Check:**
 1. Binary built in release mode
 2. Correct path in config
 3. `--mode stdio` argument present
 4. Claude Desktop restarted
+5. Protocol version compatibility (2025-03-26)
 
 ### Issue: Build Warnings
 
@@ -338,6 +354,8 @@ cargo fmt
 - **docs/integration/:** Claude Desktop setup guides
 - **docs/troubleshooting/:** Fix guides for known issues
 - **docs/sessions/:** Development session notes
+- **docs/MCP_SPEC_REVIEW_SUMMARY.md:** Protocol upgrade roadmap
+- **docs/PROMPTS_AND_RESOURCES.md:** Prompts and resources documentation
 
 ## Git Workflow Best Practices
 
@@ -357,9 +375,10 @@ See `docs/GIT_WORKFLOW.md` for complete workflow guidelines.
 ## Version Information
 
 - **Current:** v0.3.1
-- **MCP Protocol:** 2024-11-05 (server)
-- **SDK:** rmcp v0.12.0
+- **MCP Protocol:** 2025-03-26 (server)
+- **SDK:** rmcp (local development build)
 - **Rust:** 1.88.0 (or later)
+- **Features:** Icons, Annotations, Enhanced Error Handling
 
 ## Security Notes
 
@@ -378,6 +397,7 @@ See `docs/GIT_WORKFLOW.md` for complete workflow guidelines.
 
 ---
 
-**Last Updated:** 2026-01-08  
+**Last Updated:** 2026-01-08 19:30 HCMC  
 **For:** Claude AI Assistant  
-**Purpose:** Code assistance and development guidance
+**Purpose:** Code assistance and development guidance  
+**Protocol:** MCP 2025-03-26 with icons, annotations, and enhanced error handling

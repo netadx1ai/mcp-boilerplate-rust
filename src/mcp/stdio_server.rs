@@ -1,19 +1,15 @@
 use anyhow::Result;
 use rmcp::{
-    ErrorData as McpError,
-    RoleServer,
-    ServerHandler,
-    ServiceExt,
     handler::server::{
         tool::ToolRouter,
         wrapper::{Json, Parameters},
     },
     model::*,
     service::RequestContext,
-    tool, tool_handler, tool_router,
+    tool, tool_handler, tool_router, ErrorData as McpError, RoleServer, ServerHandler, ServiceExt,
 };
-use tracing::info;
 use std::collections::HashMap;
+use tracing::info;
 
 use crate::prompts::PromptRegistry;
 use crate::resources::ResourceRegistry;
@@ -45,6 +41,25 @@ impl McpServer {
         Parameters(req): Parameters<EchoRequest>,
     ) -> Result<Json<EchoResponse>, McpError> {
         info!("Echo: {}", req.message);
+
+        // Validation: Return tool execution error for LLM self-correction
+        if req.message.is_empty() {
+            return Err(McpError::invalid_params(
+                "Message cannot be empty. Please provide a non-empty message to echo.".to_string(),
+                None,
+            ));
+        }
+
+        if req.message.len() > 10240 {
+            return Err(McpError::invalid_params(
+                format!(
+                    "Message exceeds maximum length of 10,240 bytes (got {} bytes). Please shorten your message.",
+                    req.message.len()
+                ),
+                None,
+            ));
+        }
+
         let response = create_echo_response(req.message)
             .map_err(|e| McpError::invalid_params(format!("{e}"), None))?;
         Ok(Json(response))
@@ -62,13 +77,15 @@ impl McpServer {
         Ok(Json(create_info_response()))
     }
 
-    #[tool(description = "Perform basic arithmetic operations (add, subtract, multiply, divide, modulo, power)")]
+    #[tool(
+        description = "Perform basic arithmetic operations (add, subtract, multiply, divide, modulo, power)"
+    )]
     async fn calculate(
         &self,
         Parameters(req): Parameters<CalculateRequest>,
     ) -> Result<Json<CalculateResponse>, McpError> {
         info!("Calculate: {} {} {}", req.a, req.operation, req.b);
-        
+
         let result = match req.operation.to_lowercase().as_str() {
             "add" | "+" => req.a + req.b,
             "subtract" | "-" => req.a - req.b,
@@ -76,7 +93,8 @@ impl McpServer {
             "divide" | "/" => {
                 if req.b == 0.0 {
                     return Err(McpError::invalid_params(
-                        "Division by zero is not allowed".to_string(),
+                        "Division by zero is not allowed. Please provide a non-zero divisor."
+                            .to_string(),
                         None,
                     ));
                 }
@@ -85,7 +103,8 @@ impl McpServer {
             "modulo" | "%" => {
                 if req.b == 0.0 {
                     return Err(McpError::invalid_params(
-                        "Modulo by zero is not allowed".to_string(),
+                        "Modulo by zero is not allowed. Please provide a non-zero divisor."
+                            .to_string(),
                         None,
                     ));
                 }
@@ -95,7 +114,7 @@ impl McpServer {
             _ => {
                 return Err(McpError::invalid_params(
                     format!(
-                        "Unknown operation: '{}'. Supported: add, subtract, multiply, divide, modulo, power",
+                        "Unknown operation: '{}'. Supported operations are: add (+), subtract (-), multiply (*), divide (/), modulo (%), power (pow/^). Please use one of these.",
                         req.operation
                     ),
                     None,
@@ -105,7 +124,7 @@ impl McpServer {
 
         if !result.is_finite() {
             return Err(McpError::invalid_params(
-                "Result is not a finite number (overflow or invalid operation)".to_string(),
+                "Result is not a finite number (overflow or invalid operation). Please check your input values and try again with smaller numbers.".to_string(),
                 None,
             ));
         }
@@ -125,17 +144,21 @@ impl McpServer {
         Parameters(req): Parameters<EvaluateRequest>,
     ) -> Result<Json<EvaluateResponse>, McpError> {
         let expression = req.expression.trim();
-        
+
         if expression.is_empty() {
             return Err(McpError::invalid_params(
-                "Expression cannot be empty".to_string(),
+                "Expression cannot be empty. Please provide a mathematical expression to evaluate."
+                    .to_string(),
                 None,
             ));
         }
 
         if expression.len() > 1000 {
             return Err(McpError::invalid_params(
-                "Expression too long (max 1000 characters)".to_string(),
+                format!(
+                    "Expression too long (maximum 1000 characters, got {}). Please shorten your expression.",
+                    expression.len()
+                ),
                 None,
             ));
         }
@@ -143,12 +166,12 @@ impl McpServer {
         info!("Evaluate: {}", expression);
 
         let result = Self::evaluate_expression(expression).map_err(|e| {
-            McpError::invalid_params(format!("Failed to evaluate expression: {}", e), None)
+            McpError::invalid_params(format!("Failed to evaluate expression: {e}"), None)
         })?;
 
         if !result.is_finite() {
             return Err(McpError::invalid_params(
-                "Result is not a finite number".to_string(),
+                "Result is not a finite number (overflow or invalid operation). Please check your expression and try again with smaller numbers.".to_string(),
                 None,
             ));
         }
@@ -162,8 +185,8 @@ impl McpServer {
 
     pub async fn run(self) -> Result<()> {
         info!("Starting MCP stdio server");
-        info!("Protocol: MCP v2024-11-05");
-        info!("Using rmcp SDK v0.12");
+        info!("Protocol: MCP 2025-03-26");
+        info!("Using rmcp SDK (local)");
         info!("Capabilities: Tools (5) | Prompts (3) | Resources (4)");
         info!("Ready to receive MCP requests");
 
@@ -184,7 +207,7 @@ impl Default for McpServer {
 impl ServerHandler for McpServer {
     fn get_info(&self) -> ServerInfo {
         ServerInfo {
-            protocol_version: ProtocolVersion::V_2024_11_05,
+            protocol_version: ProtocolVersion::V_2025_03_26,
             capabilities: ServerCapabilities::builder()
                 .enable_tools()
                 .enable_prompts()
@@ -251,7 +274,7 @@ impl ServerHandler for McpServer {
         _context: RequestContext<RoleServer>,
     ) -> Result<GetPromptResult, McpError> {
         info!("MCP: Get prompt requested: {}", params.name);
-        
+
         let arguments: HashMap<String, String> = params
             .arguments
             .unwrap_or_default()
@@ -274,19 +297,19 @@ impl ServerHandler for McpServer {
 impl McpServer {
     fn evaluate_expression(expr: &str) -> Result<f64, String> {
         let expr = expr.replace(" ", "");
-        
+
         for c in expr.chars() {
             if !c.is_ascii_digit() && !matches!(c, '+' | '-' | '*' | '/' | '(' | ')' | '.') {
-                return Err(format!("Invalid character in expression: '{}'", c));
+                return Err(format!("Invalid character in expression: '{c}'"));
             }
         }
-        
+
         Self::parse_expression(&expr, 0).map(|(result, _)| result)
     }
 
     fn parse_expression(expr: &str, pos: usize) -> Result<(f64, usize), String> {
         let (mut left, mut pos) = Self::parse_term(expr, pos)?;
-        
+
         while pos < expr.len() {
             let op = expr.chars().nth(pos).unwrap();
             match op {
@@ -300,16 +323,16 @@ impl McpServer {
                     pos = new_pos;
                 }
                 ')' => break,
-                _ => return Err(format!("Unexpected character at position {}: '{}'", pos, op)),
+                _ => return Err(format!("Unexpected character at position {pos}: '{op}'")),
             }
         }
-        
+
         Ok((left, pos))
     }
 
     fn parse_term(expr: &str, pos: usize) -> Result<(f64, usize), String> {
         let (mut left, mut pos) = Self::parse_factor(expr, pos)?;
-        
+
         while pos < expr.len() {
             let op = expr.chars().nth(pos).unwrap();
             match op {
@@ -326,10 +349,10 @@ impl McpServer {
                     pos = new_pos;
                 }
                 '+' | '-' | ')' => break,
-                _ => return Err(format!("Unexpected character at position {}: '{}'", pos, op)),
+                _ => return Err(format!("Unexpected character at position {pos}: '{op}'")),
             }
         }
-        
+
         Ok((left, pos))
     }
 
@@ -337,9 +360,9 @@ impl McpServer {
         if pos >= expr.len() {
             return Err("Unexpected end of expression".to_string());
         }
-        
+
         let ch = expr.chars().nth(pos).unwrap();
-        
+
         if ch == '(' {
             let (result, new_pos) = Self::parse_expression(expr, pos + 1)?;
             if new_pos >= expr.len() || expr.chars().nth(new_pos).unwrap() != ')' {
@@ -356,14 +379,14 @@ impl McpServer {
         } else if ch.is_ascii_digit() || ch == '.' {
             Self::parse_number(expr, pos)
         } else {
-            Err(format!("Unexpected character at position {}: '{}'", pos, ch))
+            Err(format!("Unexpected character at position {pos}: '{ch}'"))
         }
     }
 
     fn parse_number(expr: &str, pos: usize) -> Result<(f64, usize), String> {
         let mut end = pos;
         let mut has_dot = false;
-        
+
         while end < expr.len() {
             let ch = expr.chars().nth(end).unwrap();
             if ch.is_ascii_digit() {
@@ -375,15 +398,16 @@ impl McpServer {
                 break;
             }
         }
-        
+
         if end == pos {
-            return Err(format!("Expected number at position {}", pos));
+            return Err(format!("Expected number at position {pos}"));
         }
-        
+
         let num_str = &expr[pos..end];
-        let num = num_str.parse::<f64>()
-            .map_err(|_| format!("Invalid number: '{}'", num_str))?;
-        
+        let num = num_str
+            .parse::<f64>()
+            .map_err(|_| format!("Invalid number: '{num_str}'"))?;
+
         Ok((num, end))
     }
 }

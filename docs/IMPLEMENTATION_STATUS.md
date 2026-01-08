@@ -1,9 +1,9 @@
 # MCP Boilerplate Rust - Implementation Status
 
-**Last Updated**: 2026-01-08  
+**Last Updated**: 2026-01-08 19:30 HCMC  
 **Version**: 0.3.1  
-**Protocol**: MCP 2024-11-05  
-**SDK**: rmcp v0.12.0
+**Protocol**: MCP 2025-03-26  
+**SDK**: rmcp (local development build)
 
 ## Overview
 
@@ -14,10 +14,13 @@ This document tracks the implementation status of all MCP features in the Rust b
 | Feature | Status | Count | Notes |
 |---------|--------|-------|-------|
 | Tools | ✅ Complete | 5 | echo, ping, info, calculate, evaluate |
-| Prompts | ✅ Complete | 3 | code_review, explain_code, debug_help |
-| Resources | ✅ Complete | 4 | config, capabilities, docs, stats |
+| Prompts | ✅ Complete | 3 | code_review, explain_code, debug_help (with icons) |
+| Resources | ✅ Complete | 4 | config, capabilities, docs, stats (with icons & annotations) |
 | Logging | ✅ Complete | - | Disabled in stdio, enabled in HTTP |
 | Transport | ✅ Complete | 2 | stdio (default), HTTP (feature flag) |
+| Icons | ✅ Complete | - | All prompts and resources have icons |
+| Annotations | ✅ Complete | - | Resources have audience, priority, timestamps |
+| Enhanced Errors | ✅ Complete | - | Tool execution errors for LLM self-correction |
 
 ## Detailed Status
 
@@ -32,6 +35,7 @@ All tools are fully implemented with input validation and error handling.
   - Length: 1-10,240 bytes
   - Non-empty check
   - UTF-8 validation
+- **Error Handling**: Returns tool execution errors (not protocol errors) for validation failures
 - **Output**: JSON with message and RFC3339 timestamp
 - **Tests**: ✅ Passing
 
@@ -57,6 +61,7 @@ All tools are fully implemented with input validation and error handling.
   - Division by zero check
   - Finite number validation
   - Operation type validation
+- **Error Handling**: Helpful error messages for division by zero, invalid operations, overflow
 - **Output**: JSON with operation details and result
 - **Tests**: ✅ Passing
 
@@ -69,8 +74,9 @@ All tools are fully implemented with input validation and error handling.
   - Expression length limit (1000 chars)
 - **Input Validation**:
   - Character whitelist
-  - Expression length check
+  - Expression length check (max 1000 chars)
   - Finite result validation
+- **Error Handling**: Detailed error messages for parsing failures and invalid expressions
 - **Output**: JSON with expression and result
 - **Tests**: ✅ Passing
 
@@ -84,6 +90,7 @@ All prompts are template-based with parameter support.
 - **Arguments**:
   - `language` (string, required): Programming language
   - `focus` (string, optional): Review focus area
+- **Icons**: ✅ Document/file icon (SVG base64)
 - **Output**: Structured prompt for code analysis
 - **Tests**: ✅ Passing
 
@@ -92,6 +99,7 @@ All prompts are template-based with parameter support.
 - **Description**: Generate code explanation prompts
 - **Arguments**:
   - `complexity` (string, optional): beginner/intermediate/advanced
+- **Icons**: ✅ Help/question icon (SVG base64)
 - **Output**: Structured prompt for code explanation
 - **Tests**: ✅ Passing
 
@@ -100,6 +108,7 @@ All prompts are template-based with parameter support.
 - **Description**: Generate debugging assistance prompts
 - **Arguments**:
   - `error_type` (string, optional): compile/runtime/logic
+- **Icons**: ✅ Bug/debug icon (SVG base64)
 - **Output**: Structured prompt for debugging
 - **Tests**: ✅ Passing
 
@@ -111,6 +120,11 @@ All resources provide dynamic server-side data.
 - **Status**: ✅ Production Ready
 - **Description**: Server configuration and metadata
 - **MIME Type**: application/json
+- **Icons**: ✅ Settings/gear icon (SVG base64)
+- **Annotations**: 
+  - Audience: User
+  - Priority: 0.9 (high importance)
+  - Last Modified: Current timestamp
 - **Content**: Server version, protocol, features, transport config
 - **Tests**: ✅ Passing
 
@@ -118,6 +132,11 @@ All resources provide dynamic server-side data.
 - **Status**: ✅ Production Ready
 - **Description**: MCP capabilities listing
 - **MIME Type**: application/json
+- **Icons**: ✅ Info icon (SVG base64)
+- **Annotations**:
+  - Audience: User, Assistant
+  - Priority: 0.8
+  - Last Modified: Current timestamp
 - **Content**: Tools, prompts, resources counts and availability
 - **Tests**: ✅ Passing
 
@@ -125,6 +144,11 @@ All resources provide dynamic server-side data.
 - **Status**: ✅ Production Ready
 - **Description**: Quick start guide
 - **MIME Type**: text/plain
+- **Icons**: ✅ Book/documentation icon (SVG base64)
+- **Annotations**:
+  - Audience: User
+  - Priority: 0.7
+  - Last Modified: Current timestamp
 - **Content**: Usage instructions, tool list, setup steps
 - **Tests**: ✅ Passing
 
@@ -132,6 +156,11 @@ All resources provide dynamic server-side data.
 - **Status**: ✅ Production Ready
 - **Description**: Server usage statistics
 - **MIME Type**: application/json
+- **Icons**: ✅ Chart/stats icon (SVG base64)
+- **Annotations**:
+  - Audience: User
+  - Priority: 0.5 (lower importance)
+  - Last Modified: Current timestamp
 - **Content**: Stateless metrics with timestamp
 - **Note**: Server is stateless, no persistent usage data
 - **Tests**: ✅ Passing
@@ -315,21 +344,28 @@ See `SECURITY.md` for complete security documentation.
 
 - ✅ Basic MCP server with stdio transport
 - ✅ Tool support (5 tools)
-- ✅ Prompt support (3 templates)
-- ✅ Resource support (4 resources)
+- ✅ Prompt support (3 templates with icons)
+- ✅ Resource support (4 resources with icons & annotations)
 - ✅ HTTP transport mode
 - ✅ Comprehensive testing
 - ✅ Production-ready documentation
 - ✅ Claude Desktop integration
+- ✅ Protocol upgrade to MCP 2025-03-26
+- ✅ Icons support for prompts and resources
+- ✅ Annotations support (audience, priority, timestamps)
+- ✅ Enhanced error handling (tool execution errors for LLM self-correction)
 
-### Future Enhancements
+### Future Enhancements (Phase 2+)
 
+- 🔄 Tool Output Schemas (structured JSON responses)
+- 🔄 Resource Templates with URI templates
+- 🔄 Tasks support (long-running operations, experimental)
 - 🔄 WebSocket transport
 - 🔄 Prompt templates from config files
-- 🔄 Resource URI templates
 - 🔄 Streaming support for large responses
 - 🔄 Advanced calculator features
 - 🔄 More prompt templates
+- 🔄 OAuth 2.0 authentication (enterprise)
 - 🔄 Docker support
 - 🔄 CI/CD pipeline
 
@@ -339,13 +375,15 @@ See `SECURITY.md` for complete security documentation.
 
 All core MCP features are fully implemented, tested, and documented:
 
-- ✅ Tools: 5/5 complete
-- ✅ Prompts: 3/3 complete
-- ✅ Resources: 4/4 complete
+- ✅ Tools: 5/5 complete with enhanced error handling
+- ✅ Prompts: 3/3 complete with icons
+- ✅ Resources: 4/4 complete with icons & annotations
 - ✅ Tests: 34/34 passing
-- ✅ Documentation: Complete
+- ✅ Documentation: Complete and updated
 - ✅ Security: Audited
 - ✅ Performance: Within targets
+- ✅ Protocol: MCP 2025-03-26 compliant
+- ✅ Phase 1 Features: Icons, Annotations, Enhanced Error Handling
 
 The server is ready for:
 - Claude Desktop integration
@@ -357,4 +395,6 @@ The server is ready for:
 
 **Prepared by**: AI Development Team  
 **Review Status**: ✅ Complete  
+**Phase 1 Status**: ✅ Complete (Icons, Annotations, Enhanced Error Handling)  
+**Next Phase**: Phase 2 - Tool Output Schemas & Structured Content  
 **Next Review**: As needed for new features

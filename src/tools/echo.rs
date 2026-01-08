@@ -1,8 +1,7 @@
 use rmcp::{
-    ErrorData as McpError,
     handler::server::tool::ToolRouter,
     handler::server::wrapper::{Json, Parameters},
-    tool, tool_router,
+    tool, tool_router, ErrorData as McpError,
 };
 use tracing::info;
 
@@ -40,17 +39,13 @@ impl EchoTool {
     }
 
     #[tool(description = "Simple ping-pong test to verify connection")]
-    pub async fn ping(
-        &self,
-    ) -> Result<Json<PingResponse>, McpError> {
+    pub async fn ping(&self) -> Result<Json<PingResponse>, McpError> {
         info!("Ping received");
         Ok(Json(create_ping_response()))
     }
 
     #[tool(description = "Get information about the echo tool capabilities")]
-    pub async fn info(
-        &self,
-    ) -> Result<Json<InfoResponse>, McpError> {
+    pub async fn info(&self) -> Result<Json<InfoResponse>, McpError> {
         info!("Info requested");
         Ok(Json(create_info_response()))
     }
