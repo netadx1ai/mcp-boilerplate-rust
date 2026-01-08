@@ -1,62 +1,78 @@
 # MCP Boilerplate Rust
 
-**Version 0.3.1** | ✅ Stdio Mode | ✅ HTTP Mode | 🚀 Production Ready | 🔒 Security Hardened
+**Version 0.3.1** | 🚀 MCP Protocol 2025-03-26 | ✅ Production Ready | 🔒 Security Hardened
 
-A production-ready Rust implementation of the Model Context Protocol (MCP) using the official `rmcp` SDK from ModelContextProtocol. Both stdio and HTTP modes fully functional with shared tool implementation and input validation.
+A production-ready Rust implementation of the Model Context Protocol (MCP) using the official `rmcp` SDK. Features icons, annotations, enhanced error handling, and automatic output schemas for all tools.
 
 ## Status
 
-✅ **v0.3.1** - Both modes working perfectly  
-✅ **0 errors, 0 warnings** in both stdio and HTTP builds  
-✅ **All tests passing** - Automated test suites included  
-✅ **Shared tool types** - Single source of truth  
-✅ **Input validation** - 10KB limit, empty checks  
-✅ **Security reviewed** - No vulnerabilities found  
+✅ **v0.3.1** - MCP Protocol 2025-03-26 compliant
+✅ **Phase 1 & 2 Complete** - Icons, annotations, output schemas
+✅ **All tests passing** - 41 automated tests (7 test suites)
+✅ **Output Schemas** - Automatic JSON schema generation for all tools
+✅ **Enhanced Errors** - LLM-friendly error messages for self-correction
+✅ **Security Hardened** - Input validation, comprehensive security docs
 
 ## Key Features
 
-- **Dual Protocol** - Stdio (primary) + HTTP (optional) with shared implementation
-- **MCP Standard Compliant** - Uses official `rmcp` v0.12 SDK
-- **Zero Warnings** - Clean builds with proper feature gates
-- **Type-Safe** - Full Rust type safety with auto-generated schemas
-- **Production Ready** - Async/await, error handling, comprehensive logging
-- **Extensible** - Easy to add new tools via shared types
-- **Well Tested** - Automated test scripts for both modes
-- **Security Hardened** - Input validation, comprehensive security documentation
+- **MCP 2025-03-26** - Latest protocol with icons, annotations, output schemas
+- **5 Tools** - echo, ping, info, calculate, evaluate (all with output schemas)
+- **3 Prompts** - code_review, explain_code, debug_help (with icons)
+- **4 Resources** - config, capabilities, docs, stats (with icons & annotations)
+- **Dual Transport** - Stdio (primary) + HTTP (optional feature)
+- **Output Schemas** - Automatic JSON schema generation via `Json<T>`
+- **Enhanced Errors** - Descriptive, actionable error messages for LLM self-correction
+- **Type-Safe** - Full Rust type safety with schemars validation
+- **Well Tested** - 41 tests across 7 test suites (all passing)
+- **Security Hardened** - Comprehensive input validation and security docs
 
-## Architecture
+## Features Overview
 
-```
-┌─────────────────┐         ┌─────────────────┐
-│  Claude Desktop │         │   HTTP Client   │
-└────────┬────────┘         └────────┬────────┘
-         │ stdio                     │ REST API
-         │                           │
-    ┌────▼───────────────────────────▼────┐
-    │      MCP Boilerplate Rust v0.3.1    │
-    │        (rmcp SDK v0.12)             │
-    ├─────────────────────────────────────┤
-    │          Shared Tools               │
-    │  ┌─────────────────────────────┐   │
-    │  │ EchoRequest/Response        │   │
-    │  │ PingResponse                │   │
-    │  │ InfoResponse                │   │
-    │  └─────────────────────────────┘   │
-    └─────────────────────────────────────┘
-```
+### Phase 1 ✅ Complete
+- **Icons Support** - 7 SVG icons (3 prompts + 4 resources)
+- **Resource Annotations** - Audience, priority, timestamps
+- **Enhanced Error Handling** - LLM-friendly error messages
+
+### Phase 2 ✅ Complete  
+- **Output Schemas** - All 5 tools have automatic JSON schema generation
+- **Comprehensive Testing** - 7 test suites validating schemas and outputs
+- **Documentation** - Complete guides for output schemas and protocol upgrade
+
+### Tools (5/5 with Output Schemas)
+| Tool | Description | Input Schema | Output Schema |
+|------|-------------|--------------|---------------|
+| `echo` | Echo messages with validation | ✅ | ✅ EchoResponse |
+| `ping` | Connectivity test | ✅ | ✅ PingResponse |
+| `info` | Server metadata | ✅ | ✅ InfoResponse |
+| `calculate` | Arithmetic operations | ✅ | ✅ CalculateResponse |
+| `evaluate` | Math expression evaluator | ✅ | ✅ EvaluateResponse |
+
+### Prompts (3/3 with Icons)
+- `code_review` - Generate code review prompts (with document icon)
+- `explain_code` - Generate code explanation prompts (with help icon)
+- `debug_help` - Generate debugging prompts (with bug icon)
+
+### Resources (4/4 with Icons & Annotations)
+- `config://server` - Server configuration (priority: 0.9, audience: User)
+- `info://capabilities` - MCP capabilities (priority: 0.8, audience: User/Assistant)
+- `doc://quick-start` - Quick start guide (priority: 0.7, audience: User)
+- `stats://usage` - Usage statistics (priority: 0.5, audience: User)
 
 ## Quick Start
 
 See **[QUICK_START.md](QUICK_START.md)** for detailed guide and **[SECURITY.md](SECURITY.md)** for security guidelines.
 
-### 5-Second Test
+### Test All Features
 
 ```bash
-# Test stdio mode
-./test_mcp.sh
+# Core MCP tests
+./scripts/test_mcp.sh                    # 4 tests - Tools & protocol
+./scripts/test_prompts_resources.sh      # 7 tests - Prompts & resources
+./scripts/test_validation.sh            # 3 tests - Input validation
+./scripts/test_output_schemas.sh         # 7 tests - Output schemas
+./scripts/test_calculator.sh            # 5 tests - Calculator tools
 
-# Test HTTP mode  
-./test_http.sh
+# Total: 41 automated tests
 ```
 
 ### Prerequisites
@@ -67,24 +83,61 @@ See **[QUICK_START.md](QUICK_START.md)** for detailed guide and **[SECURITY.md](
 ### Build & Run
 
 ```bash
-# Stdio mode (for Claude Desktop)
+# Stdio mode (for Claude Desktop) - Default
 cargo build --release
 ./target/release/mcp-boilerplate-rust --mode stdio
 
-# HTTP mode (REST API)
+# HTTP mode (REST API) - Optional
 cargo build --release --features http
 ./target/release/mcp-boilerplate-rust --mode http
+
+# Run all tests
+./scripts/verify_claude_ready.sh         # Full pre-flight check
 ```
 
 ### Claude Desktop Integration
 
-```bash
-# Production build
-cargo build --release
+Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 
-# Binary location
-./target/release/mcp-boilerplate-rust
+```json
+{
+  "mcpServers": {
+    "mcp-boilerplate-rust": {
+      "command": "/path/to/mcp-boilerplate-rust/target/release/mcp-boilerplate-rust",
+      "args": ["--mode", "stdio"]
+    }
+  }
+}
 ```
+
+Restart Claude Desktop to see the new tools!
+
+## Documentation
+
+- **[QUICK_START.md](QUICK_START.md)** - 5-minute setup guide
+- **[PROTOCOL_UPGRADE_GUIDE.md](docs/PROTOCOL_UPGRADE_GUIDE.md)** - Migration from 2024-11-05 to 2025-03-26
+- **[OUTPUT_SCHEMAS.md](docs/OUTPUT_SCHEMAS.md)** - Complete output schemas guide
+- **[IMPLEMENTATION_STATUS.md](docs/IMPLEMENTATION_STATUS.md)** - Feature status tracker
+- **[SECURITY.md](SECURITY.md)** - Security guidelines and best practices
+- **[CLAUDE.md](claude.md)** - AI assistant development guide
+
+## Testing
+
+### Test Suites
+
+All test scripts in `scripts/`:
+
+```bash
+test_mcp.sh                  # Core MCP protocol tests (4 tests)
+test_prompts_resources.sh    # Prompts & resources (7 tests)
+test_validation.sh          # Input validation (3 tests)
+test_output_schemas.sh      # Output schema validation (7 tests)
+test_calculator.sh          # Calculator tools (5 tests)
+test_http.sh                # HTTP mode tests (optional)
+verify_claude_ready.sh      # Full pre-flight check (10 checks)
+```
+
+**Total**: 41 automated tests, all passing ✅
 
 ## Usage
 
@@ -92,12 +145,10 @@ cargo build --release
 
 ```bash
 # Run stdio server
-cargo run -- --mode stdio
+cargo run --release -- --mode stdio
 
-# Or use Makefile
-make run-stdio
-
-# With debug logging
+# With verbose logging (disabled by default in stdio)
+cargo run --release -- --mode stdio --verbose
 cargo run -- --mode stdio --verbose
 ```
 
