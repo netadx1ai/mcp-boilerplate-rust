@@ -27,6 +27,12 @@ clap = { version = "4.5", features = ["derive"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
+# OpenTelemetry (optional)
+opentelemetry = { version = "0.22", optional = true }
+opentelemetry_sdk = { version = "0.22", features = ["rt-tokio"], optional = true }
+opentelemetry-otlp = { version = "0.15", features = ["grpc-tonic"], optional = true }
+tracing-opentelemetry = { version = "0.23", optional = true }
+
 # Error handling
 anyhow = "1.0"
 thiserror = "1.0"
@@ -57,6 +63,7 @@ tokio-tungstenite = { version = "0.21", optional = true }
 
 # gRPC feature (optional)
 tonic = { version = "0.11", optional = true }
+tonic-web = { version = "0.11", optional = true }
 prost = { version = "0.12", optional = true }
 
 [build-dependencies]
@@ -80,13 +87,14 @@ http = ["dep:axum", "dep:tower", "dep:tower-http"]
 sse = ["dep:axum", "dep:tower", "dep:tower-http", "dep:tokio-stream", "dep:futures", "dep:async-stream"]
 websocket = ["dep:axum", "dep:tower", "dep:tower-http", "dep:tokio-tungstenite", "dep:futures"]
 http-stream = ["dep:axum", "dep:tower", "dep:tower-http", "dep:futures"]
-grpc = ["dep:tonic", "dep:prost", "dep:futures", "tonic-build"]
+grpc = ["dep:tonic", "dep:tonic-web", "dep:prost", "dep:futures", "tonic-build", "dep:tower-http", "dep:tower"]
 database = ["dep:mongodb"]
 auth = ["dep:jsonwebtoken"]
 metrics = ["dep:prometheus", "dep:lazy_static"]
+otel = ["dep:opentelemetry", "dep:opentelemetry_sdk", "dep:opentelemetry-otlp", "dep:tracing-opentelemetry"]
 
 # All features
-full = ["http", "sse", "websocket", "http-stream", "grpc", "database", "auth", "metrics"]
+full = ["http", "sse", "websocket", "http-stream", "grpc", "database", "auth", "metrics", "otel"]
 
 [profile.release]
 opt-level = 3

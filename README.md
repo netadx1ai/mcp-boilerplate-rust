@@ -1,6 +1,6 @@
 # MCP Boilerplate Rust
 
-**Version 0.4.0** | Production-Ready Multi-Transport MCP Server | 6 Transport Modes
+**Version 0.5.0** | Production-Ready Multi-Transport MCP Server | 6 Transport Modes
 
 A production-ready Rust implementation of the Model Context Protocol (MCP) with advanced multi-transport support, comprehensive tooling, and enterprise-grade features.
 
@@ -10,9 +10,19 @@ A production-ready Rust implementation of the Model Context Protocol (MCP) with 
 
 ## Features
 
-- **6 Transport Modes** - stdio, SSE, WebSocket, HTTP, HTTP Streaming, gRPC
-- **11 Production Tools** - Complete suite with progress notifications
+- **6 Transport Modes** - stdio, SSE, WebSocket, HTTP, HTTP Streaming, gRPC (w/ gRPC-Web)
+- **Observability** - OpenTelemetry Tracing + Prometheus Metrics
+=======
 - **Prometheus Metrics** - Built-in metrics collection and exposure
+>>>>>>> origin/main
+=======
+- **11 Production Tools** - Complete suite with progress notifications
+- **Observability** - OpenTelemetry Tracing + Prometheus Metrics
+=======
+- **Observability** - OpenTelemetry Tracing + Prometheus Metrics
+=======
+- **Prometheus Metrics** - Built-in metrics collection and exposure
+>>>>>>> origin/main
 - **Type-Safe** - Full Rust type safety with schemars validation
 - **High Performance** - Optimized binaries (2.4MB - 4.2MB)
 - **89 Tests** - Comprehensive test coverage (100% passing)
@@ -115,8 +125,8 @@ cargo run --release --features http-stream -- --mode http-stream --bind 127.0.0.
 - Progressive streaming
 - Browser compatible
 
-### 5. gRPC
-**Best for:** Microservices, high-performance APIs, internal services
+### 5. gRPC & gRPC-Web
+**Best for:** Microservices, high-performance APIs, browser clients
 
 ```bash
 cargo run --release --features grpc -- --mode grpc --bind 127.0.0.1:50051
@@ -125,6 +135,7 @@ cargo run --release --features grpc -- --mode grpc --bind 127.0.0.1:50051
 **Features:**
 - Protocol Buffers serialization
 - HTTP/2 multiplexing
+- gRPC-Web support (Browser compatible)
 - Bidirectional streaming
 - Sub-5ms latency
 
@@ -192,8 +203,33 @@ cargo build --release --features full
 - `http` - HTTP REST API transport
 - `database` - MongoDB integration
 - `auth` - JWT authentication
+- `otel` - OpenTelemetry distributed tracing
+=======
+>>>>>>> origin/main
+=======
 - `metrics` - Prometheus metrics collection
+- `otel` - OpenTelemetry distributed tracing
+=======
+- `otel` - OpenTelemetry distributed tracing
+=======
+>>>>>>> origin/main
 - `full` - All features
+
+## Observability
+
+### OpenTelemetry Tracing
+
+Enable distributed tracing to track requests across services.
+
+```bash
+# Build with otel feature
+cargo build --release --features otel
+
+# Run with OTLP exporter configuration
+export OTEL_EXPORTER_OTLP_ENDPOINT="http://localhost:4317"
+export OTEL_SERVICE_NAME="mcp-server"
+./target/release/mcp-boilerplate-rust --mode stdio
+```
 
 ## Testing
 
@@ -430,15 +466,15 @@ MIT License - see [LICENSE](LICENSE) file for details
 - Browser clients
 - Docker support
 
-### Next Version (0.5.0)
-- [ ] gRPC-Web gateway for browser support
-- [ ] Prometheus metrics
-- [ ] OpenTelemetry tracing
+### Version 0.5.0 (Released)
+- [x] gRPC-Web gateway for browser support
+- [x] Prometheus metrics
+- [x] OpenTelemetry tracing
 - [ ] Client SDKs (JavaScript, Python, Go)
-- [ ] Load balancing support
-- [ ] Service mesh integration
 
 ### Future
+- [ ] Load balancing support
+- [ ] Service mesh integration
 - [ ] HTTP/3 (QUIC) support
 - [ ] Multi-region deployment
 - [ ] Auto-scaling

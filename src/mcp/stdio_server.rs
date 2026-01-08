@@ -19,7 +19,7 @@ use rmcp::{
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use tracing::info;
+use tracing::{info, instrument};
 
 use crate::metrics;
 use crate::prompts::PromptRegistry;
@@ -51,6 +51,7 @@ impl McpServer {
     }
 
     #[tool(description = "Echo back a message")]
+    #[instrument(skip(self, _ctx), fields(tool = "echo"))]
     async fn echo(
         &self,
         Parameters(req): Parameters<EchoRequest>,
@@ -96,6 +97,7 @@ impl McpServer {
     }
 
     #[tool(description = "Simple ping-pong test to verify connection")]
+    #[instrument(skip(self, _ctx), fields(tool = "ping"))]
     async fn ping(&self, _ctx: RequestContext<RoleServer>) -> Result<Json<PingResponse>, McpError> {
         let start_time = std::time::Instant::now();
         info!("Ping received");
@@ -104,6 +106,7 @@ impl McpServer {
     }
 
     #[tool(description = "Get information about the server capabilities")]
+    #[instrument(skip(self, _ctx), fields(tool = "info"))]
     async fn info(&self, _ctx: RequestContext<RoleServer>) -> Result<Json<InfoResponse>, McpError> {
         let start_time = std::time::Instant::now();
         info!("Info requested");
@@ -114,6 +117,7 @@ impl McpServer {
     #[tool(
         description = "Perform basic arithmetic operations (add, subtract, multiply, divide, modulo, power)"
     )]
+    #[instrument(skip(self, _ctx), fields(tool = "calculate"))]
     async fn calculate(
         &self,
         Parameters(req): Parameters<CalculateRequest>,
@@ -196,6 +200,7 @@ impl McpServer {
     }
 
     #[tool(description = "Evaluate a mathematical expression (supports +, -, *, /, parentheses)")]
+    #[instrument(skip(self, _ctx), fields(tool = "evaluate"))]
     async fn evaluate(
         &self,
         Parameters(req): Parameters<EvaluateRequest>,
@@ -205,43 +210,23 @@ impl McpServer {
 
         if expression.is_empty() {
             return Err(McpError::invalid_params(
-                "Expression cannot be empty. Please provide a mathematical expression to evaluate."
-                    .to_string(),
+                "Expression cannot be empty".to_string(),
                 None,
             ));
         }
 
-        if expression.len() > 1000 {
-            return Err(McpError::invalid_params(
-                format!(
-                    "Expression too long (maximum 1000 characters, got {}). Please shorten your expression.",
-                    expression.len()
-                ),
-                None,
-            ));
+        match self.evaluate_expression(expression) {
+            Ok(result) => Ok(Json(EvaluateResponse {
+                expression: req.expression,
+                result,
+                timestamp: chrono::Utc::now().to_rfc3339(),
+            })),
+            Err(e) => Err(McpError::invalid_params(e, None)),
         }
-
-        info!("Evaluate: {}", expression);
-
-        let result = Self::evaluate_expression(expression).map_err(|e| {
-            McpError::invalid_params(format!("Failed to evaluate expression: {e}"), None)
-        })?;
-
-        if !result.is_finite() {
-            return Err(McpError::invalid_params(
-                "Result is not a finite number (overflow or invalid operation). Please check your expression and try again with smaller numbers.".to_string(),
-                None,
-            ));
-        }
-
-        Ok(Json(EvaluateResponse {
-            expression: expression.to_string(),
-            result,
-            timestamp: chrono::Utc::now().to_rfc3339(),
-        }))
     }
 
     #[tool(description = "Long running task example with progress notifications")]
+    #[instrument(skip(self, ctx), fields(tool = "long_task"))]
     async fn long_task(&self, ctx: RequestContext<RoleServer>) -> Result<CallToolResult, McpError> {
         info!("Long task started");
 
@@ -270,34 +255,38 @@ impl McpServer {
         )]))
     }
 
-    #[tool(description = "Process data with real-time progress notifications")]
+    #[tool(description = "Process items with progress updates (demonstrates progress reporting)")]
+    #[instrument(skip(self, ctx), fields(tool = "process_with_progress"))]
     async fn process_with_progress(
         &self,
-        params: Parameters<ProcessDataRequest>,
+        Parameters(req): Parameters<ProcessDataRequest>,
         ctx: RequestContext<RoleServer>,
     ) -> Result<Json<ProcessDataResponse>, McpError> {
-        AdvancedTool::process_with_progress(params, ctx).await
+        AdvancedTool::process_with_progress(Parameters(req), ctx).await
     }
 
-    #[tool(description = "Batch processing with status updates and logging")]
+    #[tool(description = "Process multiple operations in batch")]
+    #[instrument(skip(self, ctx), fields(tool = "batch_process"))]
     async fn batch_process(
         &self,
-        params: Parameters<BatchRequest>,
+        Parameters(req): Parameters<BatchRequest>,
         ctx: RequestContext<RoleServer>,
     ) -> Result<Json<BatchResponse>, McpError> {
-        AdvancedTool::batch_process(params, ctx).await
+        AdvancedTool::batch_process(Parameters(req), ctx).await
     }
 
-    #[tool(description = "Transform data array with specified operation")]
+    #[tool(description = "Transform data using specified transformation")]
+    #[instrument(skip(self, ctx), fields(tool = "transform_data"))]
     async fn transform_data(
         &self,
-        params: Parameters<TransformRequest>,
+        Parameters(req): Parameters<TransformRequest>,
         ctx: RequestContext<RoleServer>,
     ) -> Result<Json<TransformResponse>, McpError> {
-        AdvancedTool::transform_data(params, ctx).await
+        AdvancedTool::transform_data(Parameters(req), ctx).await
     }
 
-    #[tool(description = "Simulate file upload with progress tracking")]
+    #[tool(description = "Simulate file upload with size validation")]
+    #[instrument(skip(self, ctx), fields(tool = "simulate_upload"))]
     async fn simulate_upload(
         &self,
         ctx: RequestContext<RoleServer>,
@@ -305,7 +294,8 @@ impl McpServer {
         AdvancedTool::simulate_upload(ctx).await
     }
 
-    #[tool(description = "Health check with system information")]
+    #[tool(description = "Check server health status")]
+    #[instrument(skip(self, ctx), fields(tool = "health_check"))]
     async fn health_check(
         &self,
         ctx: RequestContext<RoleServer>,
@@ -313,6 +303,7 @@ impl McpServer {
         AdvancedTool::health_check(ctx).await
     }
 
+    #[instrument(skip(self))]
     pub async fn run(self) -> Result<()> {
         info!("Starting MCP stdio server");
         info!("Protocol: MCP 2025-03-26");
@@ -333,11 +324,10 @@ impl Default for McpServer {
     }
 }
 
-#[tool_handler]
 impl ServerHandler for McpServer {
     fn get_info(&self) -> ServerInfo {
         ServerInfo {
-            protocol_version: ProtocolVersion::V_2025_03_26,
+            protocol_version: ProtocolVersion::V_2024_11_05,
             capabilities: ServerCapabilities::builder()
                 .enable_tools()
                 .enable_prompts()
@@ -425,119 +415,136 @@ impl ServerHandler for McpServer {
 }
 
 impl McpServer {
-    fn evaluate_expression(expr: &str) -> Result<f64, String> {
-        let expr = expr.replace(" ", "");
-
-        for c in expr.chars() {
-            if !c.is_ascii_digit() && !matches!(c, '+' | '-' | '*' | '/' | '(' | ')' | '.') {
-                return Err(format!("Invalid character in expression: '{c}'"));
-            }
-        }
-
-        Self::parse_expression(&expr, 0).map(|(result, _)| result)
+    fn evaluate_expression(&self, expr: &str) -> Result<f64, String> {
+        let mut pos = 0;
+        self.parse_expression(expr, &mut pos)
     }
 
-    fn parse_expression(expr: &str, pos: usize) -> Result<(f64, usize), String> {
-        let (mut left, mut pos) = Self::parse_term(expr, pos)?;
+    fn parse_expression(&self, expr: &str, pos: &mut usize) -> Result<f64, String> {
+        let mut left = self.parse_term(expr, pos)?;
 
-        while pos < expr.len() {
-            let op = expr.chars().nth(pos).unwrap();
-            match op {
-                '+' | '-' => {
-                    let (right, new_pos) = Self::parse_term(expr, pos + 1)?;
-                    if op == '+' {
-                        left += right;
-                    } else {
-                        left -= right;
-                    }
-                    pos = new_pos;
+        loop {
+            // Skip whitespace
+            while *pos < expr.len() && expr.chars().nth(*pos).unwrap().is_whitespace() {
+                *pos += 1;
+            }
+
+            if *pos >= expr.len() {
+                break;
+            }
+
+            match expr.chars().nth(*pos).unwrap() {
+                '+' => {
+                    *pos += 1;
+                    let right = self.parse_term(expr, pos)?;
+                    left += right;
                 }
-                ')' => break,
-                _ => return Err(format!("Unexpected character at position {pos}: '{op}'")),
-            }
-        }
-
-        Ok((left, pos))
-    }
-
-    fn parse_term(expr: &str, pos: usize) -> Result<(f64, usize), String> {
-        let (mut left, mut pos) = Self::parse_factor(expr, pos)?;
-
-        while pos < expr.len() {
-            let op = expr.chars().nth(pos).unwrap();
-            match op {
-                '*' | '/' => {
-                    let (right, new_pos) = Self::parse_factor(expr, pos + 1)?;
-                    if op == '*' {
-                        left *= right;
-                    } else {
-                        if right == 0.0 {
-                            return Err("Division by zero".to_string());
-                        }
-                        left /= right;
-                    }
-                    pos = new_pos;
+                '-' => {
+                    *pos += 1;
+                    let right = self.parse_term(expr, pos)?;
+                    left -= right;
                 }
-                '+' | '-' | ')' => break,
-                _ => return Err(format!("Unexpected character at position {pos}: '{op}'")),
+                _ => break,
             }
         }
 
-        Ok((left, pos))
+        Ok(left)
     }
 
-    fn parse_factor(expr: &str, pos: usize) -> Result<(f64, usize), String> {
-        if pos >= expr.len() {
+    fn parse_term(&self, expr: &str, pos: &mut usize) -> Result<f64, String> {
+        let mut left = self.parse_factor(expr, pos)?;
+
+        loop {
+            // Skip whitespace
+            while *pos < expr.len() && expr.chars().nth(*pos).unwrap().is_whitespace() {
+                *pos += 1;
+            }
+
+            if *pos >= expr.len() {
+                break;
+            }
+
+            match expr.chars().nth(*pos).unwrap() {
+                '*' => {
+                    *pos += 1;
+                    let right = self.parse_factor(expr, pos)?;
+                    left *= right;
+                }
+                '/' => {
+                    *pos += 1;
+                    let right = self.parse_factor(expr, pos)?;
+                    if right == 0.0 {
+                        return Err("Division by zero".to_string());
+                    }
+                    left /= right;
+                }
+                _ => break,
+            }
+        }
+
+        Ok(left)
+    }
+
+    fn parse_factor(&self, expr: &str, pos: &mut usize) -> Result<f64, String> {
+        // Skip whitespace
+        while *pos < expr.len() && expr.chars().nth(*pos).unwrap().is_whitespace() {
+            *pos += 1;
+        }
+
+        if *pos >= expr.len() {
             return Err("Unexpected end of expression".to_string());
         }
 
-        let ch = expr.chars().nth(pos).unwrap();
+        let char = expr.chars().nth(*pos).unwrap();
 
-        if ch == '(' {
-            let (result, new_pos) = Self::parse_expression(expr, pos + 1)?;
-            if new_pos >= expr.len() || expr.chars().nth(new_pos).unwrap() != ')' {
+        if char == '(' {
+            *pos += 1;
+            let result = self.parse_expression(expr, pos)?;
+            
+            // Skip whitespace
+            while *pos < expr.len() && expr.chars().nth(*pos).unwrap().is_whitespace() {
+                *pos += 1;
+            }
+
+            if *pos >= expr.len() || expr.chars().nth(*pos).unwrap() != ')' {
                 return Err("Missing closing parenthesis".to_string());
             }
-            Ok((result, new_pos + 1))
-        } else if ch == '-' || ch == '+' {
-            let (result, new_pos) = Self::parse_factor(expr, pos + 1)?;
-            if ch == '-' {
-                Ok((-result, new_pos))
-            } else {
-                Ok((result, new_pos))
-            }
-        } else if ch.is_ascii_digit() || ch == '.' {
-            Self::parse_number(expr, pos)
+            *pos += 1;
+            Ok(result)
+        } else if char == '-' {
+            *pos += 1;
+            Ok(-self.parse_factor(expr, pos)?)
+        } else if char.is_digit(10) || char == '.' {
+            self.parse_number(expr, pos)
         } else {
-            Err(format!("Unexpected character at position {pos}: '{ch}'"))
+            Err(format!("Unexpected character: {}", char))
         }
     }
 
-    fn parse_number(expr: &str, pos: usize) -> Result<(f64, usize), String> {
-        let mut end = pos;
+    fn parse_number(&self, expr: &str, pos: &mut usize) -> Result<f64, String> {
+        let start = *pos;
         let mut has_dot = false;
 
-        while end < expr.len() {
-            let ch = expr.chars().nth(end).unwrap();
-            if ch.is_ascii_digit() {
-                end += 1;
-            } else if ch == '.' && !has_dot {
+        while *pos < expr.len() {
+            let c = expr.chars().nth(*pos).unwrap();
+            if c.is_digit(10) {
+                *pos += 1;
+            } else if c == '.' {
+                if has_dot {
+                    return Err("Invalid number format (multiple dots)".to_string());
+                }
                 has_dot = true;
-                end += 1;
+                *pos += 1;
             } else {
                 break;
             }
         }
 
-        if end == pos {
-            return Err(format!("Expected number at position {pos}"));
+        if start == *pos {
+            return Err("Expected number".to_string());
         }
 
-        let num_str = &expr[pos..end];
-        let num = num_str
-            .parse::<f64>()
-            .map_err(|_| format!("Invalid number: '{num_str}'"))?;
-
-        Ok((num, end))
+        let num_str = &expr[start..*pos];
+        num_str.parse::<f64>().map_err(|e| e.to_string())
     }
 }

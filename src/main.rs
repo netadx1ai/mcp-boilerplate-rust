@@ -94,7 +94,7 @@ async fn main() -> Result<()> {
 
     // For stdio mode, disable logging to avoid interfering with JSON-RPC
     // Claude Desktop can't parse logs mixed with JSON responses
-    match args.mode {
+    let result = match args.mode {
         ServerMode::Stdio => {
             if args.verbose {
                 std::env::set_var("RUST_LOG", "error");
@@ -102,7 +102,7 @@ async fn main() -> Result<()> {
                 std::env::set_var("RUST_LOG", "off");
             }
             Logger::init();
-            run_stdio_server().await?;
+            run_stdio_server().await
         }
         #[cfg(feature = "http")]
         ServerMode::Http => {
@@ -113,7 +113,7 @@ async fn main() -> Result<()> {
             info!("MCP Boilerplate Rust v{}", env!("CARGO_PKG_VERSION"));
             info!("Using official rmcp SDK v0.12");
             info!("Starting MCP server in HTTP mode");
-            run_http_server().await?;
+            run_http_server().await
         }
         #[cfg(feature = "sse")]
         ServerMode::Sse => {
@@ -126,7 +126,7 @@ async fn main() -> Result<()> {
             info!("MCP Boilerplate Rust v{}", env!("CARGO_PKG_VERSION"));
             info!("Using official rmcp SDK v0.12");
             info!("Starting MCP server in SSE mode");
-            run_sse_server(&args.bind).await?;
+            run_sse_server(&args.bind).await
         }
         #[cfg(feature = "websocket")]
         ServerMode::Websocket => {
@@ -139,7 +139,7 @@ async fn main() -> Result<()> {
             info!("MCP Boilerplate Rust v{}", env!("CARGO_PKG_VERSION"));
             info!("Using official rmcp SDK v0.12");
             info!("Starting MCP server in WebSocket mode");
-            run_websocket_server(&args.bind).await?;
+            run_websocket_server(&args.bind).await
         }
         #[cfg(feature = "http-stream")]
         ServerMode::HttpStream => {
@@ -152,7 +152,7 @@ async fn main() -> Result<()> {
             info!("MCP Boilerplate Rust v{}", env!("CARGO_PKG_VERSION"));
             info!("Using official rmcp SDK v0.12");
             info!("Starting MCP server in HTTP Streaming mode");
-            run_http_stream_server(&args.bind).await?;
+            run_http_stream_server(&args.bind).await
         }
         #[cfg(feature = "grpc")]
         ServerMode::Grpc => {
@@ -165,11 +165,12 @@ async fn main() -> Result<()> {
             info!("MCP Boilerplate Rust v{}", env!("CARGO_PKG_VERSION"));
             info!("Using official rmcp SDK v0.12");
             info!("Starting MCP server in gRPC mode");
-            run_grpc_server(&args.bind).await?;
+            run_grpc_server(&args.bind).await
         }
-    }
+    };
 
-    Ok(())
+    Logger::shutdown();
+    result
 }
 
 async fn run_stdio_server() -> Result<()> {

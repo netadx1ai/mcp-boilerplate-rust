@@ -19,6 +19,8 @@ use tokio::sync::RwLock;
 #[cfg(feature = "grpc")]
 use tonic::{transport::Server, Request, Response, Status};
 #[cfg(feature = "grpc")]
+use tower_http::cors::{Any, CorsLayer};
+#[cfg(feature = "grpc")]
 use tracing::{error, info};
 
 #[cfg(feature = "grpc")]
@@ -293,9 +295,18 @@ pub async fn run_grpc_server(bind_address: &str) -> anyhow::Result<()> {
     info!("  - Binary serialization (Protocol Buffers)");
     info!("  - HTTP/2 multiplexing");
     info!("  - Automatic retries");
+    info!("  - gRPC-Web support (Browser compatible)");
+
+    // Configure CORS for gRPC-Web
+    let cors = CorsLayer::new()
+        .allow_origin(Any)
+        .allow_headers(Any)
+        .allow_methods(Any);
 
     Server::builder()
-        .add_service(McpServer::new(service))
+        .accept_http1(true)
+        .layer(cors)
+        .add_service(tonic_web::enable(McpServer::new(service)))
         .serve(addr)
         .await?;
 
