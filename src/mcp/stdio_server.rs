@@ -13,7 +13,10 @@ use rmcp::{
     tool, tool_handler, tool_router,
 };
 use tracing::info;
+use std::collections::HashMap;
 
+use crate::prompts::PromptRegistry;
+use crate::resources::ResourceRegistry;
 use crate::tools::{
     calculator::{CalculateRequest, CalculateResponse, EvaluateRequest, EvaluateResponse},
     shared::*,
@@ -22,6 +25,8 @@ use crate::tools::{
 #[derive(Clone)]
 pub struct McpServer {
     tool_router: ToolRouter<Self>,
+    prompt_registry: PromptRegistry,
+    resource_registry: ResourceRegistry,
 }
 
 #[tool_router]
@@ -29,6 +34,8 @@ impl McpServer {
     pub fn new() -> Self {
         Self {
             tool_router: Self::tool_router(),
+            prompt_registry: PromptRegistry::new(),
+            resource_registry: ResourceRegistry::new(),
         }
     }
 
@@ -157,6 +164,7 @@ impl McpServer {
         info!("Starting MCP stdio server");
         info!("Protocol: MCP v2024-11-05");
         info!("Using rmcp SDK v0.12");
+        info!("Capabilities: Tools (5) | Prompts (3) | Resources (4)");
         info!("Ready to receive MCP requests");
 
         let service = self.serve(rmcp::transport::stdio()).await?;
@@ -179,10 +187,12 @@ impl ServerHandler for McpServer {
             protocol_version: ProtocolVersion::V_2024_11_05,
             capabilities: ServerCapabilities::builder()
                 .enable_tools()
+                .enable_prompts()
+                .enable_resources()
                 .build(),
             server_info: Implementation::from_build_env(),
             instructions: Some(
-                "MCP Boilerplate Rust Server. Available tools: echo, ping, info, calculate, evaluate.".to_string(),
+                "MCP Boilerplate Rust Server. Tools: echo, ping, info, calculate, evaluate. Prompts: code_review, explain_code, debug_help. Resources: config, capabilities, docs, stats.".to_string(),
             ),
         }
     }
@@ -192,8 +202,13 @@ impl ServerHandler for McpServer {
         _request: Option<PaginatedRequestParam>,
         _context: RequestContext<RoleServer>,
     ) -> Result<ListResourcesResult, McpError> {
-        info!("MCP: Listing resources (none available)");
-        Ok(ListResourcesResult::default())
+        info!("MCP: Listing resources");
+        let resources = self.resource_registry.list_resources();
+        Ok(ListResourcesResult {
+            resources,
+            next_cursor: None,
+            meta: None,
+        })
     }
 
     async fn read_resource(
@@ -202,10 +217,9 @@ impl ServerHandler for McpServer {
         _context: RequestContext<RoleServer>,
     ) -> Result<ReadResourceResult, McpError> {
         info!("MCP: Read resource requested: {}", params.uri);
-        Err(McpError::resource_not_found(
-            "Resources are not supported in this server",
-            None,
-        ))
+        self.resource_registry
+            .read_resource(&params.uri)
+            .map_err(|e| McpError::resource_not_found(e, None))
     }
 
     async fn list_resource_templates(
@@ -222,8 +236,13 @@ impl ServerHandler for McpServer {
         _request: Option<PaginatedRequestParam>,
         _context: RequestContext<RoleServer>,
     ) -> Result<ListPromptsResult, McpError> {
-        info!("MCP: Listing prompts (none available)");
-        Ok(ListPromptsResult::default())
+        info!("MCP: Listing prompts");
+        let prompts = self.prompt_registry.list_prompts();
+        Ok(ListPromptsResult {
+            prompts,
+            next_cursor: None,
+            meta: None,
+        })
     }
 
     async fn get_prompt(
@@ -232,10 +251,23 @@ impl ServerHandler for McpServer {
         _context: RequestContext<RoleServer>,
     ) -> Result<GetPromptResult, McpError> {
         info!("MCP: Get prompt requested: {}", params.name);
-        Err(McpError::invalid_request(
-            "Prompts are not supported in this server",
-            None,
-        ))
+        
+        let arguments: HashMap<String, String> = params
+            .arguments
+            .unwrap_or_default()
+            .into_iter()
+            .filter_map(|(k, v)| {
+                if let serde_json::Value::String(s) = v {
+                    Some((k, s))
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        self.prompt_registry
+            .get_prompt(&params.name, &arguments)
+            .map_err(|e| McpError::invalid_params(e, None))
     }
 }
 

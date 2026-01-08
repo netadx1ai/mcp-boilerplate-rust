@@ -2,6 +2,8 @@ use anyhow::Result;
 use clap::{Parser, ValueEnum};
 
 mod mcp;
+mod prompts;
+mod resources;
 mod tools;
 mod types;
 mod utils;
