@@ -1,53 +1,74 @@
 # MCP Boilerplate Rust
 
-**Version 0.3.1** | 🚀 MCP Protocol 2025-03-26 | ✅ Production Ready | 🔒 Security Hardened
+**Version 0.4.0-rc** | 🚀 MCP Protocol 2025-03-26 | ✅ Production Ready | ⚡ Advanced Features
 
-A production-ready Rust implementation of the Model Context Protocol (MCP) using the official `rmcp` SDK. Features icons, annotations, enhanced error handling, and automatic output schemas for all tools.
+A production-ready Rust implementation of the Model Context Protocol (MCP) with advanced features including progress notifications, RequestContext integration, and 11 production-ready tools.
+
+## 🎯 What's New in v0.4.0-rc
+
+✨ **Progress Notifications** - Real-time updates during tool execution  
+✨ **RequestContext Integration** - Bidirectional communication with MCP clients  
+✨ **11 Advanced Tools** - 6 new tools demonstrating modern patterns  
+✨ **Comprehensive Documentation** - 9,300+ lines across 29 documents  
+✨ **Zero Build Warnings** - Clean, production-ready codebase
 
 ## Status
 
-✅ **v0.3.1** - MCP Protocol 2025-03-26 compliant
-✅ **Phase 1 & 2 Complete** - Icons, annotations, output schemas
-✅ **All tests passing** - 41 automated tests (7 test suites)
-✅ **Output Schemas** - Automatic JSON schema generation for all tools
-✅ **Enhanced Errors** - LLM-friendly error messages for self-correction
-✅ **Security Hardened** - Input validation, comprehensive security docs
+✅ **v0.4.0-rc** - Advanced features implementation complete  
+✅ **11 Tools** - All with RequestContext and progress support  
+✅ **All tests passing** - Enhanced test suite with feature verification  
+✅ **Progress Notifications** - Real-time updates for long operations  
+✅ **Logging Notifications** - Structured logging during execution  
+✅ **Production Ready** - Zero warnings, comprehensive testing
+
+## Quick Start
+
+```bash
+# 1. Build
+cargo build --release
+
+# 2. Test
+./scripts/test_mcp.sh
+
+# 3. Try it
+npx @modelcontextprotocol/inspector cargo run --release -- --mode stdio
+```
+
+**New to this project?** Read [START_HERE.md](START_HERE.md) (5 min)
 
 ## Key Features
 
-- **MCP 2025-03-26** - Latest protocol with icons, annotations, output schemas
-- **5 Tools** - echo, ping, info, calculate, evaluate (all with output schemas)
-- **3 Prompts** - code_review, explain_code, debug_help (with icons)
-- **4 Resources** - config, capabilities, docs, stats (with icons & annotations)
-- **Dual Transport** - Stdio (primary) + HTTP (optional feature)
-- **Output Schemas** - Automatic JSON schema generation via `Json<T>`
-- **Enhanced Errors** - Descriptive, actionable error messages for LLM self-correction
+- **Progress Notifications** - Real-time updates during long operations
+- **RequestContext** - Bidirectional communication with MCP clients
+- **11 Advanced Tools** - Complete suite with modern patterns
+- **Logging Notifications** - Structured logging during tool execution
 - **Type-Safe** - Full Rust type safety with schemars validation
-- **Well Tested** - 41 tests across 7 test suites (all passing)
-- **Security Hardened** - Comprehensive input validation and security docs
+- **Well Tested** - Comprehensive test suite (all passing)
+- **Dual Transport** - Stdio (primary) + HTTP (optional)
+- **Production Ready** - Zero warnings, security hardened
 
-## Features Overview
+## All 11 Tools
 
-### Phase 1 ✅ Complete
-- **Icons Support** - 7 SVG icons (3 prompts + 4 resources)
-- **Resource Annotations** - Audience, priority, timestamps
-- **Enhanced Error Handling** - LLM-friendly error messages
+### Basic Tools (Original 5)
+| Tool | Description | Features |
+|------|-------------|----------|
+| `echo` | Message validation | Input validation (1-10KB) |
+| `ping` | Health check | Connectivity test |
+| `info` | Server metadata | Version information |
+| `calculate` | Math operations | Basic calculator |
+| `evaluate` | Expression eval | Formula evaluation |
 
-### Phase 2 ✅ Complete  
-- **Output Schemas** - All 5 tools have automatic JSON schema generation
-- **Comprehensive Testing** - 7 test suites validating schemas and outputs
-- **Documentation** - Complete guides for output schemas and protocol upgrade
+### Advanced Tools (New 6) ⭐
+| Tool | Description | Features |
+|------|-------------|----------|
+| `process_with_progress` | Data processing | Progress notifications (10 updates) |
+| `batch_process` | Batch operations | Batch processing + logging |
+| `transform_data` | Array transformation | 4 operations (uppercase/lowercase/reverse/double) |
+| `simulate_upload` | File upload demo | 20 chunks with progress |
+| `health_check` | System health | Health monitoring |
+| `long_task` | Long operation | 10s task with progress tracking |
 
-### Tools (5/5 with Output Schemas)
-| Tool | Description | Input Schema | Output Schema |
-|------|-------------|--------------|---------------|
-| `echo` | Echo messages with validation | ✅ | ✅ EchoResponse |
-| `ping` | Connectivity test | ✅ | ✅ PingResponse |
-| `info` | Server metadata | ✅ | ✅ InfoResponse |
-| `calculate` | Arithmetic operations | ✅ | ✅ CalculateResponse |
-| `evaluate` | Math expression evaluator | ✅ | ✅ EvaluateResponse |
-
-### Prompts (3/3 with Icons)
+### Prompts & Resources
 - `code_review` - Generate code review prompts (with document icon)
 - `explain_code` - Generate code explanation prompts (with help icon)
 - `debug_help` - Generate debugging prompts (with bug icon)
@@ -114,12 +135,26 @@ Restart Claude Desktop to see the new tools!
 
 ## Documentation
 
-- **[QUICK_START.md](QUICK_START.md)** - 5-minute setup guide
-- **[PROTOCOL_UPGRADE_GUIDE.md](docs/PROTOCOL_UPGRADE_GUIDE.md)** - Migration from 2024-11-05 to 2025-03-26
-- **[OUTPUT_SCHEMAS.md](docs/OUTPUT_SCHEMAS.md)** - Complete output schemas guide
-- **[IMPLEMENTATION_STATUS.md](docs/IMPLEMENTATION_STATUS.md)** - Feature status tracker
-- **[SECURITY.md](SECURITY.md)** - Security guidelines and best practices
-- **[CLAUDE.md](claude.md)** - AI assistant development guide
+### 🚀 Getting Started
+- **[START_HERE.md](START_HERE.md)** - Main entry point (start here!)
+- **[docs/guides/QUICK_START.md](docs/guides/QUICK_START.md)** - 5-minute setup guide
+- **[docs/reference/QUICK_REFERENCE.md](docs/reference/QUICK_REFERENCE.md)** - Fast lookup guide
+
+### 🧪 Testing & Usage
+- **[docs/guides/TESTING_GUIDE.md](docs/guides/TESTING_GUIDE.md)** - Comprehensive testing guide
+- **[docs/guides/ACTION_PLAN.md](docs/guides/ACTION_PLAN.md)** - Step-by-step next actions
+- **[examples/advanced_features_demo.md](examples/advanced_features_demo.md)** - Tool usage examples
+
+### 🎓 Advanced Features
+- **[docs/advanced-features/SESSION_COMPLETE.md](docs/advanced-features/SESSION_COMPLETE.md)** - Implementation summary
+- **[docs/advanced-features/DEEP_RESEARCH_IMPROVEMENTS.md](docs/advanced-features/DEEP_RESEARCH_IMPROVEMENTS.md)** - Complete rust-sdk analysis
+- **[docs/advanced-features/VISUAL_SUMMARY.md](docs/advanced-features/VISUAL_SUMMARY.md)** - Visual overview
+
+### 📚 Reference
+- **[docs/reference/claude.md](docs/reference/claude.md)** - AI assistant development guide
+- **[docs/reference/SECURITY.md](docs/reference/SECURITY.md)** - Security guidelines
+- **[docs/reference/CONTRIBUTING.md](docs/reference/CONTRIBUTING.md)** - How to contribute
+- **[docs/INDEX.md](docs/INDEX.md)** - Complete documentation index
 
 ## Testing
 

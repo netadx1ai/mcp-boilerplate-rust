@@ -35,3 +35,6 @@ temp/
 
 # Documentation
 docs/generated/
+docs/archive/
+docs/troubleshooting/
+docs/sessions/
