@@ -11,8 +11,18 @@ A production-ready Rust implementation of the Model Context Protocol (MCP) with 
 ## Features
 
 - **6 Transport Modes** - stdio, SSE, WebSocket, HTTP, HTTP Streaming, gRPC (w/ gRPC-Web)
+- **Observability** - OpenTelemetry Tracing + Prometheus Metrics
+=======
+- **Prometheus Metrics** - Built-in metrics collection and exposure
+>>>>>>> origin/main
+=======
 - **11 Production Tools** - Complete suite with progress notifications
 - **Observability** - OpenTelemetry Tracing + Prometheus Metrics
+=======
+- **Observability** - OpenTelemetry Tracing + Prometheus Metrics
+=======
+- **Prometheus Metrics** - Built-in metrics collection and exposure
+>>>>>>> origin/main
 - **Type-Safe** - Full Rust type safety with schemars validation
 - **High Performance** - Optimized binaries (2.4MB - 4.2MB)
 - **89 Tests** - Comprehensive test coverage (100% passing)
@@ -193,8 +203,16 @@ cargo build --release --features full
 - `http` - HTTP REST API transport
 - `database` - MongoDB integration
 - `auth` - JWT authentication
+- `otel` - OpenTelemetry distributed tracing
+=======
+>>>>>>> origin/main
+=======
 - `metrics` - Prometheus metrics collection
 - `otel` - OpenTelemetry distributed tracing
+=======
+- `otel` - OpenTelemetry distributed tracing
+=======
+>>>>>>> origin/main
 - `full` - All features
 
 ## Observability
