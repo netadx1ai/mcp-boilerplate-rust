@@ -19,6 +19,7 @@ Production-ready Rust implementation of the Model Context Protocol (MCP) with ad
 - **Binary Size:** 2.4MB (minimal) to 4.2MB (full features)
 - **Code Quality:** Zero errors, 19 warnings (all false positives)
 - **Documentation:** Comprehensive guides and examples
+- **Observability:** Prometheus metrics enabled
 - **Test Coverage:** All transports and tools tested
 
 ---
@@ -64,6 +65,7 @@ Production-ready Rust implementation of the Model Context Protocol (MCP) with ad
 - Browser test clients (SSE + WebSocket)
 - Docker support
 - Protocol Buffers for gRPC
+- Prometheus metrics support
 
 ---
 
@@ -325,7 +327,7 @@ All core functionality is working and tested.
 
 ### Version 0.5.0 (Next)
 - [ ] gRPC-Web gateway for browsers
-- [ ] Prometheus metrics
+- [x] Prometheus metrics
 - [ ] OpenTelemetry tracing
 - [ ] Client SDKs (JavaScript, Python, Go)
 - [ ] Load balancing support

@@ -14,6 +14,7 @@
 
 ### Testing & Usage
 - **[guides/TESTING_GUIDE.md](guides/TESTING_GUIDE.md)** - Comprehensive testing guide
+- **[guides/METRICS_GUIDE.md](guides/METRICS_GUIDE.md)** - Prometheus metrics guide
 - **[guides/ACTION_PLAN.md](guides/ACTION_PLAN.md)** - Step-by-step next actions
 - **[../examples/advanced_features_demo.md](../examples/advanced_features_demo.md)** - Tool usage examples
 
@@ -35,6 +36,7 @@ docs/
 ├── guides/                          # How-to guides
 │   ├── QUICK_START.md              # 5-minute setup
 │   ├── TESTING_GUIDE.md            # Testing all features
+│   ├── METRICS_GUIDE.md            # Prometheus metrics
 │   ├── ACTION_PLAN.md              # What to do next
 │   ├── INSTALLATION.md             # Installation guide
 │   └── GIT_WORKFLOW.md             # Git best practices
