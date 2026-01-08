@@ -6,7 +6,7 @@ This file provides guidance to Claude (AI assistant) when working with code in t
 
 **MCP Boilerplate Rust** is a production-ready Model Context Protocol (MCP) server implementation in Rust with 6 transport modes. This is a reference implementation and starting template for Rust-based MCP servers.
 
-**Version:** 0.4.0  
+**Version:** 0.5.0
 **Protocol:** MCP 2025-03-26  
 **SDK:** rmcp v0.12.0 (official Rust SDK)  
 **Status:** Production ready
@@ -22,12 +22,19 @@ cargo build --release
 # Build with all features (4.2MB binary)
 cargo build --release --features full
 
+# Build with OpenTelemetry
+cargo build --release --features otel
+
 # Run specific transport modes
 cargo run --release -- --mode stdio
 cargo run --release --features sse -- --mode sse --bind 127.0.0.1:8025
 cargo run --release --features websocket -- --mode websocket --bind 127.0.0.1:9001
 cargo run --release --features http-stream -- --mode http-stream --bind 127.0.0.1:8026
 cargo run --release --features grpc -- --mode grpc --bind 127.0.0.1:50051
+
+# Run with OpenTelemetry (requires OTEL collector)
+export OTEL_EXPORTER_OTLP_ENDPOINT="http://localhost:4317"
+./target/release/mcp-boilerplate-rust --mode stdio
 
 # Run all tests
 cargo test --features full
@@ -578,7 +585,7 @@ open examples/websocket_test_client.html
 
 ## Version Information
 
-- **Current:** v0.4.0 (stable)
+- **Current:** v0.5.0 (stable)
 - **MCP Protocol:** 2025-03-26
 - **SDK:** rmcp v0.12.0
 - **Rust:** 1.75.0 or later
@@ -599,6 +606,8 @@ open examples/websocket_test_client.html
 - `http-stream` - HTTP streaming transport
 - `grpc` - gRPC transport
 - `http` - HTTP REST API transport
+- `metrics` - Prometheus metrics collection
+- `otel` - OpenTelemetry distributed tracing
 - `database` - MongoDB integration (future)
 - `auth` - JWT authentication (future)
 - `full` - All features
