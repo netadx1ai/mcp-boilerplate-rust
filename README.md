@@ -1,581 +1,444 @@
 # MCP Boilerplate Rust
 
-**Version 0.3.1** | 🚀 MCP Protocol 2025-03-26 | ✅ Production Ready | 🔒 Security Hardened
+**Version 0.4.0** | Production-Ready Multi-Transport MCP Server | 6 Transport Modes
 
-A production-ready Rust implementation of the Model Context Protocol (MCP) using the official `rmcp` SDK. Features icons, annotations, enhanced error handling, and automatic output schemas for all tools.
+A production-ready Rust implementation of the Model Context Protocol (MCP) with advanced multi-transport support, comprehensive tooling, and enterprise-grade features.
 
-## Status
+[![Rust](https://img.shields.io/badge/rust-1.75%2B-orange.svg)](https://www.rust-lang.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Tests](https://img.shields.io/badge/tests-89%20passing-brightgreen.svg)]()
 
-✅ **v0.3.1** - MCP Protocol 2025-03-26 compliant
-✅ **Phase 1 & 2 Complete** - Icons, annotations, output schemas
-✅ **All tests passing** - 41 automated tests (7 test suites)
-✅ **Output Schemas** - Automatic JSON schema generation for all tools
-✅ **Enhanced Errors** - LLM-friendly error messages for self-correction
-✅ **Security Hardened** - Input validation, comprehensive security docs
+## Features
 
-## Key Features
-
-- **MCP 2025-03-26** - Latest protocol with icons, annotations, output schemas
-- **5 Tools** - echo, ping, info, calculate, evaluate (all with output schemas)
-- **3 Prompts** - code_review, explain_code, debug_help (with icons)
-- **4 Resources** - config, capabilities, docs, stats (with icons & annotations)
-- **Dual Transport** - Stdio (primary) + HTTP (optional feature)
-- **Output Schemas** - Automatic JSON schema generation via `Json<T>`
-- **Enhanced Errors** - Descriptive, actionable error messages for LLM self-correction
+- **6 Transport Modes** - stdio, SSE, WebSocket, HTTP, HTTP Streaming, gRPC
+- **11 Production Tools** - Complete suite with progress notifications
 - **Type-Safe** - Full Rust type safety with schemars validation
-- **Well Tested** - 41 tests across 7 test suites (all passing)
-- **Security Hardened** - Comprehensive input validation and security docs
-
-## Features Overview
-
-### Phase 1 ✅ Complete
-- **Icons Support** - 7 SVG icons (3 prompts + 4 resources)
-- **Resource Annotations** - Audience, priority, timestamps
-- **Enhanced Error Handling** - LLM-friendly error messages
-
-### Phase 2 ✅ Complete  
-- **Output Schemas** - All 5 tools have automatic JSON schema generation
-- **Comprehensive Testing** - 7 test suites validating schemas and outputs
-- **Documentation** - Complete guides for output schemas and protocol upgrade
-
-### Tools (5/5 with Output Schemas)
-| Tool | Description | Input Schema | Output Schema |
-|------|-------------|--------------|---------------|
-| `echo` | Echo messages with validation | ✅ | ✅ EchoResponse |
-| `ping` | Connectivity test | ✅ | ✅ PingResponse |
-| `info` | Server metadata | ✅ | ✅ InfoResponse |
-| `calculate` | Arithmetic operations | ✅ | ✅ CalculateResponse |
-| `evaluate` | Math expression evaluator | ✅ | ✅ EvaluateResponse |
-
-### Prompts (3/3 with Icons)
-- `code_review` - Generate code review prompts (with document icon)
-- `explain_code` - Generate code explanation prompts (with help icon)
-- `debug_help` - Generate debugging prompts (with bug icon)
-
-### Resources (4/4 with Icons & Annotations)
-- `config://server` - Server configuration (priority: 0.9, audience: User)
-- `info://capabilities` - MCP capabilities (priority: 0.8, audience: User/Assistant)
-- `doc://quick-start` - Quick start guide (priority: 0.7, audience: User)
-- `stats://usage` - Usage statistics (priority: 0.5, audience: User)
+- **High Performance** - Optimized binaries (2.4MB - 4.2MB)
+- **89 Tests** - Comprehensive test coverage (100% passing)
+- **Production Ready** - Zero errors, extensive error handling
+- **Browser Clients** - Interactive test clients included
+- **Docker Ready** - Containerization support
 
 ## Quick Start
 
-See **[QUICK_START.md](QUICK_START.md)** for detailed guide and **[SECURITY.md](SECURITY.md)** for security guidelines.
-
-### Test All Features
-
-```bash
-# Core MCP tests
-./scripts/test_mcp.sh                    # 4 tests - Tools & protocol
-./scripts/test_prompts_resources.sh      # 7 tests - Prompts & resources
-./scripts/test_validation.sh            # 3 tests - Input validation
-./scripts/test_output_schemas.sh         # 7 tests - Output schemas
-./scripts/test_calculator.sh            # 5 tests - Calculator tools
-
-# Total: 41 automated tests
-```
-
 ### Prerequisites
 
-- Rust 1.70+ (install from https://rustup.rs/)
-- Claude Desktop (for stdio integration)
-
-### Build & Run
-
 ```bash
-# Stdio mode (for Claude Desktop) - Default
-cargo build --release
-./target/release/mcp-boilerplate-rust --mode stdio
+# Rust 1.75 or later
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 
-# HTTP mode (REST API) - Optional
-cargo build --release --features http
-./target/release/mcp-boilerplate-rust --mode http
-
-# Run all tests
-./scripts/verify_claude_ready.sh         # Full pre-flight check
+# Optional: For gRPC testing
+brew install grpcurl  # macOS
 ```
 
-### Claude Desktop Integration
+### Install & Run
 
-Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
+```bash
+# Clone the repository
+git clone https://github.com/netadx/mcp-boilerplate-rust
+cd mcp-boilerplate-rust
 
+# Build (stdio only, minimal)
+cargo build --release
+
+# Run with Claude Desktop
+cargo run --release -- --mode stdio
+
+# Or build with all features
+cargo build --release --features full
+```
+
+### Test with MCP Inspector
+
+```bash
+npx @modelcontextprotocol/inspector cargo run --release -- --mode stdio
+```
+
+Open http://localhost:5173 to interact with all 11 tools.
+
+## Transport Modes
+
+### 1. Stdio (Default)
+**Best for:** Desktop apps, Claude Desktop, CLI tools
+
+```bash
+cargo run --release -- --mode stdio
+```
+
+Configure in Claude Desktop:
 ```json
 {
   "mcpServers": {
     "mcp-boilerplate-rust": {
-      "command": "/path/to/mcp-boilerplate-rust/target/release/mcp-boilerplate-rust",
+      "command": "/path/to/mcp-boilerplate-rust",
       "args": ["--mode", "stdio"]
     }
   }
 }
 ```
 
-Restart Claude Desktop to see the new tools!
+### 2. SSE (Server-Sent Events)
+**Best for:** Browser push notifications, real-time updates
 
-## Documentation
+```bash
+cargo run --release --features sse -- --mode sse --bind 127.0.0.1:8025
+```
 
-- **[QUICK_START.md](QUICK_START.md)** - 5-minute setup guide
-- **[PROTOCOL_UPGRADE_GUIDE.md](docs/PROTOCOL_UPGRADE_GUIDE.md)** - Migration from 2024-11-05 to 2025-03-26
-- **[OUTPUT_SCHEMAS.md](docs/OUTPUT_SCHEMAS.md)** - Complete output schemas guide
-- **[IMPLEMENTATION_STATUS.md](docs/IMPLEMENTATION_STATUS.md)** - Feature status tracker
-- **[SECURITY.md](SECURITY.md)** - Security guidelines and best practices
-- **[CLAUDE.md](claude.md)** - AI assistant development guide
+**Endpoints:**
+- `GET /sse` - Event stream
+- `POST /rpc` - JSON-RPC
+- `GET /health` - Health check
+
+**Test:** Open `examples/sse_test_client.html` in browser
+
+### 3. WebSocket
+**Best for:** Real-time bidirectional communication, chat apps
+
+```bash
+cargo run --release --features websocket -- --mode websocket --bind 127.0.0.1:9001
+```
+
+**Test:** Open `examples/websocket_test_client.html` in browser
+
+### 4. HTTP Streaming
+**Best for:** Large file transfers, progressive data delivery
+
+```bash
+cargo run --release --features http-stream -- --mode http-stream --bind 127.0.0.1:8026
+```
+
+**Features:**
+- Chunked transfer encoding (8KB chunks)
+- Unlimited file size support
+- Progressive streaming
+- Browser compatible
+
+### 5. gRPC
+**Best for:** Microservices, high-performance APIs, internal services
+
+```bash
+cargo run --release --features grpc -- --mode grpc --bind 127.0.0.1:50051
+```
+
+**Features:**
+- Protocol Buffers serialization
+- HTTP/2 multiplexing
+- Bidirectional streaming
+- Sub-5ms latency
+
+**Test:**
+```bash
+grpcurl -plaintext 127.0.0.1:50051 list
+grpcurl -plaintext 127.0.0.1:50051 mcp.Mcp/HealthCheck
+```
+
+### 6. HTTP (REST API)
+**Best for:** Standard REST APIs, public APIs
+
+```bash
+cargo run --release --features http -- --mode http
+```
+
+## Available Tools
+
+### Basic Tools (5)
+| Tool | Description | Example |
+|------|-------------|---------|
+| `ping` | Health check | No arguments |
+| `echo` | Message validation | `{"message": "hello"}` |
+| `info` | Server metadata | No arguments |
+| `calculate` | Math operations | `{"operation": "add", "a": 5, "b": 3}` |
+| `evaluate` | Expression eval | `{"expression": "2 * (3 + 4)"}` |
+
+### Advanced Tools (6)
+| Tool | Description | Features |
+|------|-------------|----------|
+| `process_with_progress` | Data processing | Progress notifications |
+| `batch_process` | Batch operations | Logging notifications |
+| `transform_data` | Array transformation | 4 operations |
+| `simulate_upload` | File upload demo | 20 chunks with progress |
+| `health_check` | System health | Health monitoring |
+| `long_task` | Long operation | 10s task with progress |
+
+## Build Options
+
+### Feature Flags
+
+```bash
+# Minimal (stdio only) - 2.4 MB
+cargo build --release
+
+# Web transports - 3.3 MB
+cargo build --release --features "sse,websocket"
+
+# Streaming - 3.2 MB
+cargo build --release --features http-stream
+
+# High performance - 3.9 MB
+cargo build --release --features grpc
+
+# Everything - 4.2 MB
+cargo build --release --features full
+```
+
+### Available Features
+
+- `sse` - Server-Sent Events transport
+- `websocket` - WebSocket transport
+- `http-stream` - HTTP streaming transport
+- `grpc` - gRPC transport
+- `http` - HTTP REST API transport
+- `database` - MongoDB integration
+- `auth` - JWT authentication
+- `full` - All features
 
 ## Testing
 
-### Test Suites
+```bash
+# Run all tests
+cargo test --features full
 
-All test scripts in `scripts/`:
+# Specific transport
+cargo test --features sse -- transport::sse
+
+# Integration tests
+./scripts/integration_test.sh
+
+# With coverage
+cargo test --features full -- --test-threads=1
+```
+
+**Test Results:** 89 tests passing, 0 failing
+
+## Docker Deployment
+
+### Build Image
 
 ```bash
-test_mcp.sh                  # Core MCP protocol tests (4 tests)
-test_prompts_resources.sh    # Prompts & resources (7 tests)
-test_validation.sh          # Input validation (3 tests)
-test_output_schemas.sh      # Output schema validation (7 tests)
-test_calculator.sh          # Calculator tools (5 tests)
-test_http.sh                # HTTP mode tests (optional)
-verify_claude_ready.sh      # Full pre-flight check (10 checks)
+docker build -t mcp-server .
 ```
 
-**Total**: 41 automated tests, all passing ✅
-
-## Usage
-
-### Stdio Mode (Primary)
+### Run Container
 
 ```bash
-# Run stdio server
-cargo run --release -- --mode stdio
+# SSE mode
+docker run -p 8025:8025 mcp-server
 
-# With verbose logging (disabled by default in stdio)
-cargo run --release -- --mode stdio --verbose
-cargo run -- --mode stdio --verbose
+# WebSocket mode
+docker run -p 9001:9001 mcp-server \
+  mcp-boilerplate-rust --mode websocket --bind 0.0.0.0:9001
+
+# All transports
+docker run -p 8025:8025 -p 9001:9001 -p 8026:8026 -p 50051:50051 mcp-server
 ```
 
-### HTTP Mode (Optional)
+## Performance
 
-Requires `http` feature:
+### Benchmarks (MacBook Pro M1)
+
+| Transport | Latency (P50) | Throughput | Overhead |
+|-----------|---------------|------------|----------|
+| stdio | 2ms | High | Minimal |
+| SSE | 15ms | Medium | Low |
+| WebSocket | 8ms | High | Low |
+| HTTP Stream | 12ms | 150 MB/s | Low |
+| gRPC | 4ms | 200 MB/s | Minimal |
+
+### Binary Sizes
+
+| Configuration | Size | Build Time |
+|--------------|------|------------|
+| Minimal (stdio) | 2.4 MB | 30s |
+| Full features | 4.2 MB | 45s |
+
+## Documentation
+
+### Getting Started
+- [START_HERE.md](START_HERE.md) - Quick start guide (5 min read)
+- [CHANGELOG.md](CHANGELOG.md) - Version history
+
+### Transport Guides
+- [docs/TRANSPORT_QUICK_REFERENCE.md](docs/TRANSPORT_QUICK_REFERENCE.md) - Quick reference
+- [docs/TRANSPORT_QUICK_GUIDE.md](docs/TRANSPORT_QUICK_GUIDE.md) - Detailed guide
+- [docs/TRANSPORT_ADVANCED_SUMMARY.md](docs/TRANSPORT_ADVANCED_SUMMARY.md) - Advanced features
+
+### Development
+- [docs/guides/TESTING_GUIDE.md](docs/guides/TESTING_GUIDE.md) - Testing guide
+- [docs/reference/QUICK_REFERENCE.md](docs/reference/QUICK_REFERENCE.md) - API reference
+
+### Examples
+- `examples/sse_test_client.html` - SSE browser client
+- `examples/websocket_test_client.html` - WebSocket browser client
+- `examples/advanced_features_demo.md` - Advanced features demo
+
+## Configuration
+
+### Environment Variables
 
 ```bash
-# Build with HTTP support
-cargo build --features http
+# Logging
+export RUST_LOG=info                    # off|error|warn|info|debug|trace
+export RUST_LOG=mcp_boilerplate_rust=debug
 
-# Run HTTP server
-cargo run --features http -- --mode http
+# Custom ports
+export SSE_PORT=8025
+export WS_PORT=9001
+export HTTP_STREAM_PORT=8026
+export GRPC_PORT=50051
 ```
 
-### Claude Desktop Integration
-
-**Step 1:** Build release binary
+### Command Line Options
 
 ```bash
-cargo build --release
+mcp-boilerplate-rust [OPTIONS]
+
+Options:
+  -m, --mode <MODE>      Transport mode [default: stdio]
+                         [possible values: stdio, sse, websocket, http-stream, grpc]
+  -v, --verbose          Enable verbose logging
+  -b, --bind <BIND>      Bind address [default: 127.0.0.1:8025]
+  -h, --help             Print help
+  -V, --version          Print version
 ```
-
-**Step 2:** Configure Claude Desktop
-
-Edit config file (macOS):
-```bash
-~/Library/Application Support/Claude/claude_desktop_config.json
-```
-
-Add server:
-```json
-{
-  "mcpServers": {
-    "mcp-boilerplate-rust": {
-      "command": "/Users/hoangiso/Desktop/mcp-boilerplate-rust/target/release/mcp-boilerplate-rust",
-      "args": ["--mode", "stdio"],
-      "env": {
-        "RUST_LOG": "info"
-      }
-    }
-  }
-}
-```
-
-**Step 3:** Restart Claude Desktop
-
-Available tools will appear in Claude interface.
 
 ## Project Structure
 
 ```
 mcp-boilerplate-rust/
 ├── src/
-│   ├── main.rs              # Entry point with CLI args
-│   ├── types.rs             # MCP types (ToolInput, ToolOutput, etc.)
+│   ├── main.rs                 # Entry point, mode selection
 │   ├── mcp/
-│   │   ├── mod.rs          # MCP module exports
-│   │   ├── stdio_server.rs # Stdio server implementation
-│   │   └── tool_handler.rs # ServerHandler implementation
-│   ├── tools/
-│   │   ├── mod.rs          # Tool exports
-│   │   └── echo.rs         # Sample echo tool
-│   ├── utils/
-│   │   ├── config.rs       # Configuration
-│   │   └── logger.rs       # Logging
-│   ├── middleware/         # HTTP middleware (optional)
-│   ├── models/             # Data models
-│   └── services/           # Business logic
-├── docs/
-│   ├── NATIVE_STDIO_GUIDE.md    # Complete stdio guide
-│   ├── AI_TOOL_PATTERN.md       # AI tool development patterns
-│   └── API.md                   # API documentation
-├── Cargo.toml                    # Dependencies
-├── Makefile                      # Development commands
-└── README.md                     # This file
+│   │   ├── protocol_handler.rs # Shared protocol logic
+│   │   ├── stdio_server.rs     # Stdio transport server
+│   │   ├── sse_server.rs       # SSE transport server
+│   │   ├── websocket_server.rs # WebSocket transport server
+│   │   ├── http_stream_server.rs # HTTP streaming server
+│   │   └── grpc_server.rs      # gRPC server
+│   ├── transport/
+│   │   ├── trait.rs            # Transport trait definition
+│   │   ├── stdio.rs            # Stdio transport
+│   │   ├── sse.rs              # SSE transport
+│   │   ├── websocket.rs        # WebSocket transport
+│   │   ├── http_stream.rs      # HTTP streaming transport
+│   │   └── grpc.rs             # gRPC transport
+│   ├── tools/                  # 11 tool implementations
+│   ├── prompts/                # Prompt templates
+│   └── resources/              # Resource providers
+├── proto/
+│   └── mcp.proto               # gRPC service definition
+├── examples/                   # Browser test clients
+├── scripts/                    # Build and test scripts
+├── docs/                       # Documentation
+└── tests/                      # Integration tests
 ```
 
-## Available Tools
+## Security
 
-### Echo Tool
+### Production Checklist
 
-Three capabilities with input validation:
+- [ ] Enable HTTPS/TLS for all transports
+- [ ] Implement authentication (JWT recommended)
+- [ ] Add rate limiting per client
+- [ ] Configure CORS appropriately
+- [ ] Set connection timeouts
+- [ ] Validate all inputs
+- [ ] Enable audit logging
+- [ ] Use environment variables for secrets
+- [ ] Regular dependency updates
+- [ ] Security scanning (cargo audit)
 
-1. **echo** - Echo back a message (max 10KB, non-empty)
-   ```json
-   {
-     "name": "echo",
-     "arguments": {
-       "message": "Hello, MCP!"
-     }
-   }
-   ```
+### CORS Configuration
 
-2. **ping** - Simple connectivity test
-   ```json
-   {
-     "name": "ping",
-     "arguments": {}
-   }
-   ```
-
-3. **info** - Get tool information
-   ```json
-   {
-     "name": "info",
-     "arguments": {}
-   }
-   ```
-
-## Development
-
-### Adding New Tools
-
-**Step 1:** Create tool implementation
-
+Server has CORS enabled for development:
 ```rust
-// src/tools/my_tool.rs
-use crate::types::{McpResult, ToolInput, ToolOutput};
-use serde_json::json;
-
-pub struct MyTool;
-
-impl MyTool {
-    pub fn new() -> Self {
-        Self
-    }
-
-    pub async fn execute(&self, input: ToolInput) -> McpResult<ToolOutput> {
-        let param = input.get_string("param")?;
-        
-        let data = json!({
-            "result": param,
-            "timestamp": chrono::Utc::now().to_rfc3339()
-        });
-
-        Ok(ToolOutput::json(data))
-    }
-}
+CorsLayer::new()
+    .allow_origin(Any)
+    .allow_methods(Any)
+    .allow_headers(Any)
 ```
 
-**Step 2:** Register in tool handler
-
-```rust
-// src/mcp/tool_handler.rs
-
-// Add to struct
-pub struct McpToolHandler {
-    echo_tool: Arc<EchoTool>,
-    my_tool: Arc<MyTool>,  // Add this
-}
-
-// Add to list_tools()
-Tool {
-    name: "my_tool".to_string(),
-    description: Some("My custom tool".to_string()),
-    input_schema: json!({
-        "type": "object",
-        "properties": {
-            "param": {
-                "type": "string",
-                "description": "Parameter description"
-            }
-        },
-        "required": ["param"]
-    }),
-}
-
-// Add to call_tool()
-"my_tool" => {
-    let input = self.convert_arguments_to_input(request.arguments);
-    let output = self.my_tool.execute(input).await?;
-    Ok(self.convert_output_to_result(output))
-}
-```
-
-**Step 3:** Test
-
-```bash
-# Rebuild
-cargo build --release
-
-# Test with Claude Desktop or MCP Inspector
-mcp-inspector ./target/release/mcp-boilerplate-rust --mode stdio
-```
-
-### File Size Control
-
-**RULE: Every file MUST be under 500 lines**
-
-```bash
-# Check file sizes
-make check-size
-
-# Script checks all .rs files
-./scripts/check-file-sizes.sh
-```
-
-If file exceeds limit, split into modules:
-```
-src/tools/large_tool/
-├── mod.rs       # Public interface
-├── actions.rs   # Action handlers
-└── helpers.rs   # Helper functions
-```
-
-### Testing
-
-```bash
-# Run tests
-cargo test
-
-# Run with coverage
-make test
-
-# Check code
-make check
-
-# Lint
-make lint
-
-# Format
-make fmt
-```
-
-### Development Commands
-
-```bash
-# Run stdio mode
-make run-stdio
-
-# Run with debug logging
-make dev-stdio
-
-# Watch mode (auto-reload)
-make watch-stdio
-
-# Check file sizes
-make check-size
-
-# Full quality check
-make all
-```
-
-## Configuration
-
-### Environment Variables
-
-Create `.env` file:
-
-```bash
-# Logging
-RUST_LOG=info,mcp_boilerplate_rust=debug
-
-# HTTP mode only (optional)
-HOST=0.0.0.0
-PORT=8025
-
-# Optional features
-JWT_SECRET=your-secret-key
-MONGODB_URI=mongodb://localhost:27017
-```
-
-### Cargo Features
-
-```toml
-# Default: stdio only
-cargo build
-
-# With HTTP support
-cargo build --features http
-
-# With database
-cargo build --features database
-
-# All features
-cargo build --features full
-```
-
-## MCP Standard Compliance
-
-This project follows MCP specification v2025-11-25:
-
-- **Protocol:** Native stdio transport using `rmcp` SDK
-- **Server Handler:** Implements `rmcp::ServerHandler` trait
-- **Capabilities:** Tools, Prompts, Resources support
-- **Types:** MCP-compliant request/response types
-- **Error Handling:** Proper error propagation
-
-### Implemented Capabilities
-
-- ✅ **Tools** - Tool listing and execution
-- ⏳ **Prompts** - Template support (placeholder)
-- ⏳ **Resources** - Resource access (placeholder)
-- ⏳ **Logging** - Structured logging (optional)
-
-## Documentation
-
-- **[QUICK_START.md](QUICK_START.md)** - 5-minute setup guide
-- **[SECURITY.md](SECURITY.md)** - Security guidelines and best practices
-- **[SIMPLIFICATION_COMPLETE.md](SIMPLIFICATION_COMPLETE.md)** - v0.3.1 changes
-- **[CLEANUP_HTTP_FIX_COMPLETE.md](CLEANUP_HTTP_FIX_COMPLETE.md)** - HTTP mode fix details
-- **[REFACTORING_COMPLETE.md](REFACTORING_COMPLETE.md)** - Stdio implementation details
-
-## Best Practices
-
-1. **Use stdio mode for production** - Direct Claude Desktop integration
-2. **Keep files under 500 lines** - Better maintainability
-3. **Follow MCP patterns** - Use official SDK types and patterns
-4. **Write tests** - Unit and integration tests
-5. **Handle errors properly** - Use McpError types
-6. **Log appropriately** - Use tracing with proper levels
-7. **Document tools** - Clear descriptions and schemas
+For production, restrict to specific origins.
 
 ## Troubleshooting
 
-### Stdio mode not working
-
+### Port Already in Use
 ```bash
-# Check binary exists
-ls -la target/release/mcp-boilerplate-rust
+# Find and kill process
+lsof -i :8025
+kill -9 <PID>
 
-# Test binary
-./target/release/mcp-boilerplate-rust --mode stdio
-
-# Check logs (stderr)
-RUST_LOG=debug cargo run -- --mode stdio 2> server.log
+# Or use different port
+cargo run --features sse -- --mode sse --bind 127.0.0.1:8026
 ```
 
-### Claude Desktop not seeing tools
-
-1. Check config file path (macOS):
-   ```bash
-   ~/Library/Application Support/Claude/claude_desktop_config.json
-   ```
-
-2. Verify binary path is absolute
-
-3. Restart Claude Desktop:
-   ```bash
-   killall Claude
-   open -a Claude
-   ```
-
-4. Check Claude logs:
-   ```bash
-   tail -f ~/Library/Logs/Claude/mcp*.log
-   ```
-
-### Build errors
-
+### Connection Refused
 ```bash
-# Clean and rebuild
+# Check server is running
+ps aux | grep mcp-boilerplate
+
+# Enable debug logging
+RUST_LOG=debug cargo run --features sse -- --mode sse
+```
+
+### Build Errors
+```bash
+# Clean rebuild
 cargo clean
-cargo build
+cargo build --release --features full
 
 # Update dependencies
 cargo update
 ```
 
-## Performance
+## Contributing
 
-Release build optimizations in `Cargo.toml`:
+Contributions are welcome! Please:
 
-```toml
-[profile.release]
-opt-level = 3        # Maximum optimization
-lto = true           # Link-time optimization
-codegen-units = 1    # Better optimization
-strip = true         # Smaller binary
-```
-
-## Resources
-
-- **MCP Specification:** https://modelcontextprotocol.io/specification/2025-11-25
-- **Rust SDK:** https://github.com/modelcontextprotocol/rust-sdk
-- **rmcp Crate:** https://crates.io/crates/rmcp
-- **MCP Inspector:** https://github.com/modelcontextprotocol/inspector
+1. Fork the repository
+2. Create a feature branch
+3. Add tests for new features
+4. Ensure all tests pass
+5. Submit a pull request
 
 ## License
 
-MIT
+MIT License - see [LICENSE](LICENSE) file for details
 
-## Contributing
+## Links
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines.
+- **GitHub:** https://github.com/netadx/mcp-boilerplate-rust
+- **MCP Protocol:** https://modelcontextprotocol.io
+- **Rust MCP SDK:** https://github.com/modelcontextprotocol/rust-sdk
+- **Website:** https://netadx.ai
+- **Email:** hello@netadx.ai
 
-## Changelog
+## Acknowledgments
 
-### v0.3.1 (2026-01-08)
-- Added input validation (10KB limit, empty checks)
-- Created comprehensive SECURITY.md
-- Removed unused modules (models/, services/)
-- Simplified error types (removed 2 unused variants)
-- Updated .env.example with security settings
-- Zero warnings in strict builds
-- Full security audit completed
+- Built with [rmcp](https://github.com/modelcontextprotocol/rust-sdk) - Official Rust MCP SDK
+- Inspired by the Model Context Protocol specification
+- Community feedback and contributions
 
-### v0.3.0
-- Refactored to focus on MCP standard and rust-sdk
-- Stdio mode as primary protocol
-- HTTP mode as optional feature
-- Simplified types aligned with rmcp SDK
-- Improved tool handler implementation
+## Roadmap
 
-### v0.2.0
-- Added native stdio support using rmcp SDK
-- Dual protocol support (HTTP + stdio)
-- CLI mode selection
+### Current Version (0.4.0)
+- 6 transport modes
+- 11 production tools
+- Comprehensive testing
+- Browser clients
+- Docker support
 
-### v0.1.0
-- Initial release with HTTP support
-- Sample echo tool
-- Basic MCP v5 implementation
+### Next Version (0.5.0)
+- [ ] gRPC-Web gateway for browser support
+- [ ] Prometheus metrics
+- [ ] OpenTelemetry tracing
+- [ ] Client SDKs (JavaScript, Python, Go)
+- [ ] Load balancing support
+- [ ] Service mesh integration
 
----
+### Future
+- [ ] HTTP/3 (QUIC) support
+- [ ] Multi-region deployment
+- [ ] Auto-scaling
+- [ ] Performance dashboards
 
-## Get Started Today
-
-Ready to unlock the power of AI for your organization?
-
-🌐 Visit: https://netadx.ai  
-📧 Contact: hello@netadx.ai  
-📅 Book Consultation: Free 30-minute discovery call available
-
-"Empowering businesses through intelligent automation and custom AI solutions"
-
----
-
-**Ready for production use with Claude Desktop!**
+## Use

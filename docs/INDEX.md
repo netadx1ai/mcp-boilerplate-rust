@@ -1,371 +1,244 @@
-# MCP Boilerplate Rust - Documentation Index
+# Documentation Index
 
-Complete documentation for MCP v5 Rust boilerplate project.
-
-## Quick Links
-
-- [5-Minute Quick Start](../QUICKSTART.md)
-- [Complete API Reference](API.md)
-- [AI Tool Development Pattern](AI_TOOL_PATTERN.md)
-- [Tool Quick Reference](TOOL_QUICK_REFERENCE.md)
-- [Code Organization Guide](CODE_ORGANIZATION.md)
-- [File Size Enforcement](FILE_SIZE_ENFORCEMENT.md)
-
-## Getting Started
-
-### For New Users
-1. **[QUICKSTART.md](../QUICKSTART.md)** - Get started in 5 minutes
-   - Prerequisites
-   - Setup steps
-   - First test
-   - Expected output
-
-2. **[INSTALLATION.md](../INSTALLATION.md)** - Complete installation guide
-   - Detailed setup
-   - Configuration
-   - Verification
-   - Troubleshooting
-
-### For Developers
-3. **[CONTRIBUTING.md](../CONTRIBUTING.md)** - Development guide
-   - Code style
-   - Adding new tools
-   - Testing
-   - Pull requests
-
-4. **[PROJECT_OVERVIEW.md](../PROJECT_OVERVIEW.md)** - Architecture overview
-   - Project structure
-   - Core components
-   - Technology stack
-   - Design philosophy
-
-5. **[CODE_ORGANIZATION.md](CODE_ORGANIZATION.md)** - Code organization
-   - File size limits (500 lines max)
-   - Splitting strategies
-   - Module patterns
-   - Best practices
-
-6. **[FILE_SIZE_ENFORCEMENT.md](FILE_SIZE_ENFORCEMENT.md)** - Size enforcement
-   - Automated checking
-   - Manual verification
-   - Splitting workflows
-   - Team processes
-
-## Core Documentation
-
-### API Documentation
-**[API.md](API.md)** - Complete API reference (460 lines)
-- Base URL and endpoints
-- Request/response formats
-- Health check endpoints
-- Tool endpoints (Echo tool)
-- Error responses
-- HTTP status codes
-- Authentication
-- Examples in multiple languages
-
-### Tool Development
-
-**[AI_TOOL_PATTERN.md](AI_TOOL_PATTERN.md)** - AI instruction pattern (850+ lines)
-
-Complete guide for AI assistants to create new tools:
-- Project structure
-- Tool development pattern (4 steps)
-- Parameter extraction patterns
-- Error handling patterns
-- Response patterns
-- Authentication patterns
-- Database integration patterns
-- Service integration pattern
-- Testing pattern
-- **File size control (CRITICAL)** - Keep files under 500 lines
-- Complete example (User Management Tool)
-- Checklist for new tools
-
-**[TOOL_QUICK_REFERENCE.md](TOOL_QUICK_REFERENCE.md)** - Quick reference (370+ lines)
-
-Fast lookup for common patterns:
-- **File size limit rule** - Max 500 lines per file
-- Minimal tool template
-- Register tool
-- Add route and handler
-- Parameter extraction shortcuts
-- Error types
-- Response format
-- Multiple actions
-- File size control strategies
-- Testing commands
-- Common CRUD patterns
-- Checklist
-
-**[CODE_ORGANIZATION.md](CODE_ORGANIZATION.md)** - Code organization guide (497 lines)
-
-Best practices for maintaining code under 500 lines:
-- File organization strategies
-- Module organization patterns
-- When to split files
-- Splitting checklist
-- Action-based modules
-- Service-based organization
-- Handler pattern
-- Example refactoring workflows
-- Naming conventions
-- Tools registration patterns
-
-**[FILE_SIZE_ENFORCEMENT.md](FILE_SIZE_ENFORCEMENT.md)** - Enforcement guide (535 lines)
-
-Automated and manual strategies to enforce file size limits:
-- Automated enforcement (pre-commit hooks, CI/CD)
-- Manual checking commands
-- Thresholds and actions
-- How to split files
-- Splitting checklist
-- Common patterns
-- Refactoring workflow
-- File size targets
-- Exception handling (NONE - no exceptions!)
-- Editor integration
-- Monitoring and reporting
-- Team workflow
-- Quick reference commands
-
-## Project Files
-
-### Configuration
-- **Cargo.toml** - Rust dependencies and features
-- **.env.example** - Environment variables template
-- **.gitignore** - Git ignore rules
-- **LICENSE** - MIT License
-
-### Docker
-- **Dockerfile** - Multi-stage production build
-- **docker-compose.yml** - Full setup with MongoDB
-
-### Development Tools
-- **Makefile** - 20+ convenient commands
-- **run.sh** - Server run script (dev/prod/watch)
-- **test.sh** - Endpoint testing script
-- **verify-setup.sh** - Setup verification script
-
-## Source Code Structure
-
-```
-src/
-├── main.rs              # Server entry point, routes, handlers
-├── types.rs             # Core types, errors, request/response
-├── utils/
-│   ├── mod.rs          # Utils module exports
-│   ├── config.rs       # Configuration helper
-│   └── logger.rs       # Logging utility
-├── middleware/
-│   ├── mod.rs          # Middleware exports
-│   └── auth.rs         # JWT authentication
-├── services/
-│   └── mod.rs          # Business logic services (placeholder)
-├── models/
-│   └── mod.rs          # Data models (placeholder)
-└── tools/
-    ├── mod.rs          # Tools module exports
-    └── echo.rs         # Sample echo tool (3 actions)
-```
-
-## Documentation by Topic
-
-### Setup & Installation
-- [QUICKSTART.md](../QUICKSTART.md) - 5-minute guide
-- [INSTALLATION.md](../INSTALLATION.md) - Complete installation
-- [README.md](../README.md) - Full project documentation
-
-### Development
-- [CONTRIBUTING.md](../CONTRIBUTING.md) - How to contribute
-- [AI_TOOL_PATTERN.md](AI_TOOL_PATTERN.md) - Tool development pattern
-- [TOOL_QUICK_REFERENCE.md](TOOL_QUICK_REFERENCE.md) - Quick reference
-
-### Architecture
-- [PROJECT_OVERVIEW.md](../PROJECT_OVERVIEW.md) - Project architecture
-- [API.md](API.md) - API documentation
-
-### Reference
-- [README.md](../README.md) - Main documentation
-- This file (INDEX.md) - Documentation index
-
-## Key Features
-
-### Core Features
-- Axum HTTP server with Tokio runtime
-- CORS middleware
-- Structured logging with tracing
-- Type-safe request/response handling
-- Comprehensive error handling
-- Environment configuration
-
-### Optional Features
-- JWT authentication (optional)
-- MongoDB support (optional)
-- Docker support
-- Auto-reload for development
-
-### Development Features
-- Makefile with 20+ commands
-- Test scripts
-- Setup verification
-- Hot reload with cargo-watch
-- Docker Compose setup
-
-## Quick Commands
-
-```bash
-# Setup
-make setup
-
-# Run
-make run
-
-# Test
-make test-curl
-
-# Development
-make dev
-
-# Help
-make help
-```
-
-## Examples
-
-### Echo Tool Actions
-1. **Echo** - Echo back a message
-2. **Ping** - Simple ping-pong test
-3. **Info** - Get tool information
-
-### Creating New Tool
-See [AI_TOOL_PATTERN.md](AI_TOOL_PATTERN.md) for complete guide.
-
-Quick steps:
-1. Create `src/tools/my_tool.rs`
-2. Register in `src/tools/mod.rs`
-3. Add route in `src/main.rs`
-4. Add handler in `src/main.rs`
-5. Test with curl
-
-## Testing
-
-### Manual Testing
-```bash
-# Health check
-curl http://localhost:8025/health
-
-# Echo test
-curl -X POST http://localhost:8025/tools/echo \
-  -H "Content-Type: application/json" \
-  -d '{"action":"ping"}'
-```
-
-### Test Script
-```bash
-./test.sh
-```
-
-### Verification
-```bash
-./verify-setup.sh
-```
-
-## Error Types
-
-- `ToolExecution` - Tool execution errors
-- `InvalidAction` - Unknown action
-- `MissingParameter` - Required parameter missing
-- `Database` - Database errors
-- `Authentication` - Auth errors
-- `Internal` - Internal server errors
-
-## Response Format
-
-All responses follow MCP v5 standard:
-
-```json
-{
-  "success": true,
-  "data": { ... },
-  "metadata": {
-    "executionTime": 10,
-    "timestamp": "2025-01-08T10:30:00Z"
-  }
-}
-```
-
-## Environment Variables
-
-| Variable | Default | Purpose |
-|----------|---------|---------|
-| `HOST` | 0.0.0.0 | Server bind address |
-| `PORT` | 8025 | Server port |
-| `RUST_LOG` | info | Log level |
-| `MONGODB_URI` | - | MongoDB connection (optional) |
-| `JWT_SECRET` | - | JWT secret (optional) |
-
-## Support & Resources
-
-### Documentation
-- All docs in `docs/` directory
-- Examples in `src/tools/echo.rs`
-- Test scripts in root directory
-
-### File Size Control
-```bash
-make check-size
-./scripts/check-file-sizes.sh
-```
-
-### Verification
-```bash
-./verify-setup.sh
-```
-
-### Troubleshooting
-- Check logs: `RUST_LOG=debug cargo run`
-- Health check: `curl http://localhost:8025/health`
-- Test suite: `./test.sh`
-- Check file sizes: `make check-size`
-
-### External Resources
-- Rust: https://doc.rust-lang.org/
-- Axum: https://docs.rs/axum/
-- Tokio: https://tokio.rs/
-
-## Document Statistics
-
-Total documentation: ~3,600+ lines
-- README.md: 416 lines
-- QUICKSTART.md: 262 lines
-- CONTRIBUTING.md: 254 lines
-- PROJECT_OVERVIEW.md: 292 lines
-- INSTALLATION.md: 388 lines
-- API.md: 460 lines
-- AI_TOOL_PATTERN.md: 850+ lines
-- TOOL_QUICK_REFERENCE.md: 370+ lines
-- CODE_ORGANIZATION.md: 497 lines
-- FILE_SIZE_ENFORCEMENT.md: 535 lines
-- INDEX.md: 313+ lines
-
-## Version
-
-- Project Version: 0.1.0
-- MCP Protocol: v5
-- Documentation Version: 1.0.0
-- Last Updated: 2025-01-08
-
-## License
-
-MIT License - See [LICENSE](../LICENSE)
-
-## Author
-
-NetADX MCP Team
+**MCP Boilerplate Rust v0.4.0**  
+**Last Updated:** 2026-01-09 (HCMC Timezone)
 
 ---
 
-**Note**: This is a living document. As the project evolves, documentation will be updated.
+## Quick Navigation
 
-For the most up-to-date information, always check the latest version of each document.
+### New Users Start Here
+- **[../START_HERE.md](../START_HERE.md)** - Main entry point (5 min read)
+- **[guides/QUICK_START.md](guides/QUICK_START.md)** - Get running in 5 minutes
+- **[reference/QUICK_REFERENCE.md](reference/QUICK_REFERENCE.md)** - Fast lookup guide
+
+### Testing & Usage
+- **[guides/TESTING_GUIDE.md](guides/TESTING_GUIDE.md)** - Comprehensive testing guide
+- **[guides/ACTION_PLAN.md](guides/ACTION_PLAN.md)** - Step-by-step next actions
+- **[../examples/advanced_features_demo.md](../examples/advanced_features_demo.md)** - Tool usage examples
+
+### Advanced Features
+- **[advanced-features/SESSION_COMPLETE.md](advanced-features/SESSION_COMPLETE.md)** - Implementation summary
+- **[advanced-features/DEEP_RESEARCH_IMPROVEMENTS.md](advanced-features/DEEP_RESEARCH_IMPROVEMENTS.md)** - Complete rust-sdk analysis
+- **[advanced-features/VISUAL_SUMMARY.md](advanced-features/VISUAL_SUMMARY.md)** - Visual overview
+- **[advanced-features/IMPLEMENTATION_SUMMARY.md](advanced-features/IMPLEMENTATION_SUMMARY.md)** - Technical details
+
+---
+
+## Documentation Structure
+
+```
+docs/
+├── INDEX.md (this file)
+├── PROJECT_STRUCTURE.md             # Complete project structure
+│
+├── guides/                          # How-to guides
+│   ├── QUICK_START.md              # 5-minute setup
+│   ├── TESTING_GUIDE.md            # Testing all features
+│   ├── ACTION_PLAN.md              # What to do next
+│   ├── INSTALLATION.md             # Installation guide
+│   └── GIT_WORKFLOW.md             # Git best practices
+│
+├── reference/                       # Reference documentation
+│   ├── QUICK_REFERENCE.md          # Fast lookup
+│   ├── API.md                      # API reference
+│   ├── OUTPUT_SCHEMAS.md           # Tool output schemas
+│   ├── claude.md                   # AI assistant guide
+│   ├── CONTRIBUTING.md             # How to contribute
+│   ├── SECURITY.md                 # Security guidelines
+│   ├── AI_TOOL_PATTERN.md          # AI tool patterns
+│   ├── PROMPTS_AND_RESOURCES.md    # Prompt & resource reference
+│   ├── CODE_ORGANIZATION.md        # Code structure
+│   └── FILE_SIZE_ENFORCEMENT.md    # File size rules
+│
+├── advanced-features/               # Advanced implementation docs
+│   ├── SESSION_COMPLETE.md         # Implementation summary
+│   ├── DEEP_RESEARCH_IMPROVEMENTS.md # rust-sdk analysis
+│   ├── VISUAL_SUMMARY.md           # Visual overview
+│   ├── IMPLEMENTATION_SUMMARY.md   # Technical details
+│   ├── PROTOCOL_UPGRADE_GUIDE.md   # Protocol upgrades
+│   ├── STDIO_WRAPPER_INTEGRATION.md # Wrapper integration
+│   ├── MCP_SPEC_REVIEW_SUMMARY.md  # MCP spec review
+│   └── NATIVE_STDIO_GUIDE.md       # Native stdio guide
+│
+├── integration/                     # Integration guides
+│   ├── INTEGRATION_GUIDE.md        # Complete integration guide
+│   ├── CLAUDE_DESKTOP_SETUP.md     # Claude Desktop setup
+│   ├── HTTP_WRAPPER_INTEGRATION.md # HTTP wrapper setup
+│   └── START_TESTING_NOW.md        # Quick testing start
+│
+├── troubleshooting/                 # Troubleshooting guides
+│   ├── COMMON_ISSUES.md            # Consolidated troubleshooting
+│   ├── FIX_ANSI_ESCAPE_CODES.md    # ANSI code fix
+│   ├── FIX_ESM_REQUIRE.md          # ESM/Node issues
+│   ├── FIX_NODE_VERSION.md         # Node version fix
+│   └── TROUBLESHOOTING_JSON_ERROR.md # JSON error fixes
+│
+└── archive/                         # Historical documents
+    └── sessions/                    # Development session notes
+        └── (17 historical session logs)
+```
+
+---
+
+## 🎯 Documentation by Purpose
+
+### Getting Started
+1. [../START_HERE.md](../START_HERE.md) - Main entry point
+2. [guides/QUICK_START.md](guides/QUICK_START.md) - Quick setup
+3. [guides/INSTALLATION.md](guides/INSTALLATION.md) - Installation details
+4. [integration/INTEGRATION_GUIDE.md](integration/INTEGRATION_GUIDE.md) - Complete integration guide
+
+### Learning the System
+1. [reference/QUICK_REFERENCE.md](reference/QUICK_REFERENCE.md) - Quick lookup
+2. [reference/API.md](reference/API.md) - API reference
+3. [reference/claude.md](reference/claude.md) - AI assistant guide
+4. [advanced-features/VISUAL_SUMMARY.md](advanced-features/VISUAL_SUMMARY.md) - Visual overview
+
+### Testing & Development
+1. [guides/TESTING_GUIDE.md](guides/TESTING_GUIDE.md) - Testing guide
+2. [guides/ACTION_PLAN.md](guides/ACTION_PLAN.md) - Action plan
+3. [../examples/advanced_features_demo.md](../examples/advanced_features_demo.md) - Examples
+4. [integration/INTEGRATION_GUIDE.md](integration/INTEGRATION_GUIDE.md) - All integration methods
+
+### Advanced Topics
+1. [advanced-features/DEEP_RESEARCH_IMPROVEMENTS.md](advanced-features/DEEP_RESEARCH_IMPROVEMENTS.md) - rust-sdk analysis
+2. [advanced-features/SESSION_COMPLETE.md](advanced-features/SESSION_COMPLETE.md) - Implementation summary
+3. [advanced-features/IMPLEMENTATION_SUMMARY.md](advanced-features/IMPLEMENTATION_SUMMARY.md) - Technical details
+4. [advanced-features/PROTOCOL_UPGRADE_GUIDE.md](advanced-features/PROTOCOL_UPGRADE_GUIDE.md) - Protocol upgrades
+
+### Contributing
+1. [reference/CONTRIBUTING.md](reference/CONTRIBUTING.md) - Contribution guidelines
+2. [guides/GIT_WORKFLOW.md](guides/GIT_WORKFLOW.md) - Git workflow
+3. [reference/CODE_ORGANIZATION.md](reference/CODE_ORGANIZATION.md) - Code structure
+4. [reference/SECURITY.md](reference/SECURITY.md) - Security guidelines
+
+### Reference
+1. [reference/QUICK_REFERENCE.md](reference/QUICK_REFERENCE.md) - Quick lookup
+2. [reference/OUTPUT_SCHEMAS.md](reference/OUTPUT_SCHEMAS.md) - Output schemas
+3. [reference/AI_TOOL_PATTERN.md](reference/AI_TOOL_PATTERN.md) - AI patterns
+4. [reference/PROMPTS_AND_RESOURCES.md](reference/PROMPTS_AND_RESOURCES.md) - Prompts & resources
+
+---
+
+## 🎓 Learning Paths
+
+### Path 1: Quick User (30 minutes)
+```
+START_HERE.md (5 min)
+    ↓
+reference/QUICK_REFERENCE.md (5 min)
+    ↓
+guides/QUICK_START.md (5 min)
+    ↓
+Test with MCP Inspector (15 min)
+```
+
+### Path 2: Developer (2 hours)
+```
+START_HERE.md (5 min)
+    ↓
+guides/TESTING_GUIDE.md (30 min)
+    ↓
+reference/claude.md (20 min)
+    ↓
+examples/advanced_features_demo.md (30 min)
+    ↓
+Build custom tools (45 min)
+```
+
+### Path 3: Advanced (4+ hours)
+```
+START_HERE.md (5 min)
+    ↓
+advanced-features/SESSION_COMPLETE.md (30 min)
+    ↓
+advanced-features/DEEP_RESEARCH_IMPROVEMENTS.md (2 hours)
+    ↓
+Review rust-sdk source (1+ hours)
+    ↓
+Implement advanced features
+```
+
+---
+
+## 📊 Document Statistics
+
+| Category | Files | Total Lines |
+|----------|-------|-------------|
+| Root Documentation | 2 | ~700 |
+| Guides | 5 | ~1,800 |
+| Reference | 10 | ~2,200 |
+| Advanced Features | 8 | ~3,400 |
+| Integration | 4 | ~1,200 |
+| Troubleshooting | 5 | ~1,500 |
+| Archive/Sessions | 17 | ~3,000 |
+| **Total** | **51** | **~13,800** |
+
+---
+
+## 🔍 Find Documentation By Topic
+
+### Progress Notifications
+- [advanced-features/SESSION_COMPLETE.md](advanced-features/SESSION_COMPLETE.md)
+- [advanced-features/IMPLEMENTATION_SUMMARY.md](advanced-features/IMPLEMENTATION_SUMMARY.md)
+- [../examples/advanced_features_demo.md](../examples/advanced_features_demo.md)
+
+### RequestContext
+- [reference/claude.md](reference/claude.md)
+- [advanced-features/DEEP_RESEARCH_IMPROVEMENTS.md](advanced-features/DEEP_RESEARCH_IMPROVEMENTS.md)
+- [reference/API.md](reference/API.md)
+
+### Tools
+- [reference/QUICK_REFERENCE.md](reference/QUICK_REFERENCE.md)
+- [../examples/advanced_features_demo.md](../examples/advanced_features_demo.md)
+- [guides/TESTING_GUIDE.md](guides/TESTING_GUIDE.md)
+
+### Testing
+- [guides/TESTING_GUIDE.md](guides/TESTING_GUIDE.md)
+- [guides/ACTION_PLAN.md](guides/ACTION_PLAN.md)
+- [integration/INTEGRATION_GUIDE.md](integration/INTEGRATION_GUIDE.md)
+
+### Security
+- [reference/SECURITY.md](reference/SECURITY.md)
+- [reference/CONTRIBUTING.md](reference/CONTRIBUTING.md)
+
+### Architecture
+- [reference/CODE_ORGANIZATION.md](reference/CODE_ORGANIZATION.md)
+- [advanced-features/VISUAL_SUMMARY.md](advanced-features/VISUAL_SUMMARY.md)
+- [reference/claude.md](reference/claude.md)
+
+---
+
+## 📝 Recently Updated
+
+- **2026-01-08:** Second cleanup - streamlined structure
+- **2026-01-08:** Consolidated troubleshooting and integration guides
+- **2026-01-08:** Archived historical session notes
+- **2026-01-08:** Created comprehensive navigation
+
+---
+
+## 🆘 Need Help?
+
+**Can't find what you need?**
+1. Check [../START_HERE.md](../START_HERE.md) first
+2. Use the search paths above
+3. Check [troubleshooting/COMMON_ISSUES.md](troubleshooting/COMMON_ISSUES.md)
+4. Review [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md)
+5. Contact: hello@netadx.ai
+
+---
+
+## 🔗 External Resources
+
+- **MCP Specification:** https://modelcontextprotocol.io
+- **Rust SDK:** https://github.com/modelcontextprotocol/rust-sdk
+- **Project Repository:** https://github.com/netadx1ai/mcp-boilerplate-rust
+- **Website:** https://netadx.ai
+
+---
+
+**Maintained by:** NetAdx AI  
+**License:** MIT  
+**Last Reviewed:** 2026-01-08

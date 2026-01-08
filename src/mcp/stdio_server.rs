@@ -6,14 +6,19 @@ use rmcp::{
     },
     model::*,
     service::RequestContext,
+    // task_handler, // TODO: Enable when task lifecycle is fully implemented
+    task_manager::OperationProcessor,
     tool, tool_handler, tool_router, ErrorData as McpError, RoleServer, ServerHandler, ServiceExt,
 };
 use std::collections::HashMap;
+use std::sync::Arc;
+use tokio::sync::Mutex;
 use tracing::info;
 
 use crate::prompts::PromptRegistry;
 use crate::resources::ResourceRegistry;
 use crate::tools::{
+    advanced::*,
     calculator::{CalculateRequest, CalculateResponse, EvaluateRequest, EvaluateResponse},
     shared::*,
 };
@@ -23,6 +28,8 @@ pub struct McpServer {
     tool_router: ToolRouter<Self>,
     prompt_registry: PromptRegistry,
     resource_registry: ResourceRegistry,
+    #[allow(dead_code)] // Reserved for future task lifecycle implementation (SEP-1686)
+    processor: Arc<Mutex<OperationProcessor>>,
 }
 
 #[tool_router]
@@ -32,6 +39,7 @@ impl McpServer {
             tool_router: Self::tool_router(),
             prompt_registry: PromptRegistry::new(),
             resource_registry: ResourceRegistry::new(),
+            processor: Arc::new(Mutex::new(OperationProcessor::new())),
         }
     }
 
@@ -39,6 +47,7 @@ impl McpServer {
     async fn echo(
         &self,
         Parameters(req): Parameters<EchoRequest>,
+        _ctx: RequestContext<RoleServer>,
     ) -> Result<Json<EchoResponse>, McpError> {
         info!("Echo: {}", req.message);
 
@@ -66,13 +75,19 @@ impl McpServer {
     }
 
     #[tool(description = "Simple ping-pong test to verify connection")]
-    async fn ping(&self) -> Result<Json<PingResponse>, McpError> {
+    async fn ping(
+        &self,
+        _ctx: RequestContext<RoleServer>,
+    ) -> Result<Json<PingResponse>, McpError> {
         info!("Ping received");
         Ok(Json(create_ping_response()))
     }
 
     #[tool(description = "Get information about the server capabilities")]
-    async fn info(&self) -> Result<Json<InfoResponse>, McpError> {
+    async fn info(
+        &self,
+        _ctx: RequestContext<RoleServer>,
+    ) -> Result<Json<InfoResponse>, McpError> {
         info!("Info requested");
         Ok(Json(create_info_response()))
     }
@@ -83,6 +98,7 @@ impl McpServer {
     async fn calculate(
         &self,
         Parameters(req): Parameters<CalculateRequest>,
+        _ctx: RequestContext<RoleServer>,
     ) -> Result<Json<CalculateResponse>, McpError> {
         info!("Calculate: {} {} {}", req.a, req.operation, req.b);
 
@@ -142,6 +158,7 @@ impl McpServer {
     async fn evaluate(
         &self,
         Parameters(req): Parameters<EvaluateRequest>,
+        _ctx: RequestContext<RoleServer>,
     ) -> Result<Json<EvaluateResponse>, McpError> {
         let expression = req.expression.trim();
 
@@ -183,11 +200,82 @@ impl McpServer {
         }))
     }
 
+    #[tool(description = "Long running task example with progress notifications")]
+    async fn long_task(
+        &self,
+        ctx: RequestContext<RoleServer>,
+    ) -> Result<CallToolResult, McpError> {
+        info!("Long task started");
+        
+        let peer = ctx.peer.clone();
+        
+        for i in 0..10 {
+            tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+            
+            let _ = peer.notify_progress(ProgressNotificationParam {
+                progress_token: ProgressToken(rmcp::model::NumberOrString::String("long_task".into())),
+                progress: i as f64,
+                total: Some(10.0),
+                message: None,
+            }).await;
+            
+            info!("Long task progress: {}/10", i);
+        }
+        
+        info!("Long task completed");
+        Ok(CallToolResult::success(vec![Content::text(
+            "Long task completed successfully",
+        )]))
+    }
+
+    #[tool(description = "Process data with real-time progress notifications")]
+    async fn process_with_progress(
+        &self,
+        params: Parameters<ProcessDataRequest>,
+        ctx: RequestContext<RoleServer>,
+    ) -> Result<Json<ProcessDataResponse>, McpError> {
+        AdvancedTool::process_with_progress(params, ctx).await
+    }
+
+    #[tool(description = "Batch processing with status updates and logging")]
+    async fn batch_process(
+        &self,
+        params: Parameters<BatchRequest>,
+        ctx: RequestContext<RoleServer>,
+    ) -> Result<Json<BatchResponse>, McpError> {
+        AdvancedTool::batch_process(params, ctx).await
+    }
+
+    #[tool(description = "Transform data array with specified operation")]
+    async fn transform_data(
+        &self,
+        params: Parameters<TransformRequest>,
+        ctx: RequestContext<RoleServer>,
+    ) -> Result<Json<TransformResponse>, McpError> {
+        AdvancedTool::transform_data(params, ctx).await
+    }
+
+    #[tool(description = "Simulate file upload with progress tracking")]
+    async fn simulate_upload(
+        &self,
+        ctx: RequestContext<RoleServer>,
+    ) -> Result<CallToolResult, McpError> {
+        AdvancedTool::simulate_upload(ctx).await
+    }
+
+    #[tool(description = "Health check with system information")]
+    async fn health_check(
+        &self,
+        ctx: RequestContext<RoleServer>,
+    ) -> Result<CallToolResult, McpError> {
+        AdvancedTool::health_check(ctx).await
+    }
+
     pub async fn run(self) -> Result<()> {
         info!("Starting MCP stdio server");
         info!("Protocol: MCP 2025-03-26");
         info!("Using rmcp SDK (local)");
-        info!("Capabilities: Tools (5) | Prompts (3) | Resources (4)");
+        info!("Capabilities: Tools (11) | Prompts (3) | Resources (4) | Progress");
         info!("Ready to receive MCP requests");
 
         let service = self.serve(rmcp::transport::stdio()).await?;
@@ -215,7 +303,7 @@ impl ServerHandler for McpServer {
                 .build(),
             server_info: Implementation::from_build_env(),
             instructions: Some(
-                "MCP Boilerplate Rust Server. Tools: echo, ping, info, calculate, evaluate. Prompts: code_review, explain_code, debug_help. Resources: config, capabilities, docs, stats.".to_string(),
+                "MCP Boilerplate Rust Server with advanced features. Tools: echo, ping, info, calculate, evaluate, long_task, process_with_progress, batch_process, transform_data, simulate_upload, health_check. Prompts: code_review, explain_code, debug_help. Resources: config, capabilities, docs, stats. Supports progress notifications and real-time logging.".to_string(),
             ),
         }
     }

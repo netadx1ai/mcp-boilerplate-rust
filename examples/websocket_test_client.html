@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MCP WebSocket Test Client</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #2193b0 0%, #6dd5ed 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .card h2 {
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            color: #333;
+            border-bottom: 3px solid #2193b0;
+            padding-bottom: 10px;
+        }
+
+        .status-bar {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            flex-wrap: wrap;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #dc3545;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.connected {
+            background: #28a745;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .button-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        button {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #2193b0 0%, #6dd5ed 100%);
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(33, 147, 176, 0.4);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: #5a6268;
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover:not(:disabled) {
+            background: #218838;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-danger:hover:not(:disabled) {
+            background: #c82333;
+        }
+
+        .btn-info {
+            background: #17a2b8;
+            color: white;
+        }
+
+        .btn-info:hover:not(:disabled) {
+            background: #138496;
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        .input-group input,
+        .input-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: monospace;
+        }
+
+        .input-group input:focus,
+        .input-group textarea:focus {
+            outline: none;
+            border-color: #2193b0;
+        }
+
+        .log-container {
+            background: #1e1e1e;
+            border-radius: 8px;
+            padding: 15px;
+            max-height: 600px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+        }
+
+        .log-entry {
+            padding: 8px;
+            margin-bottom: 5px;
+            border-radius: 4px;
+            border-left: 4px solid transparent;
+        }
+
+        .log-entry.info {
+            background: rgba(23, 162, 184, 0.1);
+            border-left-color: #17a2b8;
+            color: #17a2b8;
+        }
+
+        .log-entry.success {
+            background: rgba(40, 167, 69, 0.1);
+            border-left-color: #28a745;
+            color: #28a745;
+        }
+
+        .log-entry.error {
+            background: rgba(220, 53, 69, 0.1);
+            border-left-color: #dc3545;
+            color: #dc3545;
+        }
+
+        .log-entry.sent {
+            background: rgba(255, 193, 7, 0.1);
+            border-left-color: #ffc107;
+            color: #ffc107;
+        }
+
+        .log-entry.received {
+            background: rgba(102, 126, 234, 0.1);
+            border-left-color: #667eea;
+            color: #667eea;
+        }
+
+        .log-time {
+            opacity: 0.7;
+            font-size: 11px;
+            margin-right: 10px;
+        }
+
+        .log-data {
+            margin-top: 5px;
+            padding: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .stat-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #2193b0;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            color: #6c757d;
+            margin-top: 5px;
+        }
+
+        .message-templates {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+
+        .template-item {
+            padding: 8px;
+            margin-bottom: 5px;
+            background: white;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 2px solid transparent;
+        }
+
+        .template-item:hover {
+            border-color: #2193b0;
+            transform: translateX(5px);
+        }
+
+        .template-name {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 3px;
+        }
+
+        .template-desc {
+            font-size: 12px;
+            color: #6c757d;
+        }
+
+        @media (max-width: 1200px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .button-group {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>MCP WebSocket Test Client</h1>
+            <p>Real-time bidirectional testing for WebSocket transport</p>
+        </div>
+
+        <div class="status-bar">
+            <div class="status-item">
+                <div class="status-dot" id="connectionStatus"></div>
+                <span id="connectionText">Disconnected</span>
+            </div>
+            <div class="status-item">
+                <strong>State:</strong> <span id="readyState">CLOSED</span>
+            </div>
+            <div class="status-item">
+                <strong>Sent:</strong> <span id="sentCount">0</span>
+            </div>
+            <div class="status-item">
+                <strong>Received:</strong> <span id="receivedCount">0</span>
+            </div>
+            <div class="status-item">
+                <strong>Errors:</strong> <span id="errorCount">0</span>
+            </div>
+            <div class="status-item">
+                <strong>Uptime:</strong> <span id="uptime">0s</span>
+            </div>
+        </div>
+
+        <div class="main-grid">
+            <div class="card">
+                <h2>Connection Control</h2>
+                
+                <div class="input-group">
+                    <label>WebSocket Server URL</label>
+                    <input type="text" id="wsUrl" value="ws://127.0.0.1:9001/ws" />
+                </div>
+
+                <div class="button-group">
+                    <button class="btn-success" onclick="connect()" id="connectBtn">Connect</button>
+                    <button class="btn-danger" onclick="disconnect()" id="disconnectBtn" disabled>Disconnect</button>
+                    <button class="btn-secondary" onclick="clearLog()">Clear Log</button>
+                </div>
+
+                <h2 style="margin-top: 30px;">Message Templates</h2>
+                
+                <div class="message-templates">
+                    <div class="template-item" onclick="loadTemplate('initialize')">
+                        <div class="template-name">Initialize</div>
+                        <div class="template-desc">Initialize MCP protocol session</div>
+                    </div>
+                    <div class="template-item" onclick="loadTemplate('tools/list')">
+                        <div class="template-name">List Tools</div>
+                        <div class="template-desc">Get all available tools</div>
+                    </div>
+                    <div class="template-item" onclick="loadTemplate('ping')">
+                        <div class="template-name">Ping Tool</div>
+                        <div class="template-desc">Test connectivity with ping</div>
+                    </div>
+                    <div class="template-item" onclick="loadTemplate('echo')">
+                        <div class="template-name">Echo Tool</div>
+                        <div class="template-desc">Echo message back</div>
+                    </div>
+                    <div class="template-item" onclick="loadTemplate('calculate')">
+                        <div class="template-name">Calculate</div>
+                        <div class="template-desc">Perform math calculation</div>
+                    </div>
+                    <div class="template-item" onclick="loadTemplate('progress')">
+                        <div class="template-name">Progress Demo</div>
+                        <div class="template-desc">Test progress notifications</div>
+                    </div>
+                </div>
+
+                <h2 style="margin-top: 30px;">Send Message</h2>
+                
+                <div class="input-group">
+                    <label>JSON-RPC Message</label>
+                    <textarea id="messageInput" rows="12">
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "initialize",
+  "params": {
+    "protocolVersion": "2024-11-05",
+    "capabilities": {},
+    "clientInfo": {
+      "name": "ws-test-client",
+      "version": "1.0.0"
+    }
+  }
+}</textarea>
+                </div>
+
+                <div class="button-group">
+                    <button class="btn-primary" onclick="sendMessage()" id="sendBtn" disabled>Send Message</button>
+                    <button class="btn-info" onclick="formatJSON()">Format JSON</button>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value" id="messagesSent">0</div>
+                        <div class="stat-label">Messages Sent</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="messagesReceived">0</div>
+                        <div class="stat-label">Responses</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="avgLatency">0ms</div>
+                        <div class="stat-label">Avg Latency</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Message Log</h2>
+                <div class="log-container" id="logContainer"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let ws = null;
+        let sentCount = 0;
+        let receivedCount = 0;
+        let errorCount = 0;
+        let connectedAt = null;
+        let uptimeInterval = null;
+        let latencies = [];
+        let pendingRequests = new Map();
+
+        const templates = {
+            'initialize': {
+                jsonrpc: "2.0",
+                id: 1,
+                method: "initialize",
+                params: {
+                    protocolVersion: "2024-11-05",
+                    capabilities: {},
+                    clientInfo: {
+                        name: "ws-test-client",
+                        version: "1.0.0"
+                    }
+                }
+            },
+            'tools/list': {
+                jsonrpc: "2.0",
+                id: 2,
+                method: "tools/list",
+                params: {}
+            },
+            'ping': {
+                jsonrpc: "2.0",
+                id: 3,
+                method: "tools/call",
+                params: {
+                    name: "ping",
+                    arguments: {}
+                }
+            },
+            'echo': {
+                jsonrpc: "2.0",
+                id: 4,
+                method: "tools/call",
+                params: {
+                    name: "echo",
+                    arguments: {
+                        message: "Hello from WebSocket test client!"
+                    }
+                }
+            },
+            'calculate': {
+                jsonrpc: "2.0",
+                id: 5,
+                method: "tools/call",
+                params: {
+                    name: "calculate",
+                    arguments: {
+                        operation: "multiply",
+                        a: 6,
+                        b: 7
+                    }
+                }
+            },
+            'progress': {
+                jsonrpc: "2.0",
+                id: 6,
+                method: "tools/call",
+                params: {
+                    name: "process_with_progress",
+                    arguments: {
+                        items: ["task1", "task2", "task3", "task4", "task5"]
+                    }
+                }
+            }
+        };
+
+        function connect() {
+            const url = document.getElementById('wsUrl').value;
+            
+            if (ws && ws.readyState !== WebSocket.CLOSED) {
+                log('Already connected or connecting', 'info');
+                return;
+            }
+
+            log('Connecting to ' + url, 'info');
+            
+            try {
+                ws = new WebSocket(url);
+                
+                ws.onopen = () => {
+                    log('WebSocket connection established', 'success');
+                    updateConnectionStatus(true);
+                    connectedAt = Date.now();
+                    startUptimeTimer();
+                    updateButtons(true);
+                };
+
+                ws.onmessage = (event) => {
+                    receivedCount++;
+                    document.getElementById('receivedCount').textContent = receivedCount;
+                    document.getElementById('messagesReceived').textContent = receivedCount;
+                    
+                    try {
+                        const data = JSON.parse(event.data);
+                        
+                        if (data.id && pendingRequests.has(data.id)) {
+                            const startTime = pendingRequests.get(data.id);
+                            const latency = Date.now() - startTime;
+                            latencies.push(latency);
+                            pendingRequests.delete(data.id);
+                            
+                            const avgLatency = latencies.reduce((a, b) => a + b, 0) / latencies.length;
+                            document.getElementById('avgLatency').textContent = Math.round(avgLatency) + 'ms';
+                            
+                            log('Received response (latency: ' + latency + 'ms)', 'received', data);
+                        } else {
+                            log('Received message', 'received', data);
+                        }
+                    } catch (e) {
+                        log('Received non-JSON message: ' + event.data, 'received');
+                    }
+                };
+
+                ws.onerror = (error) => {
+                    errorCount++;
+                    document.getElementById('errorCount').textContent = errorCount;
+                    log('WebSocket error occurred', 'error', error);
+                };
+
+                ws.onclose = (event) => {
+                    log('WebSocket connection closed (code: ' + event.code + ', reason: ' + event.reason + ')', 'info');
+                    updateConnectionStatus(false);
+                    stopUptimeTimer();
+                    updateButtons(false);
+                    ws = null;
+                };
+
+            } catch (error) {
+                log('Failed to create WebSocket: ' + error.message, 'error');
+                updateConnectionStatus(false);
+            }
+        }
+
+        function disconnect() {
+            if (!ws || ws.readyState === WebSocket.CLOSED) {
+                log('Not connected', 'info');
+                return;
+            }
+
+            log('Disconnecting...', 'info');
+            ws.close(1000, 'User requested disconnect');
+        }
+
+        function sendMessage() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                log('WebSocket is not connected', 'error');
+                return;
+            }
+
+            try {
+                const messageText = document.getElementById('messageInput').value;
+                const message = JSON.parse(messageText);
+                
+                if (message.id) {
+                    pendingRequests.set(message.id, Date.now());
+                }
+                
+                ws.send(JSON.stringify(message));
+                
+                sentCount++;
+                document.getElementById('sentCount').textContent = sentCount;
+                document.getElementById('messagesSent').textContent = sentCount;
+                
+                log('Sent message', 'sent', message);
+            } catch (error) {
+                log('Failed to send message: ' + error.message, 'error');
+            }
+        }
+
+        function loadTemplate(templateName) {
+            const template = templates[templateName];
+            if (template) {
+                template.id = Date.now();
+                document.getElementById('messageInput').value = JSON.stringify(template, null, 2);
+                log('Loaded template: ' + templateName, 'info');
+            }
+        }
+
+        function formatJSON() {
+            try {
+                const messageText = document.getElementById('messageInput').value;
+                const message = JSON.parse(messageText);
+                document.getElementById('messageInput').value = JSON.stringify(message, null, 2);
+                log('JSON formatted', 'info');
+            } catch (error) {
+                log('Invalid JSON: ' + error.message, 'error');
+            }
+        }
+
+        function log(message, type = 'info', data = null) {
+            const logContainer = document.getElementById('logContainer');
+            const entry = document.createElement('div');
+            entry.className = 'log-entry ' + type;
+            
+            const time = new Date().toLocaleTimeString();
+            let html = '<span class="log-time">[' + time + ']</span> ' + message;
+            
+            if (data) {
+                html += '<div class="log-data">' + JSON.stringify(data, null, 2) + '</div>';
+            }
+            
+            entry.innerHTML = html;
+            logContainer.appendChild(entry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('logContainer').innerHTML = '';
+            log('Log cleared', 'info');
+        }
+
+        function updateConnectionStatus(connected) {
+            const statusDot = document.getElementById('connectionStatus');
+            const statusText = document.getElementById('connectionText');
+            const readyStateText = document.getElementById('readyState');
+            
+            if (connected) {
+                statusDot.classList.add('connected');
+                statusText.textContent = 'Connected';
+                readyStateText.textContent = 'OPEN';
+            } else {
+                statusDot.classList.remove('connected');
+                statusText.textContent = 'Disconnected';
+                readyStateText.textContent = ws ? getReadyStateText(ws.readyState) : 'CLOSED';
+            }
+        }
+
+        function getReadyStateText(state) {
+            const states = {
+                0: 'CONNECTING',
+                1: 'OPEN',
+                2: 'CLOSING',
+                3: 'CLOSED'
+            };
+            return states[state] || 'UNKNOWN';
+        }
+
+        function updateButtons(connected) {
+            document.getElementById('connectBtn').disabled = connected;
+            document.getElementById('disconnectBtn').disabled = !connected;
+            document.getElementById('sendBtn').disabled = !connected;
+        }
+
+        function startUptimeTimer() {
+            uptimeInterval = setInterval(() => {
+                if (connectedAt) {
+                    const uptime = Math.floor((Date.now() - connectedAt) / 1000);
+                    const minutes = Math.floor(uptime / 60);
+                    const seconds = uptime % 60;
+                    const display = minutes > 0 ? minutes + 'm ' + seconds + 's' : seconds + 's';
+                    document.getElementById('uptime').textContent = display;
+                }
+            }, 1000);
+        }
+
+        function stopUptimeTimer() {
+            if (uptimeInterval) {
+                clearInterval(uptimeInterval);
+                uptimeInterval = null;
+            }
+            document.getElementById('uptime').textContent = '0s';
+            connectedAt = null;
+        }
+
+        window.addEventListener('load', () => {
+            log('WebSocket Test Client loaded', 'info');
+            log('Click "Connect" to establish WebSocket connection', 'info');
+            updateButtons(false);
+        });
+
+        window.addEventListener('beforeunload', () => {
+            if (ws) {
+                ws.close();
+            }
+        });
+
+        document.getElementById('messageInput').addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+</html>
