@@ -1,9 +1,12 @@
 //! WebSocket Transport Implementation
-//! 
+//!
 //! Provides bidirectional real-time communication for MCP.
 //! Supports multiple concurrent connections with independent message streams.
 
-use super::r#trait::{Transport, TransportCapabilities, TransportConfig, TransportError, TransportFactory, TransportMessage, TransportStats};
+use super::r#trait::{
+    Transport, TransportCapabilities, TransportConfig, TransportError, TransportFactory,
+    TransportMessage, TransportStats,
+};
 use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
@@ -46,8 +49,11 @@ impl WebSocketTransport {
 
     /// Create with custom configuration
     pub fn with_config(config: TransportConfig) -> Self {
-        let bind_address = config.bind_address.clone().unwrap_or_else(|| "127.0.0.1:9001".to_string());
-        
+        let bind_address = config
+            .bind_address
+            .clone()
+            .unwrap_or_else(|| "127.0.0.1:9001".to_string());
+
         Self {
             bind_address,
             state: Arc::new(Mutex::new(WsState {
@@ -125,7 +131,7 @@ impl Transport for WebSocketTransport {
         // In a real implementation, this would receive from WebSocket connections
         // For now, return an error as WebSocket uses event-driven model
         Err(TransportError::ReceiveError(
-            "WebSocket uses event-driven message handling".to_string()
+            "WebSocket uses event-driven message handling".to_string(),
         ))
     }
 
@@ -204,7 +210,7 @@ mod tests {
     fn test_websocket_capabilities() {
         let transport = WebSocketTransport::new("127.0.0.1:9002".to_string());
         let caps = transport.capabilities();
-        
+
         assert!(caps.bidirectional);
         assert!(caps.server_push);
         assert!(caps.multi_connection);
@@ -216,7 +222,7 @@ mod tests {
     async fn test_websocket_initialization() {
         let mut transport = WebSocketTransport::new("127.0.0.1:9003".to_string());
         assert!(!transport.is_ready());
-        
+
         let result = transport.initialize().await;
         assert!(result.is_ok());
         assert!(transport.is_ready());
@@ -226,7 +232,7 @@ mod tests {
     async fn test_websocket_shutdown() {
         let mut transport = WebSocketTransport::new("127.0.0.1:9004".to_string());
         transport.initialize().await.unwrap();
-        
+
         let result = transport.shutdown().await;
         assert!(result.is_ok());
         assert!(!transport.is_ready());
@@ -236,11 +242,11 @@ mod tests {
     async fn test_send_message() {
         let mut transport = WebSocketTransport::new("127.0.0.1:9005".to_string());
         transport.initialize().await.unwrap();
-        
+
         let message = TransportMessage::new("test message".to_string());
         let result = transport.send(message).await;
         assert!(result.is_ok());
-        
+
         let stats = transport.get_stats();
         assert_eq!(stats.messages_sent, 1);
     }
@@ -249,7 +255,7 @@ mod tests {
     async fn test_broadcast_message() {
         let mut transport = WebSocketTransport::new("127.0.0.1:9006".to_string());
         transport.initialize().await.unwrap();
-        
+
         let message = TransportMessage::new("broadcast test".to_string());
         let result = transport.broadcast(message).await;
         assert!(result.is_ok());
@@ -263,7 +269,7 @@ mod tests {
             bind_address: Some("127.0.0.1:9010".to_string()),
             ..Default::default()
         };
-        
+
         let transport = factory.create(config).unwrap();
         assert_eq!(transport.transport_type(), "websocket");
     }

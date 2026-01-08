@@ -8,13 +8,20 @@ use rmcp::{
     service::RequestContext,
     // task_handler, // TODO: Enable when task lifecycle is fully implemented
     task_manager::OperationProcessor,
-    tool, tool_handler, tool_router, ErrorData as McpError, RoleServer, ServerHandler, ServiceExt,
+    tool,
+    tool_handler,
+    tool_router,
+    ErrorData as McpError,
+    RoleServer,
+    ServerHandler,
+    ServiceExt,
 };
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tracing::info;
 
+use crate::metrics;
 use crate::prompts::PromptRegistry;
 use crate::resources::ResourceRegistry;
 use crate::tools::{
@@ -49,10 +56,12 @@ impl McpServer {
         Parameters(req): Parameters<EchoRequest>,
         _ctx: RequestContext<RoleServer>,
     ) -> Result<Json<EchoResponse>, McpError> {
+        let start_time = std::time::Instant::now();
         info!("Echo: {}", req.message);
 
         // Validation: Return tool execution error for LLM self-correction
         if req.message.is_empty() {
+            metrics::record_tool_invocation("echo", "error", start_time.elapsed().as_secs_f64());
             return Err(McpError::invalid_params(
                 "Message cannot be empty. Please provide a non-empty message to echo.".to_string(),
                 None,
@@ -60,6 +69,7 @@ impl McpServer {
         }
 
         if req.message.len() > 10240 {
+            metrics::record_tool_invocation("echo", "error", start_time.elapsed().as_secs_f64());
             return Err(McpError::invalid_params(
                 format!(
                     "Message exceeds maximum length of 10,240 bytes (got {} bytes). Please shorten your message.",
@@ -69,26 +79,35 @@ impl McpServer {
             ));
         }
 
-        let response = create_echo_response(req.message)
-            .map_err(|e| McpError::invalid_params(format!("{e}"), None))?;
+        let response = match create_echo_response(req.message) {
+            Ok(resp) => resp,
+            Err(e) => {
+                metrics::record_tool_invocation(
+                    "echo",
+                    "error",
+                    start_time.elapsed().as_secs_f64(),
+                );
+                return Err(McpError::invalid_params(format!("{e}"), None));
+            }
+        };
+
+        metrics::record_tool_invocation("echo", "success", start_time.elapsed().as_secs_f64());
         Ok(Json(response))
     }
 
     #[tool(description = "Simple ping-pong test to verify connection")]
-    async fn ping(
-        &self,
-        _ctx: RequestContext<RoleServer>,
-    ) -> Result<Json<PingResponse>, McpError> {
+    async fn ping(&self, _ctx: RequestContext<RoleServer>) -> Result<Json<PingResponse>, McpError> {
+        let start_time = std::time::Instant::now();
         info!("Ping received");
+        metrics::record_tool_invocation("ping", "success", start_time.elapsed().as_secs_f64());
         Ok(Json(create_ping_response()))
     }
 
     #[tool(description = "Get information about the server capabilities")]
-    async fn info(
-        &self,
-        _ctx: RequestContext<RoleServer>,
-    ) -> Result<Json<InfoResponse>, McpError> {
+    async fn info(&self, _ctx: RequestContext<RoleServer>) -> Result<Json<InfoResponse>, McpError> {
+        let start_time = std::time::Instant::now();
         info!("Info requested");
+        metrics::record_tool_invocation("info", "success", start_time.elapsed().as_secs_f64());
         Ok(Json(create_info_response()))
     }
 
@@ -100,6 +119,7 @@ impl McpServer {
         Parameters(req): Parameters<CalculateRequest>,
         _ctx: RequestContext<RoleServer>,
     ) -> Result<Json<CalculateResponse>, McpError> {
+        let start_time = std::time::Instant::now();
         info!("Calculate: {} {} {}", req.a, req.operation, req.b);
 
         let result = match req.operation.to_lowercase().as_str() {
@@ -108,6 +128,11 @@ impl McpServer {
             "multiply" | "*" => req.a * req.b,
             "divide" | "/" => {
                 if req.b == 0.0 {
+                    metrics::record_tool_invocation(
+                        "calculate",
+                        "error",
+                        start_time.elapsed().as_secs_f64(),
+                    );
                     return Err(McpError::invalid_params(
                         "Division by zero is not allowed. Please provide a non-zero divisor."
                             .to_string(),
@@ -118,6 +143,11 @@ impl McpServer {
             }
             "modulo" | "%" => {
                 if req.b == 0.0 {
+                    metrics::record_tool_invocation(
+                        "calculate",
+                        "error",
+                        start_time.elapsed().as_secs_f64(),
+                    );
                     return Err(McpError::invalid_params(
                         "Modulo by zero is not allowed. Please provide a non-zero divisor."
                             .to_string(),
@@ -128,6 +158,11 @@ impl McpServer {
             }
             "power" | "pow" | "^" => req.a.powf(req.b),
             _ => {
+                metrics::record_tool_invocation(
+                    "calculate",
+                    "error",
+                    start_time.elapsed().as_secs_f64(),
+                );
                 return Err(McpError::invalid_params(
                     format!(
                         "Unknown operation: '{}'. Supported operations are: add (+), subtract (-), multiply (*), divide (/), modulo (%), power (pow/^). Please use one of these.",
@@ -139,12 +174,18 @@ impl McpServer {
         };
 
         if !result.is_finite() {
+            metrics::record_tool_invocation(
+                "calculate",
+                "error",
+                start_time.elapsed().as_secs_f64(),
+            );
             return Err(McpError::invalid_params(
                 "Result is not a finite number (overflow or invalid operation). Please check your input values and try again with smaller numbers.".to_string(),
                 None,
             ));
         }
 
+        metrics::record_tool_invocation("calculate", "success", start_time.elapsed().as_secs_f64());
         Ok(Json(CalculateResponse {
             operation: req.operation,
             a: req.a,
@@ -201,27 +242,28 @@ impl McpServer {
     }
 
     #[tool(description = "Long running task example with progress notifications")]
-    async fn long_task(
-        &self,
-        ctx: RequestContext<RoleServer>,
-    ) -> Result<CallToolResult, McpError> {
+    async fn long_task(&self, ctx: RequestContext<RoleServer>) -> Result<CallToolResult, McpError> {
         info!("Long task started");
-        
+
         let peer = ctx.peer.clone();
-        
+
         for i in 0..10 {
             tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-            
-            let _ = peer.notify_progress(ProgressNotificationParam {
-                progress_token: ProgressToken(rmcp::model::NumberOrString::String("long_task".into())),
-                progress: i as f64,
-                total: Some(10.0),
-                message: None,
-            }).await;
-            
+
+            let _ = peer
+                .notify_progress(ProgressNotificationParam {
+                    progress_token: ProgressToken(rmcp::model::NumberOrString::String(
+                        "long_task".into(),
+                    )),
+                    progress: i as f64,
+                    total: Some(10.0),
+                    message: None,
+                })
+                .await;
+
             info!("Long task progress: {}/10", i);
         }
-        
+
         info!("Long task completed");
         Ok(CallToolResult::success(vec![Content::text(
             "Long task completed successfully",

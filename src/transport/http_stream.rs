@@ -1,9 +1,12 @@
 //! HTTP Streaming Transport Implementation
-//! 
+//!
 //! Provides chunked transfer encoding for large data transfers.
 //! Supports server-sent streaming for progressive data delivery.
 
-use super::r#trait::{Transport, TransportCapabilities, TransportConfig, TransportError, TransportFactory, TransportMessage, TransportStats};
+use super::r#trait::{
+    Transport, TransportCapabilities, TransportConfig, TransportError, TransportFactory,
+    TransportMessage, TransportStats,
+};
 use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
@@ -37,8 +40,11 @@ impl HttpStreamTransport {
 
     /// Create with custom configuration
     pub fn with_config(config: TransportConfig) -> Self {
-        let bind_address = config.bind_address.clone().unwrap_or_else(|| "127.0.0.1:8026".to_string());
-        
+        let bind_address = config
+            .bind_address
+            .clone()
+            .unwrap_or_else(|| "127.0.0.1:8026".to_string());
+
         Self {
             bind_address,
             state: Arc::new(Mutex::new(HttpStreamState {
@@ -113,7 +119,8 @@ impl Transport for HttpStreamTransport {
     async fn receive(&self) -> Result<TransportMessage, TransportError> {
         // HTTP streaming is send-only (server to client)
         Err(TransportError::ReceiveError(
-            "HTTP streaming is send-only. Use HTTP requests for bidirectional communication.".to_string()
+            "HTTP streaming is send-only. Use HTTP requests for bidirectional communication."
+                .to_string(),
         ))
     }
 
@@ -192,7 +199,7 @@ mod tests {
     fn test_http_stream_capabilities() {
         let transport = HttpStreamTransport::new("127.0.0.1:8027".to_string());
         let caps = transport.capabilities();
-        
+
         assert!(!caps.bidirectional);
         assert!(caps.server_push);
         assert!(caps.multi_connection);
@@ -204,7 +211,7 @@ mod tests {
     async fn test_http_stream_initialization() {
         let mut transport = HttpStreamTransport::new("127.0.0.1:8028".to_string());
         assert!(!transport.is_ready());
-        
+
         let result = transport.initialize().await;
         assert!(result.is_ok());
         assert!(transport.is_ready());
@@ -214,7 +221,7 @@ mod tests {
     async fn test_http_stream_shutdown() {
         let mut transport = HttpStreamTransport::new("127.0.0.1:8029".to_string());
         transport.initialize().await.unwrap();
-        
+
         let result = transport.shutdown().await;
         assert!(result.is_ok());
         assert!(!transport.is_ready());
@@ -224,9 +231,9 @@ mod tests {
     fn test_create_chunks() {
         let transport = HttpStreamTransport::new("127.0.0.1:8030".to_string());
         let data = vec![1u8; 20000]; // 20KB data
-        
+
         let chunks = transport.create_chunks(data);
-        
+
         // Should be split into multiple chunks
         assert!(chunks.len() > 1);
         // Each chunk (except last) should be CHUNK_SIZE
@@ -241,7 +248,7 @@ mod tests {
             bind_address: Some("127.0.0.1:8031".to_string()),
             ..Default::default()
         };
-        
+
         let transport = factory.create(config).unwrap();
         assert_eq!(transport.transport_type(), "http-stream");
     }
@@ -257,11 +264,11 @@ mod tests {
     async fn test_send_message() {
         let mut transport = HttpStreamTransport::new("127.0.0.1:8032".to_string());
         transport.initialize().await.unwrap();
-        
+
         let message = TransportMessage::new("test message".to_string());
         let result = transport.send(message).await;
         assert!(result.is_ok());
-        
+
         let stats = transport.get_stats();
         assert_eq!(stats.messages_sent, 1);
     }
@@ -270,7 +277,7 @@ mod tests {
     async fn test_broadcast_message() {
         let mut transport = HttpStreamTransport::new("127.0.0.1:8033".to_string());
         transport.initialize().await.unwrap();
-        
+
         let message = TransportMessage::new("broadcast test".to_string());
         let result = transport.broadcast(message).await;
         assert!(result.is_ok());
@@ -280,7 +287,7 @@ mod tests {
     async fn test_receive_not_supported() {
         let mut transport = HttpStreamTransport::new("127.0.0.1:8034".to_string());
         transport.initialize().await.unwrap();
-        
+
         let result = transport.receive().await;
         assert!(result.is_err());
     }

@@ -1,5 +1,5 @@
 //! Transport registry for managing multiple transport implementations
-//! 
+//!
 //! This module provides a registry for registering and retrieving transport
 //! implementations at runtime. Supports dynamic transport selection based on
 //! configuration.
@@ -23,11 +23,11 @@ impl TransportRegistry {
     }
 
     /// Register a transport factory
-    /// 
+    ///
     /// # Arguments
     /// * `transport_type` - Transport type name (e.g., "stdio", "sse")
     /// * `factory` - Factory implementation for creating transport instances
-    /// 
+    ///
     /// # Returns
     /// * `Result<()>` - Success or error if type already registered
     pub fn register(
@@ -36,9 +36,10 @@ impl TransportRegistry {
         factory: Arc<dyn TransportFactory>,
     ) -> Result<(), TransportError> {
         let transport_type = transport_type.into();
-        let mut factories = self.factories.write().map_err(|e| {
-            TransportError::Other(format!("Failed to acquire write lock: {}", e))
-        })?;
+        let mut factories = self
+            .factories
+            .write()
+            .map_err(|e| TransportError::Other(format!("Failed to acquire write lock: {}", e)))?;
 
         if factories.contains_key(&transport_type) {
             return Err(TransportError::ConfigError(format!(
@@ -52,26 +53,25 @@ impl TransportRegistry {
     }
 
     /// Create a transport instance from configuration
-    /// 
+    ///
     /// # Arguments
     /// * `config` - Transport configuration
-    /// 
+    ///
     /// # Returns
     /// * `Result<Box<dyn Transport>>` - Transport instance or error
     pub fn create(&self, config: TransportConfig) -> Result<Box<dyn Transport>, TransportError> {
-        let factories = self.factories.read().map_err(|e| {
-            TransportError::Other(format!("Failed to acquire read lock: {}", e))
-        })?;
+        let factories = self
+            .factories
+            .read()
+            .map_err(|e| TransportError::Other(format!("Failed to acquire read lock: {}", e)))?;
 
-        let factory = factories
-            .get(&config.transport_type)
-            .ok_or_else(|| {
-                TransportError::ConfigError(format!(
-                    "Unknown transport type: '{}'. Available: {}",
-                    config.transport_type,
-                    self.list_available().join(", ")
-                ))
-            })?;
+        let factory = factories.get(&config.transport_type).ok_or_else(|| {
+            TransportError::ConfigError(format!(
+                "Unknown transport type: '{}'. Available: {}",
+                config.transport_type,
+                self.list_available().join(", ")
+            ))
+        })?;
 
         factory.create(config)
     }
@@ -146,7 +146,9 @@ mod tests {
             Ok(())
         }
 
-        async fn receive(&self) -> Result<crate::transport::r#trait::TransportMessage, TransportError> {
+        async fn receive(
+            &self,
+        ) -> Result<crate::transport::r#trait::TransportMessage, TransportError> {
             Err(TransportError::NotInitialized)
         }
 

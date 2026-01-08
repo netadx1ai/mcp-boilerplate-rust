@@ -1,17 +1,17 @@
 //! Shared MCP Protocol Handler
-//! 
+//!
 //! This module provides a unified protocol handler that uses rmcp types consistently
 //! across all transports (stdio, SSE, WebSocket, HTTP streaming).
-//! 
+//!
 //! # Design Goals
-//! 
+//!
 //! 1. **Type Safety**: Use rmcp::model types instead of manual JSON parsing
 //! 2. **Consistency**: Same protocol handling logic across all transports
 //! 3. **Maintainability**: Single source of truth for MCP protocol
 //! 4. **Extensibility**: Easy to add new tools and capabilities
-//! 
+//!
 //! # Architecture
-//! 
+//!
 //! ```text
 //! Transport Layer (stdio/SSE/WebSocket/HTTP)
 //!        ↓
@@ -23,30 +23,28 @@
 //!        ↓
 //! Tool Implementations
 //! ```
-//! 
+//!
 //! # Usage
-//! 
+//!
 //! ```rust
 //! use crate::mcp::protocol_handler::ProtocolHandler;
-//! 
+//!
 //! // Initialize handler
 //! let handler = ProtocolHandler::new();
-//! 
+//!
 //! // Handle JSON-RPC request
 //! let request = r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}"#;
 //! let response = handler.handle_request(request).await?;
 //! ```
 
 use anyhow::Result;
-use rmcp::{
-    handler::server::tool::ToolRouter,
-    model::*,
-    task_manager::OperationProcessor,
-};
+use rmcp::{handler::server::tool::ToolRouter, model::*, task_manager::OperationProcessor};
 use serde_json::{json, Value};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tracing::{error, info};
+
+use crate::metrics;
 
 /// Helper function to convert Value to Arc<JsonObject>
 fn value_to_schema(value: Value) -> Arc<JsonObject> {
@@ -62,7 +60,7 @@ use crate::tools::calculator::{CalculateResponse, EvaluateResponse};
 use crate::tools::shared::*;
 
 /// Protocol handler with rmcp integration
-/// 
+///
 /// Wraps the same McpServer used by stdio but provides JSON-RPC interface
 /// for non-stdio transports (SSE, WebSocket, HTTP streaming).
 #[derive(Clone)]
@@ -114,10 +112,12 @@ impl ProtocolHandler {
     }
 
     /// Handle JSON-RPC request string and return JSON-RPC response string
-    /// 
+    ///
     /// This is the main entry point for SSE/WebSocket/HTTP transports.
     /// Parses JSON-RPC, routes to appropriate handler, returns JSON-RPC response.
     pub async fn handle_request(&self, request_json: &str) -> Result<String> {
+        let start_time = std::time::Instant::now();
+
         // Parse JSON-RPC request
         let request: Value = serde_json::from_str(request_json)
             .map_err(|e| anyhow::anyhow!("Invalid JSON: {}", e))?;
@@ -126,12 +126,13 @@ impl ProtocolHandler {
         let method = request
             .get("method")
             .and_then(|v| v.as_str())
-            .ok_or_else(|| anyhow::anyhow!("Missing method"))?;
+            .ok_or_else(|| anyhow::anyhow!("Missing method"))?
+            .to_string();
 
         info!("Handling JSON-RPC method: {}", method);
 
         // Route to appropriate handler
-        let response = match method {
+        let response = match method.as_str() {
             "initialize" => self.handle_initialize(id, request).await,
             "initialized" => self.handle_initialized(id).await,
             "tools/list" => self.handle_list_tools(id).await,
@@ -144,6 +145,22 @@ impl ProtocolHandler {
             "ping" => self.handle_ping(id).await,
             _ => self.error_response(id, -32601, format!("Method not found: {}", method)),
         };
+
+        // Record metrics
+        let duration = start_time.elapsed().as_secs_f64();
+        let status = if response.get("error").is_some() {
+            "error"
+        } else {
+            "success"
+        };
+
+        // Use "json_rpc" as transport label since this handler is transport-agnostic
+        // The transport-specific handlers should record their own metrics if needed
+        metrics::record_request("json_rpc", &method, status, duration);
+
+        if status == "error" {
+            metrics::record_error("json_rpc", "method_execution_failed");
+        }
 
         Ok(serde_json::to_string(&response)?)
     }
@@ -425,6 +442,8 @@ impl ProtocolHandler {
 
     /// Handle tools/call request
     async fn handle_call_tool(&self, id: Option<Value>, request: Value) -> Value {
+        let start_time = std::time::Instant::now();
+
         let params = match request.get("params") {
             Some(p) => p,
             None => return self.error_response(id, -32602, "Missing params".to_string()),
@@ -454,6 +473,11 @@ impl ProtocolHandler {
             "health_check" => self.execute_health_check().await,
             _ => Err(format!("Unknown tool: {}", tool_name)),
         };
+
+        // Record metrics
+        let duration = start_time.elapsed().as_secs_f64();
+        let status = if result.is_ok() { "success" } else { "error" };
+        metrics::record_tool_invocation(tool_name, status, duration);
 
         match result {
             Ok(content) => json!({
@@ -495,7 +519,10 @@ impl ProtocolHandler {
             None => return self.error_response(id, -32602, "Missing prompt name".to_string()),
         };
 
-        match self.prompt_registry.get_prompt(prompt_name, &std::collections::HashMap::new()) {
+        match self
+            .prompt_registry
+            .get_prompt(prompt_name, &std::collections::HashMap::new())
+        {
             Ok(prompt) => json!({
                 "jsonrpc": "2.0",
                 "id": id,
@@ -588,8 +615,8 @@ impl ProtocolHandler {
             .and_then(|v| v.as_str())
             .ok_or("Missing message parameter")?;
 
-        let response = create_echo_response(message.to_string())
-            .map_err(|e| format!("Echo error: {}", e))?;
+        let response =
+            create_echo_response(message.to_string()).map_err(|e| format!("Echo error: {}", e))?;
 
         Ok(vec![json!({
             "type": "text",
@@ -775,9 +802,8 @@ impl ProtocolHandler {
             .and_then(|v| v.as_u64())
             .ok_or("Missing size_bytes parameter")?;
 
-        let response =
-            create_upload_response(filename.to_string(), size_bytes)
-                .map_err(|e| format!("Upload error: {}", e))?;
+        let response = create_upload_response(filename.to_string(), size_bytes)
+            .map_err(|e| format!("Upload error: {}", e))?;
 
         Ok(vec![json!({
             "type": "text",

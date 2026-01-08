@@ -1,5 +1,5 @@
 //! Transport trait for MCP protocol communication
-//! 
+//!
 //! This module defines the core Transport trait that all transport implementations
 //! must implement. It provides a unified interface for different transport methods
 //! (stdio, SSE, WebSocket, HTTP streaming, RPC).
@@ -108,7 +108,7 @@ impl Default for TransportConfig {
 }
 
 /// Core Transport trait that all transport implementations must implement
-/// 
+///
 /// This trait provides a unified interface for different transport methods:
 /// - stdio: Standard input/output (CLI, process spawning)
 /// - SSE: Server-Sent Events (browser push notifications)
@@ -124,30 +124,30 @@ pub trait Transport: Send + Sync {
     fn capabilities(&self) -> TransportCapabilities;
 
     /// Send a message through this transport
-    /// 
+    ///
     /// # Arguments
     /// * `message` - The message to send
-    /// 
+    ///
     /// # Returns
     /// * `Result<()>` - Success or error
     async fn send(&self, message: TransportMessage) -> Result<(), TransportError>;
 
     /// Receive a message from this transport
-    /// 
+    ///
     /// This method blocks until a message is available or an error occurs.
-    /// 
+    ///
     /// # Returns
     /// * `Result<TransportMessage>` - The received message or error
     async fn receive(&self) -> Result<TransportMessage, TransportError>;
 
     /// Initialize the transport
-    /// 
+    ///
     /// Called once before any send/receive operations.
     /// Use this to set up connections, bind ports, etc.
     async fn initialize(&mut self) -> Result<(), TransportError>;
 
     /// Shutdown the transport gracefully
-    /// 
+    ///
     /// Close connections, flush buffers, cleanup resources.
     async fn shutdown(&mut self) -> Result<(), TransportError>;
 
@@ -160,7 +160,7 @@ pub trait Transport: Send + Sync {
     }
 
     /// Broadcast message to all connections (for multi-connection transports)
-    /// 
+    ///
     /// Default implementation just calls send() once
     async fn broadcast(&self, message: TransportMessage) -> Result<(), TransportError> {
         self.send(message).await
@@ -285,7 +285,7 @@ mod tests {
         let msg = TransportMessage::with_metadata("test".to_string(), "stdio");
         assert_eq!(msg.content, "test");
         assert!(msg.metadata.is_some());
-        
+
         let metadata = msg.metadata.unwrap();
         assert_eq!(metadata.transport_type, "stdio");
         assert!(metadata.id.is_some());
@@ -309,7 +309,7 @@ mod tests {
             error_count: 2,
             uptime_seconds: 3600,
         };
-        
+
         let display = format!("{}", stats);
         assert!(display.contains("100 msgs"));
         assert!(display.contains("95 msgs"));
