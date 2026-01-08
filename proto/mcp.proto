@@ -1,0 +1,158 @@
+syntax = "proto3";
+
+package mcp;
+
+// MCP gRPC Service Definition
+// Provides high-performance RPC interface for Model Context Protocol
+
+service Mcp {
+  // Handle JSON-RPC requests
+  rpc JsonRpc(JsonRpcRequest) returns (JsonRpcResponse);
+  
+  // List available tools
+  rpc ListTools(ToolsListRequest) returns (ToolsListResponse);
+  
+  // Call a specific tool
+  rpc CallTool(ToolCallRequest) returns (ToolCallResponse);
+  
+  // Server-side streaming for large responses
+  rpc StreamResponses(StreamRequest) returns (stream StreamResponse);
+  
+  // Bidirectional streaming for real-time communication
+  rpc BidirectionalStream(stream ClientMessage) returns (stream ServerMessage);
+  
+  // Get server information
+  rpc GetServerInfo(ServerInfoRequest) returns (ServerInfoResponse);
+  
+  // Health check
+  rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse);
+}
+
+// JSON-RPC wrapper messages
+message JsonRpcRequest {
+  string payload = 1;  // JSON-RPC 2.0 formatted string
+}
+
+message JsonRpcResponse {
+  string payload = 1;  // JSON-RPC 2.0 response string
+}
+
+// Tool-specific messages
+message ToolsListRequest {
+  // Empty for now, can add filtering options later
+}
+
+message ToolsListResponse {
+  string tools_json = 1;  // JSON array of tools
+}
+
+message ToolCallRequest {
+  string tool_name = 1;
+  string arguments_json = 2;  // JSON object with tool arguments
+}
+
+message ToolCallResponse {
+  string result_json = 1;  // JSON object with tool result
+}
+
+// Streaming messages
+message StreamRequest {
+  string request_id = 1;
+  string method = 2;
+  string params_json = 3;
+}
+
+message StreamResponse {
+  int32 chunk_id = 1;
+  bytes data = 2;
+  bool is_final = 3;
+}
+
+// Bidirectional streaming messages
+message ClientMessage {
+  oneof message_type {
+    JsonRpcRequest json_rpc = 1;
+    ToolCallRequest tool_call = 2;
+    PingMessage ping = 3;
+  }
+}
+
+message ServerMessage {
+  oneof message_type {
+    JsonRpcResponse json_rpc = 1;
+    ToolCallResponse tool_result = 2;
+    PongMessage pong = 3;
+    NotificationMessage notification = 4;
+  }
+}
+
+message PingMessage {
+  int64 timestamp = 1;
+}
+
+message PongMessage {
+  int64 timestamp = 1;
+  int64 server_timestamp = 2;
+}
+
+message NotificationMessage {
+  string type = 1;
+  string payload_json = 2;
+}
+
+// Server info messages
+message ServerInfoRequest {
+  // Empty
+}
+
+message ServerInfoResponse {
+  string name = 1;
+  string version = 2;
+  string protocol_version = 3;
+  repeated string capabilities = 4;
+  ServerStats stats = 5;
+}
+
+message ServerStats {
+  uint64 active_connections = 1;
+  uint64 total_requests = 2;
+  uint64 uptime_seconds = 3;
+}
+
+// Health check messages
+message HealthCheckRequest {
+  // Empty
+}
+
+message HealthCheckResponse {
+  enum Status {
+    UNKNOWN = 0;
+    HEALTHY = 1;
+    UNHEALTHY = 2;
+    DEGRADED = 3;
+  }
+  
+  Status status = 1;
+  string message = 2;
+  int64 timestamp = 3;
+}
+
+// Additional utility messages
+
+message Error {
+  int32 code = 1;
+  string message = 2;
+  string details = 3;
+}
+
+message Metadata {
+  string key = 1;
+  string value = 2;
+}
+
+message ProgressUpdate {
+  string operation_id = 1;
+  int32 progress_percent = 2;
+  string status_message = 3;
+  int64 timestamp = 4;
+}

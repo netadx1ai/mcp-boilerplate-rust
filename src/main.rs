@@ -18,7 +18,16 @@ use utils::Logger;
 #[cfg(feature = "sse")]
 use mcp::run_sse_server;
 
-#[cfg(any(feature = "http", feature = "sse"))]
+#[cfg(feature = "websocket")]
+use mcp::create_websocket_router;
+
+#[cfg(feature = "http-stream")]
+use mcp::run_http_stream_server;
+
+#[cfg(feature = "grpc")]
+use mcp::run_grpc_server;
+
+#[cfg(any(feature = "http", feature = "sse", feature = "websocket", feature = "http-stream", feature = "grpc"))]
 use tracing::info;
 
 #[cfg(feature = "http")]
@@ -40,6 +49,12 @@ enum ServerMode {
     Http,
     #[cfg(feature = "sse")]
     Sse,
+    #[cfg(feature = "websocket")]
+    Websocket,
+    #[cfg(feature = "http-stream")]
+    HttpStream,
+    #[cfg(feature = "grpc")]
+    Grpc,
 }
 
 #[derive(Parser, Debug)]
@@ -101,6 +116,45 @@ async fn main() -> Result<()> {
             info!("Starting MCP server in SSE mode");
             run_sse_server(&args.bind).await?;
         }
+        #[cfg(feature = "websocket")]
+        ServerMode::Websocket => {
+            if args.verbose {
+                std::env::set_var("RUST_LOG", "debug,mcp_boilerplate_rust=trace");
+            } else {
+                std::env::set_var("RUST_LOG", "info");
+            }
+            Logger::init();
+            info!("MCP Boilerplate Rust v{}", env!("CARGO_PKG_VERSION"));
+            info!("Using official rmcp SDK v0.12");
+            info!("Starting MCP server in WebSocket mode");
+            run_websocket_server(&args.bind).await?;
+        }
+        #[cfg(feature = "http-stream")]
+        ServerMode::HttpStream => {
+            if args.verbose {
+                std::env::set_var("RUST_LOG", "debug,mcp_boilerplate_rust=trace");
+            } else {
+                std::env::set_var("RUST_LOG", "info");
+            }
+            Logger::init();
+            info!("MCP Boilerplate Rust v{}", env!("CARGO_PKG_VERSION"));
+            info!("Using official rmcp SDK v0.12");
+            info!("Starting MCP server in HTTP Streaming mode");
+            run_http_stream_server(&args.bind).await?;
+        }
+        #[cfg(feature = "grpc")]
+        ServerMode::Grpc => {
+            if args.verbose {
+                std::env::set_var("RUST_LOG", "debug,mcp_boilerplate_rust=trace");
+            } else {
+                std::env::set_var("RUST_LOG", "info");
+            }
+            Logger::init();
+            info!("MCP Boilerplate Rust v{}", env!("CARGO_PKG_VERSION"));
+            info!("Using official rmcp SDK v0.12");
+            info!("Starting MCP server in gRPC mode");
+            run_grpc_server(&args.bind).await?;
+        }
     }
 
     Ok(())
@@ -109,6 +163,21 @@ async fn main() -> Result<()> {
 async fn run_stdio_server() -> Result<()> {
     let server = McpServer::new();
     server.run().await?;
+    Ok(())
+}
+
+#[cfg(feature = "websocket")]
+async fn run_websocket_server(bind_address: &str) -> Result<()> {
+    info!("Starting WebSocket server on {}", bind_address);
+    
+    let app = create_websocket_router();
+    
+    let listener = tokio::net::TcpListener::bind(bind_address).await?;
+    info!("WebSocket server listening on {}", bind_address);
+    info!("Connect to ws://{}/ws", bind_address);
+    
+    axum::serve(listener, app).await?;
+    
     Ok(())
 }
 

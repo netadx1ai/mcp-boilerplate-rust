@@ -3,6 +3,20 @@
 //! This module provides a complete SSE-based MCP server using Axum.
 //! Supports real-time progress notifications and multi-client broadcasting.
 //! 
+//! # Architecture
+//! 
+//! Uses the shared ProtocolHandler for consistent rmcp-based protocol handling:
+//! 
+//! ```text
+//! SSE Client (EventSource)
+//!     ↓
+//! SSE Transport Layer
+//!     ↓
+//! ProtocolHandler (rmcp types)
+//!     ↓
+//! Tool Implementations
+//! ```
+//! 
 //! # Features
 //! 
 //! - EventSource-compatible SSE endpoint
@@ -11,6 +25,7 @@
 //! - Multi-client support
 //! - CORS enabled for browser clients
 //! - Health check endpoint
+//! - Type-safe protocol handling with rmcp
 //! 
 //! # Endpoints
 //! 
@@ -34,25 +49,30 @@
 //!     method: 'POST',
 //!     headers: { 'Content-Type': 'application/json' },
 //!     body: JSON.stringify({
-//!         name: 'echo',
-//!         arguments: { message: 'Hello SSE!' }
+//!         jsonrpc: '2.0',
+//!         id: 1,
+//!         method: 'tools/call',
+//!         params: {
+//!             name: 'echo',
+//!             arguments: { message: 'Hello SSE!' }
+//!         }
 //!     })
 //! });
 //! ```
 
 #[cfg(feature = "sse")]
+use crate::mcp::protocol_handler::ProtocolHandler;
+#[cfg(feature = "sse")]
 use crate::transport::sse::SseTransport;
 #[cfg(feature = "sse")]
 use crate::transport::{Transport, TransportMessage};
-#[cfg(feature = "sse")]
-use crate::tools::echo::EchoTool;
 #[cfg(feature = "sse")]
 use futures::stream::StreamExt;
 
 #[cfg(feature = "sse")]
 use axum::{
     extract::State,
-    http::{HeaderMap, StatusCode},
+    http::StatusCode,
     response::{
         sse::{Event, KeepAlive, Sse},
         IntoResponse, Json,
@@ -77,28 +97,25 @@ use tracing::{error, info};
 #[derive(Clone)]
 pub struct SseServerState {
     transport: Arc<SseTransport>,
-    echo_tool: Arc<EchoTool>,
+    protocol_handler: Arc<ProtocolHandler>,
 }
 
-/// Tool call request structure
+/// JSON-RPC request structure
 #[cfg(feature = "sse")]
 #[derive(Debug, Deserialize, Serialize)]
-pub struct ToolCallRequest {
-    /// Tool name to call
-    pub name: String,
-    /// Tool arguments as JSON
-    pub arguments: serde_json::Value,
+pub struct JsonRpcRequest {
+    pub jsonrpc: String,
+    pub id: Option<serde_json::Value>,
+    pub method: String,
+    pub params: Option<serde_json::Value>,
 }
 
-/// Tool call response structure
+/// Simple response for immediate acknowledgment
 #[cfg(feature = "sse")]
 #[derive(Debug, Deserialize, Serialize)]
-pub struct ToolCallResponse {
-    /// Request ID for tracking
+pub struct AckResponse {
     pub request_id: String,
-    /// Status message
     pub status: String,
-    /// Message
     pub message: String,
 }
 
@@ -111,16 +128,19 @@ pub struct ToolCallResponse {
 /// * `Result<()>` - Success or error
 #[cfg(feature = "sse")]
 pub async fn run_sse_server(bind_address: &str) -> anyhow::Result<()> {
-    info!("Starting MCP SSE Server");
+    info!("Starting MCP SSE Server with ProtocolHandler");
     info!("Bind address: {}", bind_address);
 
     // Initialize SSE transport
     let mut transport = SseTransport::new(bind_address);
     transport.initialize().await?;
 
+    // Initialize protocol handler
+    let protocol_handler = ProtocolHandler::new();
+
     let state = SseServerState {
         transport: Arc::new(transport),
-        echo_tool: Arc::new(EchoTool::new()),
+        protocol_handler: Arc::new(protocol_handler),
     };
 
     // Setup CORS for browser clients
@@ -134,8 +154,9 @@ pub async fn run_sse_server(bind_address: &str) -> anyhow::Result<()> {
         .route("/", get(root_handler))
         .route("/health", get(health_check))
         .route("/sse", get(sse_handler))
+        .route("/rpc", post(rpc_handler))
         .route("/tools", get(list_tools))
-        .route("/tools/call", post(call_tool))
+        .route("/tools/call", post(call_tool_legacy))
         .layer(cors)
         .with_state(state);
 
@@ -144,8 +165,9 @@ pub async fn run_sse_server(bind_address: &str) -> anyhow::Result<()> {
     info!("  GET  /           - Server info");
     info!("  GET  /health     - Health check");
     info!("  GET  /sse        - SSE event stream");
+    info!("  POST /rpc        - JSON-RPC endpoint (recommended)");
     info!("  GET  /tools      - List tools");
-    info!("  POST /tools/call - Call a tool");
+    info!("  POST /tools/call - Call a tool (legacy, for compatibility)");
 
     // Start server
     let listener = tokio::net::TcpListener::bind(bind_address).await?;
@@ -154,94 +176,63 @@ pub async fn run_sse_server(bind_address: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Root handler - server info
+/// Root handler - Server information
 #[cfg(feature = "sse")]
 async fn root_handler() -> impl IntoResponse {
     Json(json!({
-        "service": "mcp-boilerplate-rust",
+        "name": "MCP Boilerplate Rust - SSE Server",
         "version": env!("CARGO_PKG_VERSION"),
-        "protocol": "MCP",
-        "transport": "SSE (Server-Sent Events)",
+        "protocol": "mcp-2024-11-05",
+        "transport": "sse",
         "endpoints": {
-            "health": "GET /health",
-            "sse_stream": "GET /sse",
-            "list_tools": "GET /tools",
-            "call_tool": "POST /tools/call"
+            "sse": "/sse",
+            "rpc": "/rpc",
+            "tools": "/tools",
+            "tools_call": "/tools/call",
+            "health": "/health"
         },
         "features": [
-            "Real-time progress notifications",
-            "Multi-client support",
-            "EventSource compatible",
-            "All 11 MCP tools"
-        ]
+            "server-sent-events",
+            "multi-client",
+            "real-time-notifications",
+            "rmcp-types"
+        ],
+        "note": "Now using ProtocolHandler with rmcp types for type safety"
     }))
 }
 
-/// Health check handler
+/// Health check endpoint
 #[cfg(feature = "sse")]
-async fn health_check(State(state): State<SseServerState>) -> impl IntoResponse {
-    let client_count = state.transport.client_count();
-    let stats = state.transport.stats();
-
+async fn health_check() -> impl IntoResponse {
     Json(json!({
         "status": "healthy",
-        "service": "mcp-boilerplate-rust",
-        "version": env!("CARGO_PKG_VERSION"),
         "transport": "sse",
-        "timestamp": chrono::Utc::now().to_rfc3339(),
-        "clients": {
-            "connected": client_count,
-            "ids": state.transport.connected_clients()
-        },
-        "stats": {
-            "messages_sent": stats.messages_sent,
-            "bytes_sent": stats.bytes_sent,
-            "uptime_seconds": stats.uptime_seconds
-        }
+        "timestamp": chrono::Utc::now().to_rfc3339()
     }))
 }
 
 /// SSE event stream handler
-/// 
-/// Creates an EventSource-compatible SSE stream for the client.
-/// Each client gets a unique ID and receives all broadcasted events.
 #[cfg(feature = "sse")]
 async fn sse_handler(
     State(state): State<SseServerState>,
-    headers: HeaderMap,
-) -> Result<Sse<impl futures::stream::Stream<Item = Result<Event, std::convert::Infallible>>>, StatusCode> {
-
-    // Generate client ID
+) -> Result<Sse<impl futures::Stream<Item = Result<Event, anyhow::Error>>>, StatusCode> {
     let client_id = uuid::Uuid::new_v4().to_string();
-    
-    // Extract User-Agent
-    let user_agent = headers
-        .get("user-agent")
-        .and_then(|v| v.to_str().ok())
-        .map(|s| s.to_string());
 
-    // Register client
-    state.transport.register_client(client_id.clone(), user_agent.clone());
-    
-    info!(
-        "New SSE client connected: {} (User-Agent: {:?})",
-        client_id,
-        user_agent.as_deref().unwrap_or("unknown")
-    );
+    info!("New SSE client connected: {}", client_id);
 
-    // Create SSE stream from broadcast receiver
-    let mut rx = state
-        .transport
-        .create_stream()
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    
-    // Convert broadcast receiver to stream of SSE events
+    // Register client with transport
+    state.transport.register_client(client_id.clone(), None);
+
+    // Create event stream from transport
+    let mut rx = match state.transport.create_stream() {
+        Ok(receiver) => receiver,
+        Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
+    };
+
     let stream = async_stream::stream! {
         while let Ok(msg) = rx.recv().await {
-            let event = Event::default()
-                .data(msg.content)
-                .id(msg.metadata.as_ref().and_then(|m| m.id.clone()).unwrap_or_default());
-            yield Ok::<_, std::convert::Infallible>(event);
+            let event = Event::default().data(msg.content);
+            yield Ok::<_, anyhow::Error>(event);
         }
     };
 
@@ -251,6 +242,8 @@ async fn sse_handler(
             "type": "connection",
             "client_id": client_id,
             "message": "Connected to MCP SSE server",
+            "protocol": "mcp-2024-11-05",
+            "handler": "ProtocolHandler",
             "timestamp": chrono::Utc::now().to_rfc3339()
         })
         .to_string(),
@@ -267,8 +260,7 @@ async fn sse_handler(
 
     // Wrap stream with cleanup on drop
     let stream_with_cleanup = stream.inspect(move |_| {
-        // This closure is called for each item, but we use tokio::spawn
-        // to handle cleanup asynchronously when stream ends
+        // This closure is called for each item
     });
 
     // Schedule cleanup (run in background when connection closes)
@@ -282,88 +274,34 @@ async fn sse_handler(
     Ok(Sse::new(stream_with_cleanup).keep_alive(KeepAlive::default()))
 }
 
-/// List available tools
-#[cfg(feature = "sse")]
-async fn list_tools() -> impl IntoResponse {
-    Json(json!({
-        "tools": [
-            {
-                "name": "echo",
-                "description": "Echo back a message with timestamp",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "message": {
-                            "type": "string",
-                            "description": "Message to echo back"
-                        }
-                    },
-                    "required": ["message"]
-                }
-            },
-            {
-                "name": "ping",
-                "description": "Simple ping-pong test",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {}
-                }
-            },
-            {
-                "name": "info",
-                "description": "Get server information",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {}
-                }
-            },
-            {
-                "name": "process_with_progress",
-                "description": "Process data with real-time progress updates",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "items": {
-                            "type": "array",
-                            "description": "Items to process"
-                        }
-                    },
-                    "required": ["items"]
-                }
-            }
-        ]
-    }))
-}
-
-/// Call a tool and broadcast results via SSE
+/// JSON-RPC handler (recommended endpoint)
 /// 
-/// This handler accepts a tool call request, executes the tool,
-/// and broadcasts the result to all connected SSE clients.
+/// Accepts standard JSON-RPC 2.0 requests and uses ProtocolHandler
 #[cfg(feature = "sse")]
-async fn call_tool(
+async fn rpc_handler(
     State(state): State<SseServerState>,
-    Json(request): Json<ToolCallRequest>,
-) -> Result<Json<ToolCallResponse>, StatusCode> {
+    body: String,
+) -> Result<Json<serde_json::Value>, StatusCode> {
     let request_id = uuid::Uuid::new_v4().to_string();
+    let request_id_clone = request_id.clone();
 
-    info!(
-        "Tool call request: {} (request_id: {})",
-        request.name, request_id
-    );
+    info!("JSON-RPC request (request_id: {})", request_id);
 
-    // Execute tool asynchronously and broadcast result
+    // Parse JSON-RPC request
+    let json_rpc: JsonRpcRequest = serde_json::from_str(&body)
+        .map_err(|_| StatusCode::BAD_REQUEST)?;
+
+    // Execute using ProtocolHandler
+    let protocol_handler = state.protocol_handler.clone();
     let transport = state.transport.clone();
-    let tool_name = request.name.clone();
-    let arguments = request.arguments.clone();
-    let request_id_spawn = request_id.clone();
 
     tokio::spawn(async move {
         // Send "processing" notification
         let processing_msg = TransportMessage::with_metadata(
             json!({
-                "type": "tool_call_started",
-                "request_id": request_id_spawn,
-                "tool": tool_name,
+                "type": "rpc_started",
+                "request_id": request_id_clone,
+                "method": json_rpc.method,
                 "timestamp": chrono::Utc::now().to_rfc3339()
             })
             .to_string(),
@@ -375,64 +313,183 @@ async fn call_tool(
             return;
         }
 
-        // Execute tool
-        let result: Result<serde_json::Value, String> = match tool_name.as_str() {
-            "echo" => {
-                let message = arguments.get("message")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("No message");
-                Ok(json!({
-                    "message": message,
-                    "timestamp": chrono::Utc::now().to_rfc3339()
-                }))
+        // Execute via protocol handler
+        match protocol_handler.handle_request(&body).await {
+            Ok(response_str) => {
+                // Send result notification
+                let result_msg = TransportMessage::with_metadata(
+                    json!({
+                        "type": "rpc_result",
+                        "request_id": request_id_clone,
+                        "response": serde_json::from_str::<serde_json::Value>(&response_str).unwrap_or(json!({})),
+                        "timestamp": chrono::Utc::now().to_rfc3339()
+                    })
+                    .to_string(),
+                    "sse",
+                );
+
+                if let Err(e) = transport.send_event(result_msg).await {
+                    error!("Failed to send result notification: {}", e);
+                }
             }
-            "ping" => Ok(json!({
-                "response": "pong",
+            Err(error) => {
+                // Send error notification
+                let error_msg = TransportMessage::with_metadata(
+                    json!({
+                        "type": "rpc_error",
+                        "request_id": request_id_clone,
+                        "error": error.to_string(),
+                        "timestamp": chrono::Utc::now().to_rfc3339()
+                    })
+                    .to_string(),
+                    "sse",
+                );
+
+                if let Err(e) = transport.send_event(error_msg).await {
+                    error!("Failed to send error notification: {}", e);
+                }
+            }
+        }
+    });
+
+    // Return immediate acknowledgment
+    Ok(Json(json!({
+        "request_id": request_id,
+        "status": "accepted",
+        "message": "Request accepted. Results will be broadcast via SSE."
+    })))
+}
+
+/// List available tools (via ProtocolHandler)
+#[cfg(feature = "sse")]
+async fn list_tools(State(state): State<SseServerState>) -> impl IntoResponse {
+    let request = json!({
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "tools/list",
+        "params": {}
+    });
+
+    match state.protocol_handler.handle_request(&request.to_string()).await {
+        Ok(response) => {
+            let response_json: serde_json::Value = serde_json::from_str(&response).unwrap();
+            Json(response_json)
+        }
+        Err(e) => {
+            error!("Failed to list tools: {}", e);
+            Json(json!({
+                "error": e.to_string()
+            }))
+        }
+    }
+}
+
+/// Legacy tool call endpoint (for backward compatibility)
+/// 
+/// Accepts simplified format and converts to JSON-RPC
+#[cfg(feature = "sse")]
+async fn call_tool_legacy(
+    State(state): State<SseServerState>,
+    Json(payload): Json<serde_json::Value>,
+) -> Result<Json<AckResponse>, StatusCode> {
+    let request_id = uuid::Uuid::new_v4().to_string();
+
+    let tool_name = payload
+        .get("name")
+        .and_then(|v| v.as_str())
+        .ok_or(StatusCode::BAD_REQUEST)?
+        .to_string();
+
+    let arguments = payload.get("arguments").cloned().unwrap_or(json!({}));
+
+    info!(
+        "Legacy tool call: {} (request_id: {})",
+        tool_name, request_id
+    );
+
+    // Convert to JSON-RPC format
+    let json_rpc_request = json!({
+        "jsonrpc": "2.0",
+        "id": request_id.clone(),
+        "method": "tools/call",
+        "params": {
+            "name": tool_name,
+            "arguments": arguments
+        }
+    });
+
+    // Execute asynchronously via ProtocolHandler
+    let transport = state.transport.clone();
+    let protocol_handler = state.protocol_handler.clone();
+    let request_id_spawn = request_id.clone();
+    let tool_name_clone = tool_name.clone();
+
+    tokio::spawn(async move {
+        // Send "processing" notification
+        let processing_msg = TransportMessage::with_metadata(
+            json!({
+                "type": "tool_call_started",
+                "request_id": request_id_spawn,
+                "tool": tool_name_clone,
                 "timestamp": chrono::Utc::now().to_rfc3339()
-            })),
-            "info" => Ok(json!({
-                "tool": "info",
-                "version": env!("CARGO_PKG_VERSION"),
-                "description": "MCP Boilerplate Rust SSE Server"
-            })),
-            _ => Err(format!("Unknown tool: {}", tool_name)),
-        };
+            })
+            .to_string(),
+            "sse",
+        );
 
-        // Send result notification
-        let result_msg = match result {
-            Ok(data) => TransportMessage::with_metadata(
-                json!({
-                    "type": "tool_call_result",
-                    "request_id": request_id_spawn,
-                    "tool": tool_name,
-                    "success": true,
-                    "result": data,
-                    "timestamp": chrono::Utc::now().to_rfc3339()
-                })
-                .to_string(),
-                "sse",
-            ),
-            Err(error) => TransportMessage::with_metadata(
-                json!({
-                    "type": "tool_call_error",
-                    "request_id": request_id_spawn,
-                    "tool": tool_name,
-                    "success": false,
-                    "error": error,
-                    "timestamp": chrono::Utc::now().to_rfc3339()
-                })
-                .to_string(),
-                "sse",
-            ),
-        };
+        if let Err(e) = transport.send_event(processing_msg).await {
+            error!("Failed to send processing notification: {}", e);
+            return;
+        }
 
-        if let Err(e) = transport.send_event(result_msg).await {
-            error!("Failed to send result notification: {}", e);
+        // Execute via protocol handler
+        match protocol_handler.handle_request(&json_rpc_request.to_string()).await {
+            Ok(response_str) => {
+                let response_json: serde_json::Value = serde_json::from_str(&response_str)
+                    .unwrap_or(json!({"error": "Invalid response"}));
+
+                // Send result notification
+                let result_msg = TransportMessage::with_metadata(
+                    json!({
+                        "type": "tool_call_result",
+                        "request_id": request_id_spawn,
+                        "tool": tool_name_clone,
+                        "success": !response_json.get("error").is_some(),
+                        "result": response_json,
+                        "timestamp": chrono::Utc::now().to_rfc3339()
+                    })
+                    .to_string(),
+                    "sse",
+                );
+
+                if let Err(e) = transport.send_event(result_msg).await {
+                    error!("Failed to send result notification: {}", e);
+                }
+            }
+            Err(error) => {
+                // Send error notification
+                let error_msg = TransportMessage::with_metadata(
+                    json!({
+                        "type": "tool_call_error",
+                        "request_id": request_id_spawn,
+                        "tool": tool_name_clone,
+                        "success": false,
+                        "error": error.to_string(),
+                        "timestamp": chrono::Utc::now().to_rfc3339()
+                    })
+                    .to_string(),
+                    "sse",
+                );
+
+                if let Err(e) = transport.send_event(error_msg).await {
+                    error!("Failed to send error notification: {}", e);
+                }
+            }
         }
     });
 
     // Return immediate response
-    Ok(Json(ToolCallResponse {
+    Ok(Json(AckResponse {
         request_id: request_id.clone(),
         status: "accepted".to_string(),
         message: format!(
@@ -447,20 +504,22 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_tool_call_request_serialization() {
-        let request = ToolCallRequest {
-            name: "echo".to_string(),
-            arguments: json!({"message": "test"}),
+    fn test_jsonrpc_request_serialization() {
+        let request = JsonRpcRequest {
+            jsonrpc: "2.0".to_string(),
+            id: Some(json!(1)),
+            method: "tools/call".to_string(),
+            params: Some(json!({"name": "echo"})),
         };
 
         let serialized = serde_json::to_string(&request).unwrap();
-        assert!(serialized.contains("echo"));
-        assert!(serialized.contains("test"));
+        assert!(serialized.contains("2.0"));
+        assert!(serialized.contains("tools/call"));
     }
 
     #[test]
-    fn test_tool_call_response_serialization() {
-        let response = ToolCallResponse {
+    fn test_ack_response_serialization() {
+        let response = AckResponse {
             request_id: "test-id".to_string(),
             status: "accepted".to_string(),
             message: "Test message".to_string(),
@@ -469,5 +528,50 @@ mod tests {
         let serialized = serde_json::to_string(&response).unwrap();
         assert!(serialized.contains("test-id"));
         assert!(serialized.contains("accepted"));
+    }
+
+    #[tokio::test]
+    async fn test_sse_server_state_creation() {
+        let transport = SseTransport::new("127.0.0.1:8025");
+        let protocol_handler = ProtocolHandler::new();
+
+        let state = SseServerState {
+            transport: Arc::new(transport),
+            protocol_handler: Arc::new(protocol_handler),
+        };
+
+        // Test that protocol handler is functional by testing initialize
+        let init_request = r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}"#;
+        let response = state.protocol_handler.handle_request(init_request).await.unwrap();
+        assert!(response.contains("protocolVersion") || response.contains("protocol_version"));
+    }
+
+    #[tokio::test]
+    async fn test_protocol_handler_integration() {
+        let handler = ProtocolHandler::new();
+        
+        // Test initialize
+        let init_request = r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}"#;
+        let response = handler.handle_request(init_request).await.unwrap();
+        assert!(response.contains("protocolVersion") || response.contains("protocol_version"));
+
+        // Test tools/list
+        let list_request = r#"{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}"#;
+        let response = handler.handle_request(list_request).await.unwrap();
+        assert!(response.contains("tools"));
+
+        // Test echo tool
+        let echo_request = r#"{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"echo","arguments":{"message":"test"}}}"#;
+        let response = handler.handle_request(echo_request).await.unwrap();
+        assert!(response.contains("result"));
+    }
+
+    #[test]
+    fn test_server_info() {
+        use crate::mcp::protocol_handler::ServerInfo;
+        
+        let info = ServerInfo::default();
+        assert_eq!(info.name, "MCP Boilerplate Rust");
+        assert_eq!(info.version, env!("CARGO_PKG_VERSION"));
     }
 }

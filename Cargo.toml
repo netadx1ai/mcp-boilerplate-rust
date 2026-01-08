@@ -37,7 +37,7 @@ uuid = { version = "1.6", features = ["v4", "serde"] }
 dotenv = "0.15"
 
 # HTTP feature (optional)
-axum = { version = "0.7", optional = true }
+axum = { version = "0.7", optional = true, features = ["ws"] }
 tower = { version = "0.4", optional = true }
 tower-http = { version = "0.5", features = ["cors", "trace"], optional = true }
 
@@ -48,6 +48,15 @@ async-stream = { version = "0.3", optional = true }
 
 # WebSocket feature (optional)
 tokio-tungstenite = { version = "0.21", optional = true }
+
+# HTTP streaming feature (optional) - uses existing dependencies
+
+# gRPC feature (optional)
+tonic = { version = "0.11", optional = true }
+prost = { version = "0.12", optional = true }
+
+[build-dependencies]
+tonic-build = { version = "0.11", optional = true }
 
 # Database feature (optional)
 mongodb = { version = "2.8", optional = true }
@@ -63,11 +72,13 @@ default = []
 http = ["dep:axum", "dep:tower", "dep:tower-http"]
 sse = ["dep:axum", "dep:tower", "dep:tower-http", "dep:tokio-stream", "dep:futures", "dep:async-stream"]
 websocket = ["dep:axum", "dep:tower", "dep:tower-http", "dep:tokio-tungstenite", "dep:futures"]
+http-stream = ["dep:axum", "dep:tower", "dep:tower-http", "dep:futures"]
+grpc = ["dep:tonic", "dep:prost", "dep:futures", "tonic-build"]
 database = ["dep:mongodb"]
 auth = ["dep:jsonwebtoken"]
 
 # All features
-full = ["http", "sse", "websocket", "database", "auth"]
+full = ["http", "sse", "websocket", "http-stream", "grpc", "database", "auth"]
 
 [profile.release]
 opt-level = 3

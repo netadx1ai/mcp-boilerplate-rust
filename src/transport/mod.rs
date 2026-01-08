@@ -52,6 +52,15 @@ pub mod stdio;
 #[cfg(feature = "sse")]
 pub mod sse;
 
+#[cfg(feature = "websocket")]
+pub mod websocket;
+
+#[cfg(feature = "http-stream")]
+pub mod http_stream;
+
+#[cfg(feature = "grpc")]
+pub mod grpc;
+
 // Re-export core types for convenience
 pub use r#trait::{
     Transport, TransportCapabilities, TransportConfig, TransportError,
@@ -62,6 +71,15 @@ pub use stdio::StdioTransport;
 
 #[cfg(feature = "sse")]
 pub use sse::SseTransport;
+
+#[cfg(feature = "websocket")]
+pub use websocket::WebSocketTransport;
+
+#[cfg(feature = "http-stream")]
+pub use http_stream::HttpStreamTransport;
+
+#[cfg(feature = "grpc")]
+pub use grpc::GrpcTransport;
 
 /// Initialize the global transport registry with default transports
 /// 
@@ -85,9 +103,25 @@ pub fn init_registry() {
         }
     }
     
+    // Register WebSocket transport (when feature enabled)
+    #[cfg(feature = "websocket")]
+    {
+        let ws_factory = std::sync::Arc::new(websocket::WebSocketTransportFactory);
+        if let Err(e) = registry.register("websocket", ws_factory) {
+            eprintln!("Failed to register WebSocket transport: {}", e);
+        }
+    }
+    
+    // Register HTTP streaming transport (when feature enabled)
+    #[cfg(feature = "http-stream")]
+    {
+        let http_stream_factory = std::sync::Arc::new(http_stream::HttpStreamTransportFactory);
+        if let Err(e) = registry.register("http-stream", http_stream_factory) {
+            eprintln!("Failed to register HTTP streaming transport: {}", e);
+        }
+    }
+    
     // Future transports will be registered here:
-    // - WebSocket transport (when feature = "websocket" is enabled)
-    // - HTTP streaming (when feature = "http-stream" is enabled)
     // - RPC transport (when feature = "rpc" is enabled)
 }
 
@@ -112,5 +146,11 @@ mod tests {
         
         #[cfg(feature = "sse")]
         assert!(available.contains(&"sse".to_string()));
+        
+        #[cfg(feature = "websocket")]
+        assert!(available.contains(&"websocket".to_string()));
+        
+        #[cfg(feature = "http-stream")]
+        assert!(available.contains(&"http-stream".to_string()));
     }
 }
