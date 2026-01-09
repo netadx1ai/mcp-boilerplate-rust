@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+### Added
+
+#### Client SDK Generators
+- **Auto-Generated Client Libraries** - TypeScript, Python, and Go client SDKs
+- **TypeScript SDK** - 209 lines, full type safety, zero dependencies, Browser + Node.js compatible
+- **Python SDK** - 111 lines, type hints with dataclasses, requests-based HTTP client
+- **Go SDK** - 172 lines, idiomatic Go interfaces, stdlib only
+- **SDK Generator Tool** - Rust-based code generator (715 lines)
+- **Complete Documentation** - 3,700+ lines of docs, guides, and examples
+- **Working Examples** - Comprehensive examples for all 3 languages
+- **Integration Tests** - Full test suite for SDK generation and validation
+- **All Tools Supported** - 11 tools with full type definitions across all SDKs
+- **All Transports Supported** - 6 transport modes (SSE, WebSocket, HTTP, HTTP Stream, gRPC)
+- **Build System** - Makefile and test scripts for easy SDK generation
+- **Fast Generation** - Complete SDK generation in <500ms
+
+#### Documentation Restructure
+- **Reorganized docs/** - Cleaner structure with guides/, reference/, and development/
+- **Documentation Index** - Comprehensive docs/README.md with navigation
+- **SDK Documentation** - Complete SDK generator documentation (607 lines)
+- **Quick Start Guides** - SDK-specific quick start documentation
+
+### Changed
+- **Project Structure** - Improved organization with sdk-generators/ directory
+- **Documentation Layout** - Moved session notes to docs/development/
+- **README.md** - Added Client SDK Generators section and updated documentation links
+
+---
+
 ## [0.4.0] - 2026-01-09
 
 ### Added

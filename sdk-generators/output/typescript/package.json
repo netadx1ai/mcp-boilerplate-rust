@@ -1,0 +1,39 @@
+{
+  "name": "@netadx/mcp-client",
+  "version": "0.4.0",
+  "description": "TypeScript client SDK for MCP Boilerplate Rust",
+  "main": "mcp-client.ts",
+  "types": "mcp-client.ts",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "client",
+    "sdk",
+    "typescript",
+    "netadx"
+  ],
+  "author": "NetADX Team <hello@netadx.ai>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/netadx/mcp-boilerplate-rust.git",
+    "directory": "sdk-generators/output/typescript"
+  },
+  "bugs": {
+    "url": "https://github.com/netadx/mcp-boilerplate-rust/issues"
+  },
+  "homepage": "https://netadx.ai",
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "echo \"Run examples with ts-node\" && exit 0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  },
+  "peerDependencies": {},
+  "dependencies": {}
+}

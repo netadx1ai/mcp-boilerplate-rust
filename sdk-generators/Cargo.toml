@@ -1,0 +1,18 @@
+[package]
+name = "mcp-sdk-generator"
+version = "0.4.0"
+edition = "2021"
+authors = ["NetADX Team <hello@netadx.ai>"]
+description = "SDK generator for MCP Boilerplate Rust clients"
+license = "MIT"
+repository = "https://github.com/netadx/mcp-boilerplate-rust"
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true

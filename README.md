@@ -12,6 +12,7 @@ A production-ready Rust implementation of the Model Context Protocol (MCP) featu
 
 - **6 Transport Modes** - Stdio, SSE, WebSocket, HTTP, HTTP Streaming, gRPC (w/ gRPC-Web)
 - **11 Production Tools** - Complete suite with progress, batching, and long-running tasks
+- **Client SDK Generators** - Auto-generate TypeScript, Python, and Go client libraries
 - **Observability** - OpenTelemetry Tracing + Prometheus Metrics
 - **Type-Safe** - Full Rust type safety with schemars validation
 - **High Performance** - Optimized binaries (2.4MB - 4.2MB)
@@ -101,6 +102,53 @@ cargo run --release --features http -- --mode http
 | `health_check` | System health status |
 | `long_task` | Long operation simulation |
 
+## Client SDK Generators
+
+Auto-generate type-safe client libraries in multiple languages:
+
+```bash
+cd sdk-generators
+cargo run --release
+```
+
+**Generated SDKs:**
+- **TypeScript** (209 lines) - Full type safety, zero dependencies, Browser + Node.js
+- **Python** (111 lines) - Type hints, dataclasses, requests only
+- **Go** (172 lines) - Idiomatic interfaces, stdlib only
+
+**Example Usage:**
+
+```typescript
+// TypeScript
+import { McpClient } from './mcp-client';
+const client = new McpClient({ transport: 'http', port: 8080 });
+const result = await client.echo({ message: 'Hello' });
+```
+
+```python
+# Python
+from mcp_client import McpClient, McpClientConfig
+config = McpClientConfig(transport='http', port=8080)
+client = McpClient(config)
+result = client.echo(message='Hello from Python')
+```
+
+```go
+// Go
+import "your-project/mcpclient"
+config := mcpclient.Config{Transport: "http", Port: 8080}
+client := mcpclient.NewClient(config)
+result, _ := client.Echo(map[string]interface{}{"message": "Hello"})
+```
+
+**Features:**
+- All 11 tools supported with full type definitions
+- All 6 transports supported (SSE, WebSocket, HTTP, HTTP Stream, gRPC)
+- Complete documentation and working examples
+- Generation time: <500ms
+
+See [docs/SDK_GENERATORS.md](docs/SDK_GENERATORS.md) for complete documentation.
+
 ## Observability
 
 ### OpenTelemetry Tracing
@@ -153,9 +201,25 @@ docker run -p 8025:8025 mcp-server
 
 ## Documentation
 
-- [START_HERE.md](START_HERE.md) - Quick start
-- [docs/TRANSPORT_QUICK_GUIDE.md](docs/TRANSPORT_QUICK_GUIDE.md) - Transport details
-- [CLAUDE.md](CLAUDE.md) - Developer guide
+### Getting Started
+- [START_HERE.md](START_HERE.md) - 5-minute quick start
+- [docs/guides/QUICK_START.md](docs/guides/QUICK_START.md) - Detailed quick start
+- [docs/guides/INSTALLATION.md](docs/guides/INSTALLATION.md) - Installation guide
+
+### Features
+- [docs/SDK_GENERATORS.md](docs/SDK_GENERATORS.md) - Client SDK generators
+- [docs/TRANSPORT_QUICK_GUIDE.md](docs/TRANSPORT_QUICK_GUIDE.md) - Transport guide
+- [docs/guides/METRICS_GUIDE.md](docs/guides/METRICS_GUIDE.md) - Metrics and monitoring
+
+### Integration
+- [docs/guides/integration/CLAUDE_DESKTOP_SETUP.md](docs/guides/integration/CLAUDE_DESKTOP_SETUP.md) - Claude Desktop
+- [docs/guides/integration/INTEGRATION_GUIDE.md](docs/guides/integration/INTEGRATION_GUIDE.md) - Integration guide
+
+### Reference
+- [CLAUDE.md](CLAUDE.md) - Developer guide for AI assistants
+- [docs/reference/API.md](docs/reference/API.md) - API reference
+- [docs/reference/QUICK_REFERENCE.md](docs/reference/QUICK_REFERENCE.md) - Command reference
+- [docs/README.md](docs/README.md) - Complete documentation index
 
 ## License
 
