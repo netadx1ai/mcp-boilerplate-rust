@@ -4,6 +4,10 @@ use serde_json::{json, Value};
 use std::fs;
 use std::path::Path;
 
+mod generators {
+    pub mod rust_gen;
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct ToolSchema {
     name: String,
@@ -690,10 +694,14 @@ impl SdkGenerator {
         let go_code = self.generate_go();
         self.write_to_file(&go_code, &output_dir.join("go/mcpclient/client.go"))?;
         
+        // Generate Rust SDK (Race Car Edition 🏎️)
+        self.save_rust_sdk("output")?;
+        
         println!("SDK generation complete!");
         println!("  - TypeScript: output/typescript/mcp-client.ts");
         println!("  - Python:     output/python/mcp_client.py");
         println!("  - Go:         output/go/mcpclient/client.go");
+        println!("  - Rust:       output/rust/mcp_client.rs (Race Car Edition 🏎️)");
         
         Ok(())
     }

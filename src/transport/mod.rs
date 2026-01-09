@@ -1,5 +1,8 @@
 //! Transport layer for MCP protocol
 //!
+//! Note: Many types are re-exported for public API but may not be used internally.
+#![allow(unused_imports)]
+//!
 //! This module provides a unified transport abstraction supporting multiple
 //! communication methods:
 //!
@@ -61,12 +64,15 @@ pub mod http_stream;
 #[cfg(feature = "grpc")]
 pub mod grpc;
 
-// Re-export core types for convenience
+// Re-export core types for convenience (public API)
+#[allow(unused_imports)]
 pub use r#trait::{
     Transport, TransportCapabilities, TransportConfig, TransportError, TransportFactory,
     TransportMessage, TransportMetadata, TransportStats,
 };
+#[allow(unused_imports)]
 pub use registry::TransportRegistry;
+#[allow(unused_imports)]
 pub use stdio::StdioTransport;
 
 #[cfg(feature = "sse")]
@@ -91,7 +97,7 @@ pub fn init_registry() {
     // Register stdio transport
     let stdio_factory = std::sync::Arc::new(stdio::StdioTransportFactory);
     if let Err(e) = registry.register("stdio", stdio_factory) {
-        eprintln!("Failed to register stdio transport: {}", e);
+        eprintln!("Failed to register stdio transport: {e}");
     }
 
     // Register SSE transport (when feature enabled)

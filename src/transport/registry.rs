@@ -3,6 +3,9 @@
 //! This module provides a registry for registering and retrieving transport
 //! implementations at runtime. Supports dynamic transport selection based on
 //! configuration.
+//!
+//! Note: Some methods are defined for public API but may not be used internally.
+#![allow(dead_code)]
 
 use super::r#trait::{Transport, TransportConfig, TransportError, TransportFactory};
 use std::collections::HashMap;
@@ -39,12 +42,11 @@ impl TransportRegistry {
         let mut factories = self
             .factories
             .write()
-            .map_err(|e| TransportError::Other(format!("Failed to acquire write lock: {}", e)))?;
+            .map_err(|e| TransportError::Other(format!("Failed to acquire write lock: {e}")))?;
 
         if factories.contains_key(&transport_type) {
             return Err(TransportError::ConfigError(format!(
-                "Transport type '{}' already registered",
-                transport_type
+                "Transport type '{transport_type}' already registered"
             )));
         }
 
@@ -63,7 +65,7 @@ impl TransportRegistry {
         let factories = self
             .factories
             .read()
-            .map_err(|e| TransportError::Other(format!("Failed to acquire read lock: {}", e)))?;
+            .map_err(|e| TransportError::Other(format!("Failed to acquire read lock: {e}")))?;
 
         let factory = factories.get(&config.transport_type).ok_or_else(|| {
             TransportError::ConfigError(format!(
@@ -100,8 +102,8 @@ impl TransportRegistry {
     pub fn global() -> &'static Self {
         static INSTANCE: std::sync::OnceLock<TransportRegistry> = std::sync::OnceLock::new();
         INSTANCE.get_or_init(|| {
-            let registry = TransportRegistry::new();
-            registry
+            
+            TransportRegistry::new()
         })
     }
 }

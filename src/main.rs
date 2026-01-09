@@ -9,11 +9,14 @@ mod tools;
 mod transport;
 mod types;
 mod utils;
+mod loadbalancer;
 
 #[cfg(feature = "http")]
 mod middleware;
 
 use mcp::McpServer;
+#[cfg(feature = "http")]
+use mcp::protocol_handler::ProtocolHandler;
 use utils::Logger;
 
 #[cfg(feature = "sse")]
@@ -46,8 +49,6 @@ use axum::{
 use serde_json::json;
 #[cfg(feature = "http")]
 use std::sync::Arc;
-#[cfg(feature = "http")]
-use tools::{echo::EchoTool, shared::*};
 
 #[derive(Debug, Clone, ValueEnum)]
 enum ServerMode {
@@ -202,14 +203,12 @@ async fn run_http_server() -> Result<()> {
     };
     use tower_http::cors::{Any, CorsLayer};
 
-    use types::AppState;
     use utils::Config;
 
     let config = Config::from_env();
     config.validate()?;
 
-    let state = Arc::new(AppState::new());
-    let echo_tool = Arc::new(EchoTool::new());
+    let protocol_handler = Arc::new(ProtocolHandler::new());
 
     let cors = CorsLayer::new()
         .allow_origin(Any)
@@ -219,40 +218,21 @@ async fn run_http_server() -> Result<()> {
     let app = Router::new()
         .route("/", get(health_check))
         .route("/health", get(health_check))
-        .route("/tools", get(list_tools))
-        .route(
-            "/tools/echo",
-            post({
-                let tool = Arc::clone(&echo_tool);
-                move |payload| handle_echo_tool(tool, payload)
-            }),
-        )
-        .route(
-            "/tools/ping",
-            post({
-                let tool = Arc::clone(&echo_tool);
-                move |payload| handle_ping_tool(tool, payload)
-            }),
-        )
-        .route(
-            "/tools/info",
-            post({
-                let tool = Arc::clone(&echo_tool);
-                move |payload| handle_info_tool(tool, payload)
-            }),
-        )
+        .route("/tools", get(list_tools_handler))
+        .route("/tools/call", post(call_tool_handler))
+        .route("/rpc", post(rpc_handler))
         .layer(cors)
-        .with_state(state);
+        .with_state(protocol_handler);
 
     let addr = format!("{}:{}", config.host, config.port);
     info!("MCP HTTP Server starting on {}", addr);
-    info!("Protocol: MCP v5 (HTTP wrapper)");
+    info!("Protocol: MCP 2025-03-26 (HTTP wrapper)");
+    info!("Tools: 11 available");
     info!("Endpoints:");
     info!("  GET  /health");
     info!("  GET  /tools");
-    info!("  POST /tools/echo");
-    info!("  POST /tools/ping");
-    info!("  POST /tools/info");
+    info!("  POST /tools/call");
+    info!("  POST /rpc (JSON-RPC)");
 
     let listener = tokio::net::TcpListener::bind(&addr).await?;
     axum::serve(listener, app).await?;
@@ -273,173 +253,89 @@ async fn health_check() -> impl IntoResponse {
 }
 
 #[cfg(feature = "http")]
-async fn list_tools() -> impl IntoResponse {
-    Json(json!({
-        "tools": [
-            {
-                "name": "echo",
-                "description": "Echo back a message",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "message": {
-                            "type": "string",
-                            "description": "Message to echo back"
-                        }
-                    },
-                    "required": ["message"]
-                },
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "message": {
-                            "type": "string",
-                            "description": "Message to echo back"
-                        }
-                    },
-                    "required": ["message"]
-                }
-            },
-            {
-                "name": "ping",
-                "description": "Simple ping-pong test",
-                "parameters": {
-                    "type": "object",
-                    "properties": {}
-                },
-                "input_schema": {
-                    "type": "object",
-                    "properties": {}
-                }
-            },
-            {
-                "name": "info",
-                "description": "Get tool information",
-                "parameters": {
-                    "type": "object",
-                    "properties": {}
-                },
-                "input_schema": {
-                    "type": "object",
-                    "properties": {}
-                }
-            }
-        ]
-    }))
-}
-
-#[cfg(feature = "http")]
-async fn handle_echo_tool(
-    tool: Arc<EchoTool>,
-    Json(payload): Json<serde_json::Value>,
+async fn list_tools_handler(
+    axum::extract::State(handler): axum::extract::State<Arc<ProtocolHandler>>,
 ) -> impl IntoResponse {
-    match serde_json::from_value::<EchoRequest>(payload) {
-        Ok(req) => {
-            let params = rmcp::handler::server::wrapper::Parameters(req);
-            match tool.echo(params).await {
-                Ok(result) => (
-                    StatusCode::OK,
-                    Json(json!({
-                        "content": [{
-                            "type": "text",
-                            "text": serde_json::to_string_pretty(&result.0).unwrap()
-                        }],
-                        "is_error": false,
-                        "timestamp": chrono::Utc::now().to_rfc3339()
-                    })),
-                )
-                    .into_response(),
-                Err(e) => (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    Json(json!({
-                        "content": [{
-                            "type": "text",
-                            "text": e.message
-                        }],
-                        "is_error": true,
-                        "timestamp": chrono::Utc::now().to_rfc3339()
-                    })),
-                )
-                    .into_response(),
+    let request = json!({
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "tools/list",
+        "params": {}
+    });
+    
+    match handler.handle_request(&request.to_string()).await {
+        Ok(response) => {
+            let parsed: serde_json::Value = serde_json::from_str(&response).unwrap_or(json!({"error": "parse error"}));
+            if let Some(result) = parsed.get("result") {
+                (StatusCode::OK, Json(result.clone())).into_response()
+            } else {
+                (StatusCode::OK, Json(parsed)).into_response()
             }
         }
         Err(e) => (
-            StatusCode::BAD_REQUEST,
-            Json(json!({
-                "content": [{
-                    "type": "text",
-                    "text": format!("Invalid request: {}", e)
-                }],
-                "is_error": true,
-                "timestamp": chrono::Utc::now().to_rfc3339()
-            })),
-        )
-            .into_response(),
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({"error": e.to_string()})),
+        ).into_response(),
     }
 }
 
 #[cfg(feature = "http")]
-async fn handle_ping_tool(
-    tool: Arc<EchoTool>,
-    Json(_payload): Json<serde_json::Value>,
+async fn call_tool_handler(
+    axum::extract::State(handler): axum::extract::State<Arc<ProtocolHandler>>,
+    Json(payload): Json<serde_json::Value>,
 ) -> impl IntoResponse {
-    match tool.ping().await {
-        Ok(result) => (
-            StatusCode::OK,
-            Json(json!({
-                "content": [{
-                    "type": "text",
-                    "text": serde_json::to_string_pretty(&result.0).unwrap()
-                }],
-                "is_error": false,
-                "timestamp": chrono::Utc::now().to_rfc3339()
-            })),
-        )
-            .into_response(),
+    // Extract tool name and arguments from payload
+    let tool_name = payload.get("name").and_then(|v| v.as_str()).unwrap_or("");
+    let arguments = payload.get("arguments").cloned().unwrap_or(json!({}));
+    
+    let request = json!({
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "tools/call",
+        "params": {
+            "name": tool_name,
+            "arguments": arguments
+        }
+    });
+    
+    match handler.handle_request(&request.to_string()).await {
+        Ok(response) => {
+            let parsed: serde_json::Value = serde_json::from_str(&response).unwrap_or(json!({"error": "parse error"}));
+            if let Some(result) = parsed.get("result") {
+                (StatusCode::OK, Json(result.clone())).into_response()
+            } else if let Some(error) = parsed.get("error") {
+                (StatusCode::BAD_REQUEST, Json(error.clone())).into_response()
+            } else {
+                (StatusCode::OK, Json(parsed)).into_response()
+            }
+        }
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({
-                "content": [{
-                    "type": "text",
-                    "text": e.message
-                }],
-                "is_error": true,
-                "timestamp": chrono::Utc::now().to_rfc3339()
-            })),
-        )
-            .into_response(),
+            Json(json!({"error": e.to_string()})),
+        ).into_response(),
     }
 }
 
 #[cfg(feature = "http")]
-async fn handle_info_tool(
-    tool: Arc<EchoTool>,
-    Json(_payload): Json<serde_json::Value>,
+async fn rpc_handler(
+    axum::extract::State(handler): axum::extract::State<Arc<ProtocolHandler>>,
+    body: String,
 ) -> impl IntoResponse {
-    match tool.info().await {
-        Ok(result) => (
+    match handler.handle_request(&body).await {
+        Ok(response) => (
             StatusCode::OK,
-            Json(json!({
-                "content": [{
-                    "type": "text",
-                    "text": serde_json::to_string_pretty(&result.0).unwrap()
-                }],
-                "is_error": false,
-                "timestamp": chrono::Utc::now().to_rfc3339()
-            })),
-        )
-            .into_response(),
+            [(axum::http::header::CONTENT_TYPE, "application/json")],
+            response,
+        ).into_response(),
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(json!({
-                "content": [{
-                    "type": "text",
-                    "text": e.message
-                }],
-                "is_error": true,
-                "timestamp": chrono::Utc::now().to_rfc3339()
+                "jsonrpc": "2.0",
+                "error": {
+                    "code": -32603,
+                    "message": e.to_string()
+                }
             })),
-        )
-            .into_response(),
+        ).into_response(),
     }
 }

@@ -395,10 +395,8 @@ mod tests {
 
     #[test]
     fn test_transform_operations() {
-        let data = vec![
-            serde_json::Value::String("hello".to_string()),
-            serde_json::Value::String("world".to_string()),
-        ];
+        let data = [serde_json::Value::String("hello".to_string()),
+            serde_json::Value::String("world".to_string())];
 
         assert_eq!(data.len(), 2);
     }

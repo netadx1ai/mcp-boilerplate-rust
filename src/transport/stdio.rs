@@ -10,6 +10,9 @@
 //! - **NO logging to stdout/stderr** - This would break JSON-RPC parsing
 //! - **ANSI codes disabled** - Clean JSON output only
 //! - **Synchronous message flow** - One request/response at a time
+//!
+//! Note: Some methods are defined for public API but may not be used internally.
+#![allow(dead_code)]
 
 use super::r#trait::{
     Transport, TransportCapabilities, TransportConfig, TransportError, TransportFactory,

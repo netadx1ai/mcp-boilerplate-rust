@@ -3,6 +3,9 @@
 //! This module provides a unified protocol handler that uses rmcp types consistently
 //! across all transports (stdio, SSE, WebSocket, HTTP streaming).
 //!
+//! Note: Methods are used by feature-gated servers (SSE, WebSocket, HTTP, gRPC).
+#![allow(dead_code)]
+//!
 //! # Design Goals
 //!
 //! 1. **Type Safety**: Use rmcp::model types instead of manual JSON parsing
@@ -38,11 +41,15 @@
 //! ```
 
 use anyhow::Result;
-use rmcp::{handler::server::tool::ToolRouter, model::*, task_manager::OperationProcessor};
+use rmcp::model::{
+    InitializeResult, Implementation, PromptsCapability, ProtocolVersion, ResourcesCapability,
+    ServerCapabilities, Tool, ToolsCapability,
+};
 use serde_json::{json, Value};
 use std::sync::Arc;
-use tokio::sync::Mutex;
 use tracing::{error, info, instrument};
+
+type JsonObject = serde_json::Map<String, Value>;
 
 use crate::metrics;
 
@@ -54,21 +61,17 @@ fn value_to_schema(value: Value) -> Arc<JsonObject> {
     }
 }
 
-use crate::prompts::PromptRegistry;
+use crate::prompts::get_available_prompts;
 use crate::resources::ResourceRegistry;
 use crate::tools::calculator::{CalculateResponse, EvaluateResponse};
 use crate::tools::shared::*;
 
-/// Protocol handler with rmcp integration
+/// Protocol handler for non-stdio transports
 ///
-/// Wraps the same McpServer used by stdio but provides JSON-RPC interface
-/// for non-stdio transports (SSE, WebSocket, HTTP streaming).
+/// Provides JSON-RPC interface for SSE, WebSocket, HTTP streaming, and gRPC.
 #[derive(Clone)]
 pub struct ProtocolHandler {
-    tool_router: ToolRouter<Self>,
-    prompt_registry: PromptRegistry,
     resource_registry: ResourceRegistry,
-    processor: Arc<Mutex<OperationProcessor>>,
     server_info: ServerInfo,
 }
 
@@ -92,22 +95,8 @@ impl ProtocolHandler {
     /// Create a new protocol handler
     pub fn new() -> Self {
         Self {
-            tool_router: ToolRouter::new(),
-            prompt_registry: PromptRegistry::new(),
             resource_registry: ResourceRegistry::new(),
-            processor: Arc::new(Mutex::new(OperationProcessor::new())),
             server_info: ServerInfo::default(),
-        }
-    }
-
-    /// Create with custom server info
-    pub fn with_server_info(server_info: ServerInfo) -> Self {
-        Self {
-            tool_router: ToolRouter::new(),
-            prompt_registry: PromptRegistry::new(),
-            resource_registry: ResourceRegistry::new(),
-            processor: Arc::new(Mutex::new(OperationProcessor::new())),
-            server_info,
         }
     }
 
@@ -121,7 +110,7 @@ impl ProtocolHandler {
 
         // Parse JSON-RPC request
         let request: Value = serde_json::from_str(request_json)
-            .map_err(|e| anyhow::anyhow!("Invalid JSON: {}", e))?;
+            .map_err(|e| anyhow::anyhow!("Invalid JSON: {e}"))?;
 
         let id = request.get("id").cloned();
         let method = request
@@ -144,7 +133,7 @@ impl ProtocolHandler {
             "resources/read" => self.handle_read_resource(id, request).await,
             "resources/templates/list" => self.handle_list_resource_templates(id).await,
             "ping" => self.handle_ping(id).await,
-            _ => self.error_response(id, -32601, format!("Method not found: {}", method)),
+            _ => self.error_response(id, -32601, format!("Method not found: {method}")),
         };
 
         // Record metrics
@@ -474,7 +463,7 @@ impl ProtocolHandler {
             "transform_data" => self.execute_transform_data(arguments).await,
             "simulate_upload" => self.execute_simulate_upload(arguments).await,
             "health_check" => self.execute_health_check().await,
-            _ => Err(format!("Unknown tool: {}", tool_name)),
+            _ => Err(format!("Unknown tool: {tool_name}")),
         };
 
         // Record metrics
@@ -499,7 +488,21 @@ impl ProtocolHandler {
     async fn handle_list_prompts(&self, id: Option<Value>) -> Value {
         info!("List prompts request");
 
-        let prompts = self.prompt_registry.list_prompts();
+        let templates = get_available_prompts();
+        let prompts: Vec<Value> = templates
+            .iter()
+            .map(|t| {
+                json!({
+                    "name": t.name,
+                    "description": t.description,
+                    "arguments": t.arguments.iter().map(|a| json!({
+                        "name": a.name,
+                        "description": a.description,
+                        "required": a.required
+                    })).collect::<Vec<_>>()
+                })
+            })
+            .collect();
 
         json!({
             "jsonrpc": "2.0",
@@ -522,17 +525,97 @@ impl ProtocolHandler {
             None => return self.error_response(id, -32602, "Missing prompt name".to_string()),
         };
 
-        match self
-            .prompt_registry
-            .get_prompt(prompt_name, &std::collections::HashMap::new())
-        {
-            Ok(prompt) => json!({
-                "jsonrpc": "2.0",
-                "id": id,
-                "result": prompt
-            }),
-            Err(e) => self.error_response(id, -32602, e.to_string()),
-        }
+        let arguments = params
+            .get("arguments")
+            .and_then(|v| v.as_object())
+            .map(|m| {
+                m.iter()
+                    .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
+                    .collect::<std::collections::HashMap<_, _>>()
+            })
+            .unwrap_or_default();
+
+        // Generate prompt based on name
+        let result = match prompt_name {
+            "code_review" => {
+                let language = arguments.get("language").map(|s| s.as_str()).unwrap_or("code");
+                let focus = arguments.get("focus").map(|s| s.as_str()).unwrap_or("general");
+                json!({
+                    "description": format!("Code review prompt for {} with focus on {}", language, focus),
+                    "messages": [{
+                        "role": "user",
+                        "content": {
+                            "type": "text",
+                            "text": format!(
+                                "Please review the following {} code with a focus on {}. \
+                                Provide detailed feedback on:\n\
+                                1. Code quality and best practices\n\
+                                2. Potential bugs or issues\n\
+                                3. Performance considerations\n\
+                                4. Security vulnerabilities\n\
+                                5. Suggestions for improvement",
+                                language, focus
+                            )
+                        }
+                    }]
+                })
+            }
+            "explain_code" => {
+                let complexity = arguments.get("complexity").map(|s| s.as_str()).unwrap_or("intermediate");
+                let level_desc = match complexity {
+                    "beginner" => "in simple terms suitable for beginners",
+                    "advanced" => "with technical depth for experienced developers",
+                    _ => "at an intermediate level",
+                };
+                json!({
+                    "description": format!("Code explanation prompt at {} level", complexity),
+                    "messages": [{
+                        "role": "user",
+                        "content": {
+                            "type": "text",
+                            "text": format!(
+                                "Please explain the following code {}. Include:\n\
+                                1. What the code does\n\
+                                2. How it works step by step\n\
+                                3. Key concepts and patterns used\n\
+                                4. Any important considerations",
+                                level_desc
+                            )
+                        }
+                    }]
+                })
+            }
+            "debug_help" => {
+                let error_type = arguments.get("error_type").map(|s| s.as_str()).unwrap_or("general");
+                json!({
+                    "description": format!("Debug assistance prompt for {} errors", error_type),
+                    "messages": [{
+                        "role": "user",
+                        "content": {
+                            "type": "text",
+                            "text": format!(
+                                "Help me debug this {} error. Please:\n\
+                                1. Analyze the error message and code\n\
+                                2. Identify the root cause\n\
+                                3. Suggest specific fixes\n\
+                                4. Explain why the error occurred\n\
+                                5. Recommend preventive measures",
+                                error_type
+                            )
+                        }
+                    }]
+                })
+            }
+            _ => {
+                return self.error_response(id, -32602, format!("Unknown prompt: {prompt_name}"));
+            }
+        };
+
+        json!({
+            "jsonrpc": "2.0",
+            "id": id,
+            "result": result
+        })
     }
 
     /// Handle resources/list request
@@ -619,7 +702,7 @@ impl ProtocolHandler {
             .ok_or("Missing message parameter")?;
 
         let response =
-            create_echo_response(message.to_string()).map_err(|e| format!("Echo error: {}", e))?;
+            create_echo_response(message.to_string()).map_err(|e| format!("Echo error: {e}"))?;
 
         Ok(vec![json!({
             "type": "text",
@@ -671,7 +754,7 @@ impl ProtocolHandler {
             }
             "modulo" => a % b,
             "power" => a.powf(b),
-            _ => return Err(format!("Unknown operation: {}", operation)),
+            _ => return Err(format!("Unknown operation: {operation}")),
         };
 
         let response = CalculateResponse {
@@ -697,7 +780,7 @@ impl ProtocolHandler {
         // Simple expression evaluator (reuse from stdio_server.rs logic)
         let result = self
             .evaluate_expression(expression)
-            .map_err(|e| format!("Evaluation error: {}", e))?;
+            .map_err(|e| format!("Evaluation error: {e}"))?;
 
         let response = EvaluateResponse {
             expression: expression.to_string(),
@@ -786,7 +869,7 @@ impl ProtocolHandler {
             .ok_or("Missing transformation parameter")?;
 
         let response = create_transform_response(data.to_string(), transformation.to_string())
-            .map_err(|e| format!("Transform error: {}", e))?;
+            .map_err(|e| format!("Transform error: {e}"))?;
 
         Ok(vec![json!({
             "type": "text",
@@ -806,7 +889,7 @@ impl ProtocolHandler {
             .ok_or("Missing size_bytes parameter")?;
 
         let response = create_upload_response(filename.to_string(), size_bytes)
-            .map_err(|e| format!("Upload error: {}", e))?;
+            .map_err(|e| format!("Upload error: {e}"))?;
 
         Ok(vec![json!({
             "type": "text",
@@ -947,7 +1030,7 @@ mod tests {
         let handler = ProtocolHandler::new();
         let request = r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}"#;
         let response = handler.handle_request(request).await.unwrap();
-        println!("Response: {}", response);
+        println!("Response: {response}");
         assert!(response.contains("protocolVersion") || response.contains("protocol_version"));
         assert!(response.contains("capabilities"));
     }

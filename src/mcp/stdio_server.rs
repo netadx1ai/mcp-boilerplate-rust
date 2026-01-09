@@ -1,28 +1,25 @@
 use anyhow::Result;
 use rmcp::{
     handler::server::{
+        router::prompt::PromptRouter,
         tool::ToolRouter,
         wrapper::{Json, Parameters},
     },
     model::*,
+    prompt, prompt_handler, prompt_router,
     service::RequestContext,
-    // task_handler, // TODO: Enable when task lifecycle is fully implemented
+    task_handler,
     task_manager::OperationProcessor,
-    tool,
-    tool_handler,
-    tool_router,
-    ErrorData as McpError,
-    RoleServer,
-    ServerHandler,
-    ServiceExt,
+    tool, tool_handler, tool_router,
+    ErrorData as McpError, RoleServer, ServerHandler, ServiceExt,
 };
-use std::collections::HashMap;
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tracing::{info, instrument};
 
 use crate::metrics;
-use crate::prompts::PromptRegistry;
 use crate::resources::ResourceRegistry;
 use crate::tools::{
     advanced::*,
@@ -30,25 +27,51 @@ use crate::tools::{
     shared::*,
 };
 
+// Prompt argument types
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct CodeReviewArgs {
+    /// Programming language (e.g., rust, python, javascript)
+    pub language: String,
+    /// Review focus area (e.g., security, performance, style)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub focus: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct ExplainCodeArgs {
+    /// Explanation level (beginner, intermediate, advanced)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub complexity: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct DebugHelpArgs {
+    /// Type of error (compile, runtime, logic)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error_type: Option<String>,
+}
+
 #[derive(Clone)]
 pub struct McpServer {
     tool_router: ToolRouter<Self>,
-    prompt_registry: PromptRegistry,
+    prompt_router: PromptRouter<Self>,
     resource_registry: ResourceRegistry,
-    #[allow(dead_code)] // Reserved for future task lifecycle implementation (SEP-1686)
     processor: Arc<Mutex<OperationProcessor>>,
 }
 
 #[tool_router]
+#[prompt_router]
 impl McpServer {
     pub fn new() -> Self {
         Self {
             tool_router: Self::tool_router(),
-            prompt_registry: PromptRegistry::new(),
+            prompt_router: Self::prompt_router(),
             resource_registry: ResourceRegistry::new(),
             processor: Arc::new(Mutex::new(OperationProcessor::new())),
         }
     }
+
+    // ==================== TOOLS ====================
 
     #[tool(description = "Echo back a message")]
     #[instrument(skip(self, _ctx), fields(tool = "echo"))]
@@ -60,7 +83,6 @@ impl McpServer {
         let start_time = std::time::Instant::now();
         info!("Echo: {}", req.message);
 
-        // Validation: Return tool execution error for LLM self-correction
         if req.message.is_empty() {
             metrics::record_tool_invocation("echo", "error", start_time.elapsed().as_secs_f64());
             return Err(McpError::invalid_params(
@@ -303,12 +325,107 @@ impl McpServer {
         AdvancedTool::health_check(ctx).await
     }
 
+    // ==================== PROMPTS ====================
+
+    /// Generate a code review prompt for analyzing code quality
+    #[prompt(name = "code_review")]
+    async fn code_review_prompt(
+        &self,
+        Parameters(args): Parameters<CodeReviewArgs>,
+        _ctx: RequestContext<RoleServer>,
+    ) -> Result<GetPromptResult, McpError> {
+        let focus = args.focus.unwrap_or_else(|| "general".to_string());
+
+        let messages = vec![PromptMessage::new_text(
+            PromptMessageRole::User,
+            format!(
+                "Please review the following {} code with a focus on {}. \
+                Provide detailed feedback on:\n\
+                1. Code quality and best practices\n\
+                2. Potential bugs or issues\n\
+                3. Performance considerations\n\
+                4. Security vulnerabilities\n\
+                5. Suggestions for improvement",
+                args.language, focus
+            ),
+        )];
+
+        Ok(GetPromptResult {
+            description: Some(format!(
+                "Code review prompt for {} with focus on {}",
+                args.language, focus
+            )),
+            messages,
+        })
+    }
+
+    /// Generate a prompt to explain code functionality
+    #[prompt(name = "explain_code")]
+    async fn explain_code_prompt(
+        &self,
+        Parameters(args): Parameters<ExplainCodeArgs>,
+        _ctx: RequestContext<RoleServer>,
+    ) -> Result<GetPromptResult, McpError> {
+        let complexity = args.complexity.unwrap_or_else(|| "intermediate".to_string());
+
+        let level_desc = match complexity.as_str() {
+            "beginner" => "in simple terms suitable for beginners",
+            "advanced" => "with technical depth for experienced developers",
+            _ => "at an intermediate level",
+        };
+
+        let messages = vec![PromptMessage::new_text(
+            PromptMessageRole::User,
+            format!(
+                "Please explain the following code {level_desc}. Include:\n\
+                1. What the code does\n\
+                2. How it works step by step\n\
+                3. Key concepts and patterns used\n\
+                4. Any important considerations"
+            ),
+        )];
+
+        Ok(GetPromptResult {
+            description: Some(format!("Code explanation prompt at {complexity} level")),
+            messages,
+        })
+    }
+
+    /// Generate a debugging assistance prompt
+    #[prompt(name = "debug_help")]
+    async fn debug_help_prompt(
+        &self,
+        Parameters(args): Parameters<DebugHelpArgs>,
+        _ctx: RequestContext<RoleServer>,
+    ) -> Result<GetPromptResult, McpError> {
+        let error_type = args.error_type.unwrap_or_else(|| "general".to_string());
+
+        let messages = vec![PromptMessage::new_text(
+            PromptMessageRole::User,
+            format!(
+                "Help me debug this {error_type} error. Please:\n\
+                1. Analyze the error message and code\n\
+                2. Identify the root cause\n\
+                3. Suggest specific fixes\n\
+                4. Explain why the error occurred\n\
+                5. Recommend preventive measures"
+            ),
+        )];
+
+        Ok(GetPromptResult {
+            description: Some(format!("Debug assistance prompt for {error_type} errors")),
+            messages,
+        })
+    }
+
+    // ==================== SERVER ====================
+
     #[instrument(skip(self))]
     pub async fn run(self) -> Result<()> {
         info!("Starting MCP stdio server");
         info!("Protocol: MCP 2025-03-26");
-        info!("Using rmcp SDK (local)");
-        info!("Capabilities: Tools (11) | Prompts (3) | Resources (4) | Progress");
+        info!("Using rmcp SDK");
+        info!("Capabilities: Tools (11) | Prompts (3) | Resources (4) | Tasks");
         info!("Ready to receive MCP requests");
 
         let service = self.serve(rmcp::transport::stdio()).await?;
@@ -324,6 +441,9 @@ impl Default for McpServer {
     }
 }
 
+#[tool_handler]
+#[prompt_handler]
+#[task_handler]
 impl ServerHandler for McpServer {
     fn get_info(&self) -> ServerInfo {
         ServerInfo {
@@ -332,10 +452,16 @@ impl ServerHandler for McpServer {
                 .enable_tools()
                 .enable_prompts()
                 .enable_resources()
+                .enable_tasks()
                 .build(),
             server_info: Implementation::from_build_env(),
             instructions: Some(
-                "MCP Boilerplate Rust Server with advanced features. Tools: echo, ping, info, calculate, evaluate, long_task, process_with_progress, batch_process, transform_data, simulate_upload, health_check. Prompts: code_review, explain_code, debug_help. Resources: config, capabilities, docs, stats. Supports progress notifications and real-time logging.".to_string(),
+                "MCP Boilerplate Rust Server with advanced features. \
+                Tools: echo, ping, info, calculate, evaluate, long_task, process_with_progress, batch_process, transform_data, simulate_upload, health_check. \
+                Prompts: code_review, explain_code, debug_help. \
+                Resources: config, capabilities, docs, stats. \
+                Supports progress notifications, task lifecycle, and real-time logging."
+                    .to_string(),
             ),
         }
     }
@@ -373,47 +499,9 @@ impl ServerHandler for McpServer {
         info!("MCP: Listing resource templates (none available)");
         Ok(ListResourceTemplatesResult::default())
     }
-
-    async fn list_prompts(
-        &self,
-        _request: Option<PaginatedRequestParam>,
-        _context: RequestContext<RoleServer>,
-    ) -> Result<ListPromptsResult, McpError> {
-        info!("MCP: Listing prompts");
-        let prompts = self.prompt_registry.list_prompts();
-        Ok(ListPromptsResult {
-            prompts,
-            next_cursor: None,
-            meta: None,
-        })
-    }
-
-    async fn get_prompt(
-        &self,
-        params: GetPromptRequestParam,
-        _context: RequestContext<RoleServer>,
-    ) -> Result<GetPromptResult, McpError> {
-        info!("MCP: Get prompt requested: {}", params.name);
-
-        let arguments: HashMap<String, String> = params
-            .arguments
-            .unwrap_or_default()
-            .into_iter()
-            .filter_map(|(k, v)| {
-                if let serde_json::Value::String(s) = v {
-                    Some((k, s))
-                } else {
-                    None
-                }
-            })
-            .collect();
-
-        self.prompt_registry
-            .get_prompt(&params.name, &arguments)
-            .map_err(|e| McpError::invalid_params(e, None))
-    }
 }
 
+// Expression evaluator implementation
 impl McpServer {
     fn evaluate_expression(&self, expr: &str) -> Result<f64, String> {
         let mut pos = 0;
@@ -424,7 +512,6 @@ impl McpServer {
         let mut left = self.parse_term(expr, pos)?;
 
         loop {
-            // Skip whitespace
             while *pos < expr.len() && expr.chars().nth(*pos).unwrap().is_whitespace() {
                 *pos += 1;
             }
@@ -455,7 +542,6 @@ impl McpServer {
         let mut left = self.parse_factor(expr, pos)?;
 
         loop {
-            // Skip whitespace
             while *pos < expr.len() && expr.chars().nth(*pos).unwrap().is_whitespace() {
                 *pos += 1;
             }
@@ -486,7 +572,6 @@ impl McpServer {
     }
 
     fn parse_factor(&self, expr: &str, pos: &mut usize) -> Result<f64, String> {
-        // Skip whitespace
         while *pos < expr.len() && expr.chars().nth(*pos).unwrap().is_whitespace() {
             *pos += 1;
         }
@@ -500,8 +585,7 @@ impl McpServer {
         if char == '(' {
             *pos += 1;
             let result = self.parse_expression(expr, pos)?;
-            
-            // Skip whitespace
+
             while *pos < expr.len() && expr.chars().nth(*pos).unwrap().is_whitespace() {
                 *pos += 1;
             }
@@ -514,10 +598,10 @@ impl McpServer {
         } else if char == '-' {
             *pos += 1;
             Ok(-self.parse_factor(expr, pos)?)
-        } else if char.is_digit(10) || char == '.' {
+        } else if char.is_ascii_digit() || char == '.' {
             self.parse_number(expr, pos)
         } else {
-            Err(format!("Unexpected character: {}", char))
+            Err(format!("Unexpected character: {char}"))
         }
     }
 
@@ -527,7 +611,7 @@ impl McpServer {
 
         while *pos < expr.len() {
             let c = expr.chars().nth(*pos).unwrap();
-            if c.is_digit(10) {
+            if c.is_ascii_digit() {
                 *pos += 1;
             } else if c == '.' {
                 if has_dot {
@@ -546,5 +630,33 @@ impl McpServer {
 
         let num_str = &expr[start..*pos];
         num_str.parse::<f64>().map_err(|e| e.to_string())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_evaluate_simple() {
+        let server = McpServer::new();
+        assert_eq!(server.evaluate_expression("2+2").unwrap(), 4.0);
+        assert_eq!(server.evaluate_expression("10-5").unwrap(), 5.0);
+        assert_eq!(server.evaluate_expression("3*4").unwrap(), 12.0);
+        assert_eq!(server.evaluate_expression("15/3").unwrap(), 5.0);
+    }
+
+    #[test]
+    fn test_evaluate_precedence() {
+        let server = McpServer::new();
+        assert_eq!(server.evaluate_expression("2+3*4").unwrap(), 14.0);
+        assert_eq!(server.evaluate_expression("10-2*3").unwrap(), 4.0);
+    }
+
+    #[test]
+    fn test_evaluate_parentheses() {
+        let server = McpServer::new();
+        assert_eq!(server.evaluate_expression("(2+3)*4").unwrap(), 20.0);
+        assert_eq!(server.evaluate_expression("2*(3+4)").unwrap(), 14.0);
     }
 }

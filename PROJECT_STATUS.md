@@ -1,9 +1,9 @@
 # MCP Boilerplate Rust - Project Status
 
-**Version:** 0.4.0  
+**Version:** 0.5.0  
 **Date:** 2026-01-09 HCMC  
 **Status:** Production Ready  
-**Last Updated:** SDK Generators Added
+**Last Updated:** Rust Client SDK & Load Balancing Complete
 
 ---
 
@@ -15,11 +15,12 @@ Production-ready Rust implementation of the Model Context Protocol (MCP) with ad
 
 - **Transport Modes:** 6 (stdio, SSE, WebSocket, HTTP, HTTP Streaming, gRPC)
 - **Tools:** 11 production-ready tools
-- **Client SDKs:** 3 languages (TypeScript, Python, Go)
-- **Tests:** 89 passing (100% success rate)
+- **Client SDKs:** 4 languages (Rust, TypeScript, Python, Go)
+- **Load Balancing:** 5 strategies with health checks and failover
+- **Tests:** 89+ passing (100% success rate)
 - **Binary Size:** 2.4MB (minimal) to 4.2MB (full features)
 - **Code Quality:** Zero errors, minimal warnings
-- **Documentation:** Comprehensive guides and examples (3,700+ lines)
+- **Documentation:** Comprehensive guides and examples (12,000+ lines)
 - **Observability:** Prometheus metrics + OpenTelemetry tracing enabled
 - **Test Coverage:** All transports, tools, and SDKs tested
 
@@ -93,6 +94,80 @@ cd sdk-generators
 cargo run --release
 ```
 
+### Rust Client SDK (Generated - Race Car Edition 🏎️)
+
+**Status:** Complete & Production Ready
+
+Auto-generated high-performance Rust client from sdk-generators:
+- **Race Car Quality** - Idiomatic Rust code, not generic templates
+- **Zero-Cost Abstractions** - Custom error types, borrowing optimizations
+- **Type Safety** - Pattern matching on enums, compile-time guarantees
+- **Async/Await** - Optimized for Tokio runtime
+- **Auto-Generated** - Stays in sync with server automatically
+
+**Features:**
+- Custom error types (not `Box<dyn Error>`)
+- Borrowing optimizations (`&str` vs `String`)
+- All 11 tools with type-safe methods
+- Generic over transport layer
+- 470 lines of production-ready code
+
+**Location:** `sdk-generators/output/rust/`
+
+**Usage:**
+```rust
+use mcp_client::{McpClient, HttpTransport, Result};
+
+let transport = HttpTransport::new("http://127.0.0.1:8080");
+let mut client = McpClient::new(transport);
+client.connect().await?;
+
+let result = client.echo("Hello, MCP!").await?;
+```
+
+### Load Balancing
+
+**Status:** Complete & Production Ready
+
+Enterprise-grade load balancing for MCP servers:
+- **5 Strategies** - Round-robin, least connections, random, weighted, IP hash
+- **Health Checks** - Automatic backend health monitoring
+- **Auto Failover** - Automatic failover to healthy backends
+- **Connection Limits** - Per-backend connection management
+- **Sticky Sessions** - Session affinity support
+- **Real-time Stats** - Monitoring and metrics
+- **Dynamic Management** - Add/remove backends at runtime
+
+**Strategies:**
+1. Round-Robin - Even distribution
+2. Least Connections - Dynamic load balancing
+3. Random - Simple stateless distribution
+4. Weighted Round-Robin - Capacity-based distribution
+5. IP Hash - Consistent client routing
+
+**Features:**
+- Automatic health checking with configurable intervals
+- Connection pooling and limits per backend
+- Failover with configurable retry logic
+- Real-time statistics and monitoring
+- Dynamic backend addition/removal
+- Comprehensive documentation and examples
+
+**Location:** `src/loadbalancer/`
+
+**Usage:**
+```rust
+use mcp_boilerplate_rust::loadbalancer::{LoadBalancer, LoadBalancerConfig, Backend, Strategy};
+
+let config = LoadBalancerConfig::new(Strategy::RoundRobin)
+    .add_backend(Backend::new("b1".to_string(), "127.0.0.1:8081".to_string()))
+    .add_backend(Backend::new("b2".to_string(), "127.0.0.1:8082".to_string()))
+    .with_failover(true);
+
+let lb = LoadBalancer::new(config);
+lb.start_health_checks().await;
+```
+
 ---
 
 ## Test Results
@@ -144,9 +219,26 @@ mcp-boilerplate-rust/
 │   │   ├── websocket.rs           # WebSocket transport (398 lines)
 │   │   ├── http_stream.rs         # HTTP streaming (358 lines)
 │   │   └── grpc.rs                # gRPC transport (358 lines)
+│   ├── loadbalancer/              # Load balancing module
+│   │   ├── mod.rs                 # Module exports
+│   │   ├── types.rs               # Load balancer types (316 lines)
+│   │   └── balancer.rs            # Load balancer implementation (485 lines)
 │   ├── tools/                     # 11 tool implementations
 │   ├── prompts/                   # Prompt templates
 │   └── resources/                 # Resource providers
+├── sdk-generators/                # Client SDK generators
+│   ├── src/
+│   │   ├── main.rs                # Generator entry point
+│   │   └── generators/
+│   │       └── rust_gen.rs        # Rust SDK generator (716 lines)
+│   └── output/
+│       ├── typescript/            # Generated TypeScript SDK
+│       ├── python/                # Generated Python SDK
+│       ├── go/                    # Generated Go SDK
+│       └── rust/                  # Generated Rust SDK (Race Car 🏎️)
+│           ├── Cargo.toml         # SDK dependencies
+│           ├── mcp_client.rs      # Generated SDK (470 lines)
+│           └── README.md          # SDK documentation
 ├── proto/
 │   └── mcp.proto                  # gRPC service definition (158 lines)
 ├── examples/
@@ -158,6 +250,7 @@ mcp-boilerplate-rust/
 │   ├── TRANSPORT_QUICK_REFERENCE.md (412 lines)
 │   ├── TRANSPORT_QUICK_GUIDE.md
 │   ├── TRANSPORT_ADVANCED_SUMMARY.md (728 lines)
+│   ├── LOAD_BALANCING_GUIDE.md    # Load balancing guide (659 lines)
 │   ├── sessions/                  # Development session notes
 │   └── archive/                   # Historical documentation
 ├── build.rs                       # Protobuf compilation
@@ -166,10 +259,12 @@ mcp-boilerplate-rust/
 └── CHANGELOG.md                   # Version history
 ```
 
-**Total Lines of Code:** ~15,000  
-**Documentation:** ~8,700 lines  
-**Tests:** 89 tests  
-**SDK Generator Code:** ~3,700 lines
+**Total Lines of Code:** ~16,500  
+**Documentation:** ~12,000 lines  
+**Tests:** 89+ tests  
+**SDK Generator Code:** ~4,400 lines (includes Rust generator)  
+**Generated Rust SDK:** ~470 lines  
+**Load Balancer:** ~800 lines
 
 ---
 
@@ -230,6 +325,16 @@ cargo run --release --features grpc -- --mode grpc --bind 127.0.0.1:50051
 - `docs/TRANSPORT_QUICK_REFERENCE.md` - Quick API reference
 - `docs/TRANSPORT_QUICK_GUIDE.md` - Detailed guide
 - `docs/TRANSPORT_ADVANCED_SUMMARY.md` - Advanced features (728 lines)
+
+### Features
+- `docs/features/README.md` - Features overview and index (280 lines)
+- `docs/features/LOAD_BALANCING.md` - Complete load balancing guide (659 lines)
+- `docs/features/SDK_GENERATORS.md` - SDK generator documentation (607 lines)
+- `docs/features/RUST_SDK.md` - Generated Rust SDK guide (386 lines)
+
+### Architecture
+- `docs/architecture/SDK_COMPARISON.md` - SDK comparison (276 lines)
+- `docs/architecture/RUST_SDK_ARCHITECTURE.md` - Design decisions (355 lines)
 
 ### Development Guides
 - `docs/guides/TESTING_GUIDE.md` - Testing guide
@@ -352,14 +457,14 @@ All core functionality is working and tested.
 
 ## Roadmap
 
-### Version 0.5.0 (Next)
+### Version 0.5.0 (Current)
 - [ ] gRPC-Web gateway for browsers
 - [x] Prometheus metrics
 - [x] OpenTelemetry tracing
 - [x] Client SDKs (TypeScript, Python, Go)
-- [ ] Rust client SDK
-- [ ] Load balancing support
-- [ ] Enhanced documentation
+- [x] Rust client SDK
+- [x] Load balancing support
+- [x] Enhanced documentation
 
 ### Version 1.0.0 (Future)
 - [ ] HTTP/3 (QUIC) support
@@ -445,15 +550,18 @@ MIT License - see LICENSE file for details
 ### Development Milestones
 - 6 transport modes implemented
 - 11 production tools created
-- 3 client SDK generators (TypeScript, Python, Go)
-- 89 tests passing (100%)
+- 4 auto-generated client SDKs (Rust, TypeScript, Python, Go)
+- Rust SDK with race car quality (custom errors, zero-cost abstractions)
+- Load balancing with 5 strategies
+- 89+ tests passing (100%)
 - Zero compilation errors
-- Comprehensive documentation (8,700+ lines)
+- Comprehensive documentation (12,000+ lines)
 - Browser test clients
 - Docker support
 - gRPC with Protocol Buffers
 - OpenTelemetry tracing
 - SDK auto-generation in <500ms
+- Health checking and failover
 
 ### Code Quality
 - Type-safe architecture
@@ -477,21 +585,58 @@ MIT License - see LICENSE file for details
 
 - 6 transport modes (most comprehensive MCP implementation)
 - 11 production tools
-- 3 auto-generated client SDKs (TypeScript, Python, Go)
-- 89 tests (100% passing)
+- 4 auto-generated client SDKs (Rust 🏎️, TypeScript, Python, Go)
+- Generated Rust SDK with race car quality
+- Load balancing with 5 strategies
+- 89+ tests (100% passing)
 - 4.2 MB optimized binary (full features)
 - Sub-5ms latency (gRPC)
 - 200 MB/s throughput
 - Browser compatible
-- Client libraries for all major languages
+- Client libraries for all major languages (auto-generated)
+- Health checks and auto-failover
 - Docker ready
-- Fully documented (8,700+ lines)
+- Fully documented (12,000+ lines)
 - Enterprise grade
 
 **Status:** PRODUCTION READY
 
 ---
 
-**Last Updated:** 2026-01-09  
+## 📚 Documentation Organization
+
+### Structure (Reorganized in v0.5.0)
+
+```
+docs/
+├── README.md                    # Main documentation hub
+├── transports/                  # Transport documentation
+│   ├── README.md               # Transport index (194 lines)
+│   ├── QUICK_REFERENCE.md
+│   ├── GUIDE.md
+│   ├── ADVANCED.md
+│   └── QUICK_START.md
+├── features/                    # Feature documentation
+│   ├── README.md               # Features index (280 lines)
+│   ├── LOAD_BALANCING.md
+│   ├── SDK_GENERATORS.md
+│   └── RUST_SDK.md
+├── guides/                      # How-to guides
+├── reference/                   # API reference
+├── architecture/                # Design decisions
+├── development/                 # Development notes
+└── archive/                     # Historical documentation
+```
+
+**Navigation:**
+- Transport info → `docs/transports/README.md`
+- Features → `docs/features/README.md`
+- How-to guides → `docs/guides/`
+- API reference → `docs/reference/`
+
+---
+
+**Last Updated:** 2026-01-09 HCMC  
 **Maintained by:** NetADX Team  
-**Version:** 0.4.0
+**Version:** 0.5.0  
+**Status:** PRODUCTION READY

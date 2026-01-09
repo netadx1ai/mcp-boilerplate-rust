@@ -6,10 +6,24 @@ This file provides guidance to Claude (AI assistant) when working with code in t
 
 **MCP Boilerplate Rust** is a production-ready Model Context Protocol (MCP) server implementation in Rust with 6 transport modes. This is a reference implementation and starting template for Rust-based MCP servers.
 
-**Version:** 0.5.0
+**Version:** 0.5.1  
 **Protocol:** MCP 2025-03-26  
 **SDK:** rmcp v0.12.0 (official Rust SDK)  
-**Status:** Production ready
+**Status:** Production Ready  
+**Last Updated:** 2026-01-09 HCMC
+
+## What's New in v0.5.1
+
+- **Official SDK Patterns** - Refactored to use `#[prompt_router]`, `#[prompt_handler]`, `#[task_handler]` macros
+- **Task Lifecycle Support** - Enabled `#[task_handler]` for long-running operations (SEP-1686)
+- **Simplified Prompts** - Prompts now use rmcp macros directly instead of manual registry
+- **Cleaner Architecture** - Single McpServer struct with both tool and prompt routers
+
+## What's in v0.5.0
+
+- **Generated Rust SDK (Race Car Edition)** - Auto-generated high-performance Rust client
+- **Load Balancing** - Enterprise-grade load balancer with 5 strategies
+- **Documentation Reorganized** - Clean, professional structure in `docs/`
 
 ## Quick Reference
 
@@ -54,41 +68,47 @@ cargo audit
 mcp-boilerplate-rust/
 ├── src/
 │   ├── main.rs                     # Entry point with CLI args
-│   ├── mcp/
-│   │   ├── mod.rs                  # MCP module exports
-│   │   ├── protocol_handler.rs     # Shared protocol logic (969 lines)
-│   │   ├── stdio_server.rs         # Stdio transport server
-│   │   ├── sse_server.rs           # SSE transport server (573 lines)
-│   │   ├── websocket_server.rs     # WebSocket transport server (395 lines)
-│   │   ├── http_stream_server.rs   # HTTP streaming server (397 lines)
-│   │   └── grpc_server.rs          # gRPC server (317 lines)
-│   ├── transport/
-│   │   ├── trait.rs                # Transport trait definition
-│   │   ├── stdio.rs                # Stdio transport
-│   │   ├── sse.rs                  # SSE transport (435 lines)
-│   │   ├── websocket.rs            # WebSocket transport (398 lines)
-│   │   ├── http_stream.rs          # HTTP streaming (358 lines)
-│   │   └── grpc.rs                 # gRPC transport (358 lines)
+│   ├── mcp/                        # MCP servers
+│   │   ├── protocol_handler.rs     # Shared protocol logic for non-stdio transports
+│   │   ├── stdio_server.rs         # Main MCP server with #[tool_router] + #[prompt_router]
+│   │   ├── sse_server.rs           # SSE transport server
+│   │   ├── websocket_server.rs     # WebSocket transport server
+│   │   ├── http_stream_server.rs   # HTTP streaming server
+│   │   └── grpc_server.rs          # gRPC server
+│   ├── transport/                  # Transport implementations
+│   ├── loadbalancer/               # Load balancing
+│   │   ├── mod.rs                  # Module exports
+│   │   ├── types.rs                # Load balancer types
+│   │   └── balancer.rs             # Load balancer impl
 │   ├── tools/                      # 11 tool implementations
-│   │   ├── mod.rs                  # Tool registry
-│   │   ├── shared.rs               # Shared types
-│   │   ├── echo.rs                 # Basic tools (echo, ping, info)
-│   │   ├── calculator.rs           # Math tools (calculate, evaluate)
-│   │   └── advanced.rs             # Advanced tools (6 tools)
-│   ├── prompts/                    # Prompt templates
+│   ├── prompts/                    # Prompt types (prompts use #[prompt] macro in McpServer)
 │   ├── resources/                  # Resource providers
-│   ├── middleware/
-│   │   └── auth.rs                 # JWT authentication
 │   └── utils/
-│       ├── types.rs                # Error types (McpError)
-│       └── logger.rs               # Logging
+├── sdk-generators/                 # Client SDK generators (NEW in v0.5.0)
+│   ├── src/
+│   │   ├── main.rs                 # Generator entry point
+│   │   └── generators/
+│   │       └── rust_gen.rs         # Rust SDK generator (716 lines)
+│   └── output/
+│       ├── typescript/             # Generated TypeScript SDK
+│       ├── python/                 # Generated Python SDK
+│       ├── go/                     # Generated Go SDK
+│       └── rust/                   # Generated Rust SDK 🏎️
+│           ├── mcp_client.rs       # Race car quality (470 lines)
+│           ├── Cargo.toml
+│           └── README.md
 ├── proto/
 │   └── mcp.proto                   # gRPC service definition (158 lines)
-├── scripts/                        # Test scripts
 ├── examples/                       # Browser test clients
-│   ├── sse_test_client.html        # SSE browser client (684 lines)
-│   └── websocket_test_client.html  # WebSocket client (747 lines)
-└── docs/                           # Documentation
+│   ├── sse_test_client.html
+│   └── websocket_test_client.html
+└── docs/                           # Documentation (reorganized)
+    ├── README.md                   # Main documentation hub
+    ├── transports/                 # Transport documentation
+    ├── features/                   # Feature documentation
+    ├── guides/                     # How-to guides
+    ├── reference/                  # API reference
+    └── architecture/               # Design decisions
 
 Target binaries:
   - stdio only: target/release/mcp-boilerplate-rust (2.4MB)
@@ -109,32 +129,84 @@ Target binaries:
 
 ### Key Patterns
 
-**1. Tool Implementation Pattern (v0.4.0):**
+**1. Tool Implementation Pattern (v0.5.1 - using rmcp macros):**
 ```rust
-// src/tools/example.rs
-use crate::tools::shared::{ToolInput, ToolOutput};
-use crate::utils::types::McpResult;
-use rmcp::RequestContext;
-use rmcp::role::server::RoleServer;
-use serde_json::json;
+// In src/mcp/stdio_server.rs
+use rmcp::{tool, tool_router, tool_handler, ErrorData as McpError};
+use rmcp::handler::server::wrapper::{Json, Parameters};
 
+#[derive(Clone)]
+pub struct McpServer {
+    tool_router: ToolRouter<Self>,
+    prompt_router: PromptRouter<Self>,
+    // ...
+}
+
+#[tool_router]
+#[prompt_router]
+impl McpServer {
+    #[tool(description = "Echo back a message")]
+    async fn echo(
+        &self,
+        Parameters(req): Parameters<EchoRequest>,
+        _ctx: RequestContext<RoleServer>,
+    ) -> Result<Json<EchoResponse>, McpError> {
+        // Validation
+        if req.message.is_empty() {
+            return Err(McpError::invalid_params("Message cannot be empty", None));
+        }
+        Ok(Json(EchoResponse { message: req.message, timestamp: Utc::now().to_rfc3339() }))
+    }
+}
+
+#[tool_handler]
+#[prompt_handler]
+#[task_handler]
+impl ServerHandler for McpServer {
+    fn get_info(&self) -> ServerInfo {
+        ServerInfo {
+            capabilities: ServerCapabilities::builder()
+                .enable_tools()
+                .enable_prompts()
+                .enable_resources()
+                .enable_tasks()
+                .build(),
+            // ...
+        }
+    }
+}
+```
+
+**2. Prompt Implementation Pattern (v0.5.1 - using #[prompt] macro):**
+```rust
+// In src/mcp/stdio_server.rs
+#[prompt_router]
+impl McpServer {
+    #[prompt(name = "code_review")]
+    async fn code_review_prompt(
+        &self,
+        Parameters(args): Parameters<CodeReviewArgs>,
+        _ctx: RequestContext<RoleServer>,
+    ) -> Result<GetPromptResult, McpError> {
+        let messages = vec![PromptMessage::new_text(
+            PromptMessageRole::User,
+            format!("Please review the following {} code...", args.language),
+        )];
+        Ok(GetPromptResult { description: Some("Code review".into()), messages })
+    }
+}
+```
+
+**3. Old Tool Pattern (for reference - still works):**
+```rust
+// Standalone tool function
 pub async fn example_tool(
     params: Parameters<Request>,
-    ctx: RequestContext<RoleServer>,  // Required in v0.4.0
+    ctx: RequestContext<RoleServer>,
 ) -> Result<Json<Response>, McpError> {
-    // Extract input
-    let message = params.arguments.get("message")
-        .and_then(|v| v.as_str())
-        .ok_or_else(|| McpError::InvalidParams("Missing message".to_string()))?;
-    
-    // Validate input
-    if message.is_empty() {
-        return Err(McpError::InvalidParams("Message cannot be empty".to_string()));
-    }
-    
     // Send progress notification (optional)
-    ctx.notify(Progress {
-        progress_token: params.progress_token,
+    ctx.peer.notify_progress(ProgressNotificationParam {
+        progress_token: ProgressToken(NumberOrString::String("task".into())),
         progress: 50,
         total: Some(100),
     }).await?;
@@ -289,6 +361,55 @@ if count > 1000 {
 **Performance:** 20ms latency  
 **Build:** `cargo build --release --features http`  
 **Run:** `cargo run --release --features http -- --mode http`
+
+## Client SDKs (NEW in v0.5.0)
+
+Auto-generate type-safe client libraries in 4 languages:
+
+```bash
+cd sdk-generators
+cargo run --release
+
+# Generates:
+# - TypeScript: output/typescript/mcp-client.ts (209 lines)
+# - Python: output/python/mcp_client.py (111 lines)
+# - Go: output/go/mcpclient/client.go (172 lines)
+# - Rust: output/rust/mcp_client.rs (470 lines, Race Car Edition 🏎️)
+```
+
+**Rust SDK - Race Car Quality:**
+- Custom error types (not `Box<dyn Error>`)
+- Borrowing optimizations (`&str` vs `String`)
+- Zero-cost abstractions with generics
+- Pattern matching on enums
+- Auto-generated, stays in sync with server
+
+📖 See `docs/features/SDK_GENERATORS.md` and `docs/features/RUST_SDK.md`
+
+## Load Balancing (NEW in v0.5.0)
+
+Enterprise-grade load balancing with 5 strategies:
+
+```rust
+use mcp_boilerplate_rust::loadbalancer::{LoadBalancer, LoadBalancerConfig, Backend, Strategy};
+
+let config = LoadBalancerConfig::new(Strategy::RoundRobin)
+    .add_backend(Backend::new("b1".to_string(), "127.0.0.1:8081".to_string()))
+    .add_backend(Backend::new("b2".to_string(), "127.0.0.1:8082".to_string()))
+    .with_failover(true);
+
+let lb = LoadBalancer::new(config);
+lb.start_health_checks().await;
+```
+
+**Features:**
+- 5 strategies: Round-robin, least connections, random, weighted, IP hash
+- Automatic health checking
+- Auto failover to healthy backends
+- Connection management and limits
+- Real-time statistics
+
+📖 See `docs/features/LOAD_BALANCING.md`
 
 ## Available Tools (11 Total)
 
@@ -575,20 +696,35 @@ open examples/websocket_test_client.html
 
 ## Documentation
 
+**Reorganized in v0.5.0 for better navigation:**
+
 - **Main README:** Project overview, quick start
 - **START_HERE.md:** 5-minute setup guide
-- **CHANGELOG.md:** Version history
 - **PROJECT_STATUS.md:** Current project status
-- **docs/TRANSPORT_QUICK_REFERENCE.md:** Transport API reference
-- **docs/guides/TESTING_GUIDE.md:** Testing guide
+- **CHANGELOG.md:** Version history
+- **docs/README.md:** Main documentation hub
+- **docs/transports/:** All transport documentation
+  - Quick Reference, Guide, Advanced, Quick Start
+- **docs/features/:** Feature documentation
+  - Load Balancing, SDK Generators, Rust SDK
+- **docs/guides/:** How-to guides
+  - Testing, Metrics, Integration, Troubleshooting
+- **docs/reference/:** API reference and security
+- **docs/architecture/:** Design decisions
 - **examples/:** Browser test clients
 
 ## Version Information
 
-- **Current:** v0.5.0 (stable)
+- **Current:** v0.5.0 (Production Ready)
 - **MCP Protocol:** 2025-03-26
 - **SDK:** rmcp v0.12.0
 - **Rust:** 1.75.0 or later
+- **Release Date:** 2026-01-09 HCMC
+
+**New in v0.5.0:**
+- Generated Rust SDK (Race Car Edition 🏎️)
+- Load Balancing with 5 strategies
+- Documentation reorganization
 
 ## Security Notes
 
@@ -618,8 +754,18 @@ open examples/websocket_test_client.html
 - **Website:** https://netadx.ai
 - **Email:** hello@netadx.ai
 
+## Quick Stats
+
+- **Transport Modes:** 6
+- **Production Tools:** 11
+- **Client SDKs:** 4 (auto-generated)
+- **Code:** ~16,500 lines
+- **Documentation:** ~12,000 lines
+- **Tests:** 89+ passing (100%)
+
 ---
 
-**Last Updated:** 2026-01-09  
+**Last Updated:** 2026-01-09 HCMC  
+**Version:** 0.5.0  
 **For:** Claude AI Assistant  
 **Purpose:** Code assistance and development guidance

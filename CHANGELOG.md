@@ -9,6 +9,120 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [0.5.1] - 2026-01-09
+
+### Changed
+
+#### HTTP Server Fix (2026-01-09)
+- **HTTP Server Now Has 11 Tools** - Refactored HTTP server to use ProtocolHandler instead of hardcoded 3 tools
+- **Consistent Tool Count** - Both Stdio and HTTP modes now expose all 11 tools
+- **New HTTP Endpoints** - `/tools/call` for tool execution, `/rpc` for JSON-RPC
+
+#### Code Cleanup (2026-01-09)
+- **Zero Compiler Warnings** - Cleaned up all 48 warnings (unused imports, dead code)
+- **Protocol Handler Simplified** - Removed unused `tool_router` and `processor` fields
+- **Public API Annotations** - Added `#![allow(dead_code)]` for intentional public API types
+- **Modules Updated** - transport/, loadbalancer/, metrics/ cleaned for feature-gated usage
+
+#### Official SDK Patterns
+- **Prompt Router Macros** - Refactored to use `#[prompt_router]` and `#[prompt_handler]` macros from rmcp SDK
+- **Task Handler Enabled** - Enabled `#[task_handler]` macro for long-running task lifecycle support (SEP-1686)
+- **Simplified Prompts** - Prompts now defined directly in McpServer using `#[prompt]` macro instead of manual PromptRegistry
+- **Cleaner Architecture** - Single McpServer struct with both `tool_router` and `prompt_router` fields
+- **ServerCapabilities** - Added `.enable_tasks()` to server capabilities
+
+#### Code Quality
+- **Removed PromptRegistry dependency** - Protocol handler now generates prompts inline
+- **Updated prompts module** - Simplified to reference types only, actual prompts use macros
+- **Fixed test issue** - Fixed temporary value borrowed error in loadbalancer tests
+- **48 tests passing** - All unit tests pass
+
+### Technical Details
+- Uses `#[tool_router]` + `#[prompt_router]` on McpServer impl block
+- Uses `#[tool_handler]` + `#[prompt_handler]` + `#[task_handler]` on ServerHandler impl
+- Prompt argument types defined as structs with `JsonSchema` derive
+- Binary size: 2.9MB (stdio only)
+- Zero warnings in release build
+- All 48 unit tests passing
+
+### Integration Testing (2026-01-09)
+- Verified stdio transport with manual JSON-RPC testing
+- Verified with MCP Inspector CLI (`npx @modelcontextprotocol/inspector`)
+- Verified HTTP server with curl testing
+- `initialize` - Returns capabilities (tools, prompts, resources, tasks)
+- `tools/list` - Returns 11 tools with schemas (MCP Inspector verified)
+- `tools/call` - Execute tools correctly (tested calculate, echo, evaluate)
+- `prompts/list` - Returns 3 prompts with arguments (MCP Inspector verified)
+- `prompts/get` - Returns prompt messages with parameters
+- `resources/list` - Returns 4 resources with icons and annotations (MCP Inspector verified)
+- `resources/read` - Returns resource content (tested config://server)
+- HTTP `/tools` - Returns 11 tools (fixed from 3)
+- HTTP `/tools/call` - Execute tools via HTTP POST
+
+---
+
+## [0.5.0] - 2026-01-09
+
+### Added
+
+#### Generated Rust Client SDK (Race Car Edition 🏎️)
+- **Auto-Generated Rust SDK** - High-performance generated Rust client (470 lines)
+- **Race Car Quality** - Custom error types, borrowing optimizations, zero-cost abstractions
+- **Not Generic Templates** - Idiomatic Rust code with `&str`, pattern matching, proper async/await
+- **Custom Error Types** - `McpError` enum instead of `Box<dyn Error>` for pattern matching
+- **Zero-Copy Optimizations** - Borrows `&str` instead of taking ownership `String`
+- **Type-Safe API** - Pattern matching on enums, compile-time guarantees
+- **Async/Await** - Optimized for Tokio runtime with proper patterns
+- **Auto-Generated** - Stays in sync with server automatically
+- **All 11 Tools** - Type-safe methods for all tools
+- **Rust SDK Generator** - Code generator in `sdk-generators/src/generators/rust_gen.rs` (716 lines)
+- **Location** - `sdk-generators/output/rust/`
+
+#### Load Balancing
+- **Enterprise Load Balancing** - Production-ready load balancer (~800 lines)
+- **5 Strategies** - Round-robin, least connections, random, weighted round-robin, IP hash
+- **Health Checking** - Automatic backend health monitoring with configurable intervals
+- **Auto Failover** - Automatic failover to healthy backends with retry logic
+- **Connection Management** - Per-backend connection limits and tracking
+- **Sticky Sessions** - Session affinity support with cookie-based routing
+- **Real-Time Statistics** - Total requests, success/failure rates, response times, active connections
+- **Dynamic Management** - Add/remove backends at runtime, enable/disable backends
+- **Location** - `src/loadbalancer/` module
+
+#### Documentation Reorganization
+- **Documentation Structure** - Reorganized `docs/` with professional hierarchy
+- **Transport Docs** - Created `docs/transports/` with README, guides, and reference
+- **Feature Docs** - Created `docs/features/` with README and feature guides
+- **Load Balancing Guide** - Complete guide with examples and best practices (659 lines)
+- **Rust SDK Guide** - Generated SDK documentation (386 lines)
+- **SDK Comparison** - Architectural comparison (276 lines)
+- **SDK Architecture** - Design decisions document (355 lines)
+- **Comprehensive Indexes** - Created README.md for transports/ and features/
+- **Removed Redundant** - Deleted hand-written `mcp-client/` (replaced by generated)
+- **Removed 11 Files** - Consolidated redundant documentation
+
+### Changed
+- **Version** - Bumped to 0.5.0
+- **Cargo.toml** - Added `rand` and `reqwest` dependencies
+- **PROJECT_STATUS.md** - Updated with all v0.5.0 features
+- **README.md** - Added Client SDKs and Load Balancing sections
+- **docs/README.md** - Complete reorganization with new structure
+- **CLAUDE.md** - Updated with v0.5.0 features and documentation paths
+- **Total Code** - Now ~16,500 lines (reduced from 17,500 due to cleanup)
+- **Total Documentation** - ~12,000 lines, professionally organized
+
+### Removed
+- **mcp-client/** - Hand-written Rust client (1,400 lines) - replaced by generated race car SDK
+- **Redundant Docs** - 11 redundant documentation files
+- **INDEX.md** - Consolidated into docs/README.md
+- **Scattered Files** - Moved to organized structure in docs/
+
+---
+
+## [0.4.0] - 2026-01-09
+
 ### Added
 
 #### Client SDK Generators

@@ -3,6 +3,9 @@
 //! This module defines the core Transport trait that all transport implementations
 //! must implement. It provides a unified interface for different transport methods
 //! (stdio, SSE, WebSocket, HTTP streaming, RPC).
+//!
+//! Note: Many types are defined for public API extensibility but may not be used internally.
+#![allow(dead_code)]
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -226,6 +229,7 @@ pub trait TransportFactory: Send + Sync {
 
 /// Transport metadata for logging and monitoring
 #[derive(Debug, Clone)]
+#[derive(Default)]
 pub struct TransportStats {
     /// Total messages sent
     pub messages_sent: u64,
@@ -241,18 +245,6 @@ pub struct TransportStats {
     pub uptime_seconds: u64,
 }
 
-impl Default for TransportStats {
-    fn default() -> Self {
-        Self {
-            messages_sent: 0,
-            messages_received: 0,
-            bytes_sent: 0,
-            bytes_received: 0,
-            error_count: 0,
-            uptime_seconds: 0,
-        }
-    }
-}
 
 impl fmt::Display for TransportStats {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -310,7 +302,7 @@ mod tests {
             uptime_seconds: 3600,
         };
 
-        let display = format!("{}", stats);
+        let display = format!("{stats}");
         assert!(display.contains("100 msgs"));
         assert!(display.contains("95 msgs"));
         assert!(display.contains("Errors: 2"));

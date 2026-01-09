@@ -144,8 +144,7 @@ pub fn create_transform_response(
         "reverse" => data.chars().rev().collect(),
         _ => {
             return Err(McpError::InvalidParams(format!(
-                "Unknown transformation: {}",
-                transformation
+                "Unknown transformation: {transformation}"
             )))
         }
     };
@@ -165,8 +164,7 @@ pub fn create_upload_response(
 
     if size_bytes > MAX_SIZE {
         return Err(McpError::InvalidParams(format!(
-            "File size {} bytes exceeds maximum of {} bytes",
-            size_bytes, MAX_SIZE
+            "File size {size_bytes} bytes exceeds maximum of {MAX_SIZE} bytes"
         )));
     }
 

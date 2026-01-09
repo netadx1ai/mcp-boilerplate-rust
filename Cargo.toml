@@ -1,6 +1,6 @@
 [package]
 name = "mcp-boilerplate-rust"
-version = "0.4.0"
+version = "0.5.1"
 edition = "2021"
 authors = ["NetADX MCP Team"]
 description = "MCP v5 Rust boilerplate using official rust-sdk (stdio primary, HTTP optional)"
@@ -38,9 +38,11 @@ anyhow = "1.0"
 thiserror = "1.0"
 
 # Utilities
+rand = "0.8"
 chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1.6", features = ["v4", "serde"] }
 dotenv = "0.15"
+reqwest = "0.12"
 
 # Metrics (optional)
 prometheus = { version = "0.13", optional = true }

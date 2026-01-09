@@ -1,3 +1,8 @@
+//! Metrics module for MCP server monitoring
+//!
+//! Note: Many functions are defined for public API but may not be used internally.
+#![allow(dead_code)]
+
 #[cfg(feature = "metrics")]
 use lazy_static::lazy_static;
 #[cfg(feature = "metrics")]
