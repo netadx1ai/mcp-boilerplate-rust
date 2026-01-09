@@ -1,6 +1,6 @@
 [package]
 name = "mcp-boilerplate-rust"
-version = "0.5.1"
+version = "0.6.3"
 edition = "2021"
 authors = ["NetADX MCP Team"]
 description = "MCP v5 Rust boilerplate using official rust-sdk (stdio primary, HTTP optional)"
@@ -42,7 +42,7 @@ rand = "0.8"
 chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1.6", features = ["v4", "serde"] }
 dotenv = "0.15"
-reqwest = "0.12"
+reqwest = { version = "0.12", features = ["json"] }
 
 # Metrics (optional)
 prometheus = { version = "0.13", optional = true }
@@ -68,17 +68,14 @@ tonic = { version = "0.11", optional = true }
 tonic-web = { version = "0.11", optional = true }
 prost = { version = "0.12", optional = true }
 
-[build-dependencies]
-tonic-build = { version = "0.11", optional = true }
-
 # Database feature (optional)
 mongodb = { version = "2.8", optional = true }
 
 # Auth feature (optional)
 jsonwebtoken = { version = "9.2", optional = true }
 
-# Metrics feature (optional)
-# prometheus and lazy_static already defined above
+[build-dependencies]
+tonic-build = { version = "0.11", optional = true }
 
 [features]
 # Default: MCP stdio only
@@ -91,7 +88,7 @@ websocket = ["dep:axum", "dep:tower", "dep:tower-http", "dep:tokio-tungstenite",
 http-stream = ["dep:axum", "dep:tower", "dep:tower-http", "dep:futures"]
 grpc = ["dep:tonic", "dep:tonic-web", "dep:prost", "dep:futures", "tonic-build", "dep:tower-http", "dep:tower"]
 database = ["dep:mongodb"]
-auth = ["dep:jsonwebtoken"]
+auth = ["dep:jsonwebtoken", "dep:axum", "dep:tower", "dep:tower-http"]
 metrics = ["dep:prometheus", "dep:lazy_static"]
 otel = ["dep:opentelemetry", "dep:opentelemetry_sdk", "dep:opentelemetry-otlp", "dep:tracing-opentelemetry"]
 

@@ -11,6 +11,242 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.6.3] - 2026-01-09
+
+### Added
+
+#### Integration Tests
+- Cross-module integration tests for elicitation, sampling, and structured content
+- End-to-end workflow tests:
+  - `test_elicitation_form_workflow` - Complete form elicitation lifecycle
+  - `test_elicitation_url_workflow` - URL-based OAuth flow
+  - `test_elicitation_with_enums` - Single/multi-select enum handling
+  - `test_sampling_with_tools_workflow` - Tool-enabled sampling
+  - `test_sampling_session_multi_turn` - Multi-turn conversation
+  - `test_tool_executor_registry` - Tool registration and execution
+  - `test_structured_output_with_validation` - Schema validation
+  - `test_complex_nested_validation` - Nested object validation
+  - `test_elicitation_to_sampling_workflow` - Cross-module flow
+  - `test_sampling_with_structured_output` - Sampling + validation
+  - `test_error_handling_across_modules` - Error scenarios
+  - `test_tool_choice_variations` - All ToolChoice modes
+
+### Testing
+- 108 unit tests passing (up from 94)
+- Integration test module: `src/mcp/integration_tests.rs`
+- Full coverage of module interactions
+
+---
+
+## [0.6.2] - 2026-01-09
+
+### Added
+
+#### Elicitation Support (Priority 4)
+
+**URL Mode Elicitation**
+- `ElicitationMode::Form` - Form-based data collection with JSON Schema
+- `ElicitationMode::Url` - URL-based collection for sensitive data (OAuth, payments)
+- `ElicitationRequest::url()` and `ElicitationRequest::url_with_callback()`
+- Callback URL support for completion notifications
+- Timeout configuration for elicitation requests
+
+**Enhanced Enum Support**
+- Single-select enums (titled and untitled)
+- Multi-select enums with min/max items constraints
+- `with_enum_field()`, `with_titled_enum_field()`, `with_multiselect_enum_field()`
+- Full integration with rmcp's `EnumSchema` and `EnumSchemaBuilder`
+
+**Form Builder API**
+- `ElicitationFormBuilder` for fluent form construction
+- `with_string_field()`, `with_email_field()`, `with_number_field()`
+- `with_integer_field()`, `with_boolean_field()`
+- All fields support required/optional and description
+- Number/integer fields support min/max constraints
+
+**Elicitation Manager**
+- Track pending elicitations by ID
+- Complete/cancel elicitation workflows
+- List pending elicitations
+- Automatic timeout cleanup
+
+#### Sampling with Tool Support (Priority 5)
+
+**Tool Calling in Sampling**
+- `SamplingTool` - Define tools available during sampling
+- `ToolChoice` enum: Auto, None, Required, Tool(name)
+- `ToolCall` and `ToolCallResult` types for tool execution
+- Extended metadata in sampling requests for tools/toolChoice
+
+**Sampling Request Builder**
+- `SamplingRequest::new()` with fluent builder API
+- `add_user_message()`, `add_assistant_message()`, `add_message()`
+- `with_tools()`, `add_tool()`, `with_tool_choice()`
+- `with_max_tokens()`, `with_temperature()`, `with_stop_sequences()`
+- Model preferences: `prefer_cost()`, `prefer_speed()`, `prefer_intelligence()`
+
+**Sampling Session**
+- Multi-turn conversation management
+- Tool result integration
+- Request building from session state
+- Response processing and history tracking
+
+**Tool Executor Registry**
+- Register tool handlers by name
+- Execute tool calls with argument validation
+- Function-based tool executors
+
+#### Structured Content Validation (Priority 7)
+
+**Output Schema Validator**
+- JSON Schema validation for tool outputs
+- Type checking: string, number, integer, boolean, array, object
+- Constraint validation: min/max, minLength/maxLength, enum, required
+- Nested object and array validation
+- Clear validation error messages with paths
+
+**Structured Output Builder**
+- `StructuredOutput::new()` fluent builder
+- Combine human-readable text with machine-parseable structured data
+- Automatic text representation for structured-only outputs
+- `build_validated()` for schema-enforced outputs
+
+**Output Schema Registry**
+- Register schemas per tool name
+- Validate outputs against registered schemas
+- Pre-built schemas: `OutputSchemas::weather()`, `OutputSchemas::api_response()`
+
+### Changed
+- `ProtocolHandler` now includes `ElicitationManager`
+- Module exports updated in `mcp/mod.rs`
+- 94 tests (up from 77 in v0.6.1)
+
+### Technical Details
+- Elicitation uses rmcp's `ElicitationSchema`, `ElicitationSchemaBuilder`
+- Sampling extends `CreateMessageRequestParam` with tool metadata
+- Structured content validation is a lightweight JSON Schema subset
+- All new modules follow existing code patterns
+
+### Testing
+- 94 unit tests passing
+- Elicitation: form builder, URL mode, manager lifecycle
+- Sampling: request builder, tool choice serialization, session management
+- Structured content: type validation, constraints, registry
+
+---
+
+## [0.6.1] - 2026-01-09
+
+### Added
+
+#### Integration Work Completed (Priority 6)
+
+**OAuth/Well-Known Routers Mounted in main.rs**
+- OAuth 2.1 routes mounted at `/oauth` (authorize, token, register, introspect, revoke)
+- Well-known metadata routes mounted at `/.well-known`:
+  - `/.well-known/oauth-authorization-server` (RFC 8414)
+  - `/.well-known/openid-configuration` (OIDC Discovery)
+  - `/.well-known/oauth-protected-resource` (RFC 9728)
+
+**Task Endpoints Integrated with Protocol Handler**
+- `tasks/list` - List active tasks with optional filters
+- `tasks/get` - Get task status by ID
+- `tasks/result` - Retrieve completed task result
+- `tasks/cancel` - Cancel a running/pending task
+- Task capabilities advertised in `initialize` response
+
+**Tool Metadata Integrated with tools/list Response**
+- `outputSchema` included for tools with defined output schemas
+- `_meta.taskSupport` - "required", "optional", or "forbidden"
+- `_meta.supportsProgress` - whether tool reports progress
+- `_meta.supportsCancellation` - whether tool can be cancelled
+- `_meta.estimatedDurationMs` - execution time hint for UI
+
+### Changed
+- `ProtocolHandler` now includes `TaskManager` and `ToolMetadataRegistry`
+- `handle_initialize` returns `TasksCapability` with list and cancel support
+- `handle_list_tools` populates tool metadata from registry
+- Router state management improved for mixed state types (OAuth vs Protocol)
+
+### Technical Details
+- TaskManager instance shared across protocol handler methods
+- ToolMetadataRegistry loaded with defaults on handler creation
+- Meta type properly wrapped using `rmcp::model::Meta`
+- OAuth routers use separate state from main protocol handler
+
+### Testing
+- 70 tests passing
+- Curl tested: health, tools/list, tasks/list, tasks/get
+- Curl tested: OAuth well-known endpoints all returning correct metadata
+
+---
+
+## [0.6.0] - 2026-01-09
+
+### Added
+
+#### MCP 2025-11-25 Specification Updates
+
+**Priority 1: Authorization Updates**
+- **Protected Resource Metadata (RFC 9728)** - New `/.well-known/oauth-protected-resource` endpoint
+- **WWW-Authenticate Enhancement** - Added `resource_metadata` parameter to 401 responses for resource discovery
+- **OpenID Connect Discovery** - New `/.well-known/openid-configuration` endpoint (alias for oauth-authorization-server)
+- **Client ID Metadata Documents** - Support for URL-based client_id with automatic metadata fetching and caching
+- **Incremental Scope Consent** - WWW-Authenticate headers now include scope hints for step-up authorization
+- **Token Audience Binding** - Resource parameter support in authorization requests
+
+**Priority 2: Tasks (Experimental)**
+- **Task Manager** - Full task lifecycle management module (`src/mcp/tasks.rs`, 633 lines)
+- **Task Types** - `Task`, `TaskStatus`, `TaskSupport`, `TaskError` types per spec
+- **Task Endpoints** - `tasks/list`, `tasks/get`, `tasks/result`, `tasks/cancel` operations
+- **Task Lifecycle** - Create, start, update, complete, fail, cancel task states
+- **Task TTL** - Automatic cleanup of expired tasks with configurable TTL
+- **Task Capabilities** - Server initialization includes task support capabilities
+
+**Priority 3: Tool Enhancements**
+- **Tool Metadata Module** - New `src/tools/metadata.rs` with icons, output schemas, execution config
+- **Tool Icons** - `ToolIcon` struct supporting SVG, PNG with mimeType and sizes
+- **Tool Output Schema** - JSON Schema definitions for structured output validation
+- **Tool Execution Config** - `ToolExecution` with taskSupport (required/optional/forbidden), progress, cancellation
+
+#### New Types
+- `ProtectedResourceMetadata` - RFC 9728 resource metadata structure
+- `ClientIdMetadataDocument` - Client ID metadata for URL-based clients
+- `Task` - Task definition with status, progress, TTL, poll interval
+- `TaskStatus` - Pending, Running, Completed, Failed, Cancelled, InputRequired
+- `TaskSupport` - Required, Optional, Forbidden for tool-level task negotiation
+- `TaskManager` - Thread-safe task storage and lifecycle management
+- `TaskError` - NotFound, AlreadyExists, TooManyTasks, InvalidStateTransition
+- `ToolIcon` - Icon definition with src, mimeType, sizes
+- `ToolExecution` - Task support, progress, cancellation, estimated duration
+- `ToolMetadata` - Icons, outputSchema, execution config
+- `ToolMetadataRegistry` - Registry for tool metadata with defaults
+
+### Changed
+- **OAuth Module** - Extended with RFC 9728, OIDC, Client ID Metadata support (500+ lines added)
+- **Middleware Exports** - Added new types to `src/middleware/mod.rs`
+- **MCP Module** - Added tasks module export to `src/mcp/mod.rs`
+- **Tools Module** - Added metadata module export to `src/tools/mod.rs`
+- **Version** - Bumped to 0.6.0
+- **reqwest** - Enabled `json` feature for Client ID Metadata Document fetching
+
+### Technical Details
+- OAuth config extended with `resource_url`, `resource_name`, `resource_documentation`, `client_id_metadata_document_supported`
+- Client metadata cache with HTTP cache-control header respect
+- WWW-Authenticate builder with resource_metadata URL and scope hints
+- Task manager with configurable TTL, poll interval, max tasks
+- Tool metadata registry with sensible defaults for all existing tools
+
+### Testing
+- Protected Resource Metadata endpoint tests
+- Client ID URL detection tests
+- WWW-Authenticate header format tests
+- Task lifecycle tests (create, start, progress, complete, cancel)
+- Tool metadata serialization tests
+- Tool execution config tests
+
+---
+
 ## [0.5.1] - 2026-01-09
 
 ### Changed

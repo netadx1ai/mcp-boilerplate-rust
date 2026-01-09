@@ -1,23 +1,27 @@
 # MCP Boilerplate Rust
 
-**Version 0.5.1** | Production-Ready Multi-Transport MCP Server
+**Version 0.6.3** | Production-Ready Multi-Transport MCP Server
 
-A production-ready Rust implementation of the Model Context Protocol (MCP) featuring 6 transport modes, comprehensive observability, and enterprise-grade tooling.
+A production-ready Rust implementation of the Model Context Protocol (MCP) 2025-11-25 specification featuring 6 transport modes, comprehensive observability, and enterprise-grade tooling.
 
 [![Rust](https://img.shields.io/badge/rust-1.75%2B-orange.svg)](https://www.rust-lang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-48%20passing-brightgreen.svg)]()
+[![Tests](https://img.shields.io/badge/tests-108%20passing-brightgreen.svg)]()
+[![MCP](https://img.shields.io/badge/MCP-2025--11--25-purple.svg)](https://modelcontextprotocol.io)
 
 ## Features
 
-- **6 Transport Modes** - Stdio, SSE, WebSocket, HTTP, HTTP Streaming, gRPC (w/ gRPC-Web)
-- **11 Production Tools** - Complete suite with progress, batching, and long-running tasks
-- **4 Auto-Generated SDKs** - TypeScript, Python, Go, and Rust (Race Car Edition 🏎️)
-- **Load Balancing** - Enterprise-grade with 5 strategies, health checks, auto-failover
-- **Observability** - OpenTelemetry Tracing + Prometheus Metrics
-- **Type-Safe** - Full Rust type safety with schemars validation
-- **High Performance** - Optimized binaries (2.4MB - 4.2MB)
-- **Production Ready** - Zero errors, extensive error handling, Docker support
+- **MCP 2025-11-25 Compliant** - Full spec implementation
+- **6 Transport Modes** - Stdio, SSE, WebSocket, HTTP, HTTP Streaming, gRPC
+- **Elicitation** - Form and URL modes for user input collection
+- **Sampling with Tools** - LLM completion with tool calling
+- **Structured Content** - Output schema validation
+- **Task Management** - Long-running async operations
+- **OAuth 2.1** - RFC 8414, RFC 9728 compliant
+- **JWT Authentication** - Complete auth system
+- **4 Auto-Generated SDKs** - TypeScript, Python, Go, Rust
+- **Load Balancing** - 5 strategies, health checks, auto-failover
+- **Observability** - OpenTelemetry + Prometheus
 
 ## Quick Start
 
@@ -35,57 +39,99 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 git clone https://github.com/netadx/mcp-boilerplate-rust
 cd mcp-boilerplate-rust
 
-# Build (Minimal / Stdio)
-cargo build --release
+# Build
+cargo build --release --features "http,auth"
 
-# Run
-./target/release/mcp-boilerplate-rust --mode stdio
+# Run stdio server
+./target/release/mcp-boilerplate-rust
+
+# Run HTTP server
+./target/release/mcp-boilerplate-rust --mode http
+
+# Run tests
+cargo test --features "http,auth"
 ```
 
 ### Test with MCP Inspector
 
 ```bash
-npx @modelcontextprotocol/inspector ./target/release/mcp-boilerplate-rust --mode stdio
+npx @modelcontextprotocol/inspector ./target/release/mcp-boilerplate-rust
+```
+
+## MCP 2025-11-25 Features
+
+### Elicitation
+
+Collect user input via forms or external URLs.
+
+```rust
+// Form mode
+let request = ElicitationRequest::form("Enter your details")
+    .with_string_field("name", "Your name", true)
+    .with_email_field("email", "Contact email", true)
+    .with_enum_field("plan", vec!["free", "pro", "enterprise"], true)
+    .build();
+
+// URL mode (OAuth, payments)
+let request = ElicitationRequest::url_with_callback(
+    "Authenticate with GitHub",
+    "https://github.com/login/oauth/authorize",
+    "https://api.example.com/callback"
+);
+```
+
+### Sampling with Tools
+
+Request LLM completions with tool calling support.
+
+```rust
+let request = SamplingRequest::new("You are a helpful assistant")
+    .add_user_message("What's the weather in Tokyo?")
+    .with_tools(vec![weather_tool])
+    .with_tool_choice(ToolChoice::Auto)
+    .with_max_tokens(1000)
+    .build();
+```
+
+### Structured Content
+
+Validate tool outputs against JSON Schema.
+
+```rust
+let validator = OutputValidator::new(schema);
+let result = StructuredOutput::new()
+    .text("Temperature is 22.5°C")
+    .structured(json!({"temperature": 22.5, "unit": "celsius"}))
+    .build_validated(&validator)?;
+```
+
+### Task Management
+
+Handle long-running operations asynchronously.
+
+```rust
+let task = manager.create_task(CreateTaskRequest {
+    tool_name: "process_file".to_string(),
+    arguments: json!({"file": "large.csv"}),
+}).await?;
+
+// Track progress
+manager.update_progress(&task.id, 50).await?;
+
+// Complete
+manager.complete_task(&task.id, result).await?;
 ```
 
 ## Transport Modes
 
-### 1. Stdio (Default)
-**Best for:** Desktop apps, Claude Desktop, CLI tools
-```bash
-cargo run --release -- --mode stdio
-```
-
-### 2. SSE (Server-Sent Events)
-**Best for:** Browser push notifications, live updates
-```bash
-cargo run --release --features sse -- --mode sse --bind 127.0.0.1:8025
-```
-
-### 3. WebSocket
-**Best for:** Real-time bidirectional communication
-```bash
-cargo run --release --features websocket -- --mode websocket --bind 127.0.0.1:9001
-```
-
-### 4. HTTP Streaming
-**Best for:** Large file transfers
-```bash
-cargo run --release --features http-stream -- --mode http-stream --bind 127.0.0.1:8026
-```
-
-### 5. gRPC & gRPC-Web
-**Best for:** Microservices, high-performance APIs, browser clients
-```bash
-cargo run --release --features grpc -- --mode grpc --bind 127.0.0.1:50051
-```
-*Supports HTTP/2 multiplexing, Protocol Buffers, and gRPC-Web.*
-
-### 6. HTTP (REST API)
-**Best for:** Standard REST APIs
-```bash
-cargo run --release --features http -- --mode http
-```
+| Mode | Use Case | Command |
+|------|----------|---------|
+| Stdio | Desktop apps, Claude Desktop | `cargo run --release` |
+| HTTP | REST APIs | `cargo run --release --features http -- -m http` |
+| SSE | Browser push, live updates | `cargo run --release --features sse -- -m sse` |
+| WebSocket | Real-time bidirectional | `cargo run --release --features websocket -- -m websocket` |
+| HTTP Streaming | Large file transfers | `cargo run --release --features http-stream -- -m http-stream` |
+| gRPC | Microservices | `cargo run --release --features grpc -- -m grpc` |
 
 ## Tools
 
@@ -96,16 +142,30 @@ cargo run --release --features http -- --mode http
 | `info` | Server metadata |
 | `calculate` | Math operations |
 | `evaluate` | Expression evaluation |
-| `process_with_progress` | Data processing with progress bars |
-| `batch_process` | Batch operations with logging |
+| `process_with_progress` | Data processing with progress |
+| `batch_process` | Batch operations |
 | `transform_data` | Array transformations |
 | `simulate_upload` | File upload simulation |
 | `health_check` | System health status |
 | `long_task` | Long operation simulation |
 
+## OAuth 2.1 & Security
+
+```bash
+# OAuth endpoints
+GET  /.well-known/oauth-authorization-server
+GET  /.well-known/openid-configuration
+GET  /.well-known/oauth-protected-resource
+POST /oauth/authorize
+POST /oauth/token
+POST /oauth/register
+POST /oauth/introspect
+POST /oauth/revoke
+```
+
 ## Client SDKs
 
-Auto-generate type-safe client libraries in 4 languages:
+Auto-generate type-safe client libraries:
 
 ```bash
 cd sdk-generators
@@ -115,74 +175,7 @@ cargo run --release
 # - TypeScript: output/typescript/mcp-client.ts
 # - Python: output/python/mcp_client.py
 # - Go: output/go/mcpclient/client.go
-# - Rust: output/rust/mcp_client.rs (Race Car Edition 🏎️)
-```
-
-### Rust SDK (Race Car Edition 🏎️)
-
-High-performance generated Rust client with:
-- Custom error types (not `Box<dyn Error>`)
-- Borrowing optimizations (`&str` vs `String`)
-- Zero-cost abstractions
-- Pattern matching on enums
-- Auto-generated, stays in sync
-
-```rust
-use mcp_client::{McpClient, HttpTransport, Result};
-
-let transport = HttpTransport::new("http://127.0.0.1:8080");
-let mut client = McpClient::new(transport);
-client.connect().await?;
-
-let result = client.echo("Hello, MCP!").await?;
-```
-
-📖 [SDK Documentation](docs/features/SDK_GENERATORS.md) | [Rust SDK Guide](docs/features/RUST_SDK.md)
-
-## Load Balancing
-
-Enterprise-grade load balancing with:
-- **5 Strategies**: Round-robin, least connections, random, weighted, IP hash
-- **Health Checks**: Automatic backend monitoring
-- **Auto Failover**: Seamless failover to healthy backends
-- **Real-time Stats**: Request counts, success rates, response times
-
-```rust
-use mcp_boilerplate_rust::loadbalancer::{LoadBalancer, LoadBalancerConfig, Backend, Strategy};
-
-let config = LoadBalancerConfig::new(Strategy::RoundRobin)
-    .add_backend(Backend::new("b1".to_string(), "127.0.0.1:8081".to_string()))
-    .add_backend(Backend::new("b2".to_string(), "127.0.0.1:8082".to_string()))
-    .with_failover(true);
-
-let lb = LoadBalancer::new(config);
-lb.start_health_checks().await;
-```
-
-📖 [Load Balancing Guide](docs/features/LOAD_BALANCING.md)
-
-## Observability
-
-### OpenTelemetry Tracing
-
-Enable distributed tracing to track requests across services.
-
-```bash
-# Build with otel feature
-cargo build --release --features otel
-
-# Run with OTLP exporter
-export OTEL_EXPORTER_OTLP_ENDPOINT="http://localhost:4317"
-export OTEL_SERVICE_NAME="mcp-server"
-./target/release/mcp-boilerplate-rust --mode stdio
-```
-
-### Prometheus Metrics
-
-Metrics endpoint available at `/metrics` (HTTP/SSE modes).
-
-```bash
-cargo build --release --features metrics
+# - Rust: output/rust/mcp_client.rs
 ```
 
 ## Build Options
@@ -190,6 +183,7 @@ cargo build --release --features metrics
 | Feature | Command | Size |
 |---------|---------|------|
 | Minimal (Stdio) | `cargo build --release` | ~2.4 MB |
+| HTTP + Auth | `cargo build --release --features "http,auth"` | ~3.0 MB |
 | Web (SSE/WS) | `cargo build --release --features "sse,websocket"` | ~3.3 MB |
 | gRPC | `cargo build --release --features grpc` | ~3.9 MB |
 | Full | `cargo build --release --features full` | ~4.2 MB |
@@ -197,38 +191,70 @@ cargo build --release --features metrics
 ## Testing
 
 ```bash
-# Run all tests
-cargo test --features full
+# Run all tests (108 passing)
+cargo test --features "http,auth"
 
-# Integration tests
-./scripts/integration_test.sh
-```
-
-## Docker
-
-```bash
-docker build -t mcp-server .
-docker run -p 8025:8025 mcp-server
+# Run specific module tests
+cargo test --features "http,auth" elicitation::tests
+cargo test --features "http,auth" sampling::tests
+cargo test --features "http,auth" structured_content::tests
+cargo test --features "http,auth" integration_tests
 ```
 
 ## Documentation
 
-- [START_HERE.md](START_HERE.md) - 5-minute quick start
-- [PROJECT_STATUS.md](PROJECT_STATUS.md) - Complete project status
-- [docs/README.md](docs/README.md) - Full documentation index
-- [docs/features/](docs/features/) - Feature guides (SDKs, Load Balancing)
-- [docs/guides/](docs/guides/) - How-to guides
-- [CLAUDE.md](CLAUDE.md) - AI assistant guide
+| Document | Description |
+|----------|-------------|
+| [docs/README.md](docs/README.md) | Documentation index |
+| [docs/features/ELICITATION.md](docs/features/ELICITATION.md) | User input collection |
+| [docs/features/SAMPLING.md](docs/features/SAMPLING.md) | LLM sampling with tools |
+| [docs/features/STRUCTURED_CONTENT.md](docs/features/STRUCTURED_CONTENT.md) | Output validation |
+| [docs/features/TASKS.md](docs/features/TASKS.md) | Task management |
+| [docs/features/OAUTH.md](docs/features/OAUTH.md) | OAuth 2.1 |
+| [CHANGELOG.md](CHANGELOG.md) | Version history |
+| [NEXT_SESSION.md](NEXT_SESSION.md) | Implementation status |
 
 ## Project Statistics
 
-- **Transport Modes:** 6
-- **Production Tools:** 11
-- **Client SDKs:** 4 (auto-generated)
-- **Code:** ~16,500 lines
-- **Documentation:** ~12,000 lines
-- **Tests:** 89+ passing (100%)
-- **Binary Size:** 2.4MB - 4.2MB
+| Metric | Value |
+|--------|-------|
+| MCP Spec Version | 2025-11-25 |
+| Transport Modes | 6 |
+| Production Tools | 11 |
+| Client SDKs | 4 |
+| Tests | 108 passing |
+| Code | ~20,000 lines |
+| Binary Size | 2.4MB - 4.2MB |
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    MCP Server v0.6.3                     │
+├─────────────────────────────────────────────────────────┤
+│  ProtocolHandler                                         │
+│  ├── TaskManager                                        │
+│  ├── ToolMetadataRegistry                               │
+│  └── ElicitationManager                                 │
+├─────────────────────────────────────────────────────────┤
+│  Core Modules                                            │
+│  ├── tasks.rs         - Long-running task management    │
+│  ├── elicitation.rs   - User input collection           │
+│  ├── sampling.rs      - LLM completion with tools       │
+│  └── structured_content.rs - Output validation          │
+├─────────────────────────────────────────────────────────┤
+│  Transport Layer                                         │
+│  ├── stdio (default)                                    │
+│  ├── HTTP/SSE (optional)                                │
+│  ├── WebSocket (optional)                               │
+│  └── gRPC (optional)                                    │
+├─────────────────────────────────────────────────────────┤
+│  Security                                                │
+│  ├── OAuth 2.1 (RFC 8414, RFC 9728)                     │
+│  ├── JWT Authentication                                  │
+│  └── Well-known metadata endpoints                      │
+└─────────────────────────────────────────────────────────┘
+```
 
 ## License
 
@@ -237,11 +263,12 @@ MIT License - see [LICENSE](LICENSE) file.
 ## Support
 
 - **GitHub:** https://github.com/netadx/mcp-boilerplate-rust
-- **Email:** hello@netadx.ai
+- **MCP Spec:** https://modelcontextprotocol.io/specification/2025-11-25
 - **Website:** https://netadx.ai
 
 ---
 
-**Version:** 0.5.0  
+**Version:** 0.6.3  
 **Status:** Production Ready  
+**MCP Spec:** 2025-11-25  
 **Maintained by:** NetADX Team

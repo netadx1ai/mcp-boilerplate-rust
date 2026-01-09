@@ -11,8 +11,11 @@ mod types;
 mod utils;
 mod loadbalancer;
 
-#[cfg(feature = "http")]
+#[cfg(feature = "auth")]
 mod middleware;
+
+#[cfg(feature = "auth")]
+use middleware::{auth_middleware, auth_router, oauth_router, wellknown_router, OAuthState};
 
 use mcp::McpServer;
 #[cfg(feature = "http")]
@@ -215,14 +218,40 @@ async fn run_http_server() -> Result<()> {
         .allow_methods(Any)
         .allow_headers(Any);
 
-    let app = Router::new()
+    // Build base router with protocol_handler state
+    let mut app: Router<()> = Router::new()
         .route("/", get(health_check))
         .route("/health", get(health_check))
         .route("/tools", get(list_tools_handler))
         .route("/tools/call", post(call_tool_handler))
         .route("/rpc", post(rpc_handler))
-        .layer(cors)
-        .with_state(protocol_handler);
+        .with_state(protocol_handler.clone());
+
+    // Add auth routes if auth feature enabled
+    #[cfg(feature = "auth")]
+    {
+        // Create OAuth state with defaults
+        let oauth_state = OAuthState::with_defaults();
+        
+        // Simple JWT auth routes (stateless)
+        app = app.nest("/auth", auth_router());
+        
+        // Add protected endpoint example
+        app = app.route(
+            "/protected/tools",
+            get(list_tools_handler)
+                .layer(axum::middleware::from_fn(auth_middleware))
+                .with_state(protocol_handler),
+        );
+        
+        // OAuth 2.1 routes (MCP 2025-11-25) - separate state
+        app = app.nest("/oauth", oauth_router(oauth_state.clone()));
+        
+        // Well-known metadata endpoints (RFC 8414, RFC 9728, OIDC)
+        app = app.nest("/.well-known", wellknown_router(oauth_state));
+    }
+
+    let app = app.layer(cors);
 
     let addr = format!("{}:{}", config.host, config.port);
     info!("MCP HTTP Server starting on {}", addr);
@@ -233,6 +262,24 @@ async fn run_http_server() -> Result<()> {
     info!("  GET  /tools");
     info!("  POST /tools/call");
     info!("  POST /rpc (JSON-RPC)");
+    #[cfg(feature = "auth")]
+    {
+        info!("Auth Endpoints (auth feature enabled):");
+        info!("  POST /auth/login");
+        info!("  GET  /auth/verify");
+        info!("  GET  /auth/me (protected)");
+        info!("  GET  /protected/tools (protected)");
+        info!("OAuth 2.1 Endpoints (MCP 2025-11-25):");
+        info!("  GET  /oauth/authorize");
+        info!("  POST /oauth/token");
+        info!("  POST /oauth/register");
+        info!("  POST /oauth/introspect");
+        info!("  POST /oauth/revoke");
+        info!("Well-Known Metadata (RFC 8414, RFC 9728, OIDC):");
+        info!("  GET  /.well-known/oauth-authorization-server");
+        info!("  GET  /.well-known/openid-configuration");
+        info!("  GET  /.well-known/oauth-protected-resource");
+    }
 
     let listener = tokio::net::TcpListener::bind(&addr).await?;
     axum::serve(listener, app).await?;

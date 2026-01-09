@@ -42,8 +42,8 @@
 
 use anyhow::Result;
 use rmcp::model::{
-    InitializeResult, Implementation, PromptsCapability, ProtocolVersion, ResourcesCapability,
-    ServerCapabilities, Tool, ToolsCapability,
+    InitializeResult, Implementation, Meta, PromptsCapability, ProtocolVersion, ResourcesCapability,
+    ServerCapabilities, TasksCapability, Tool, ToolsCapability,
 };
 use serde_json::{json, Value};
 use std::sync::Arc;
@@ -52,6 +52,12 @@ use tracing::{error, info, instrument};
 type JsonObject = serde_json::Map<String, Value>;
 
 use crate::metrics;
+use crate::mcp::tasks::{
+    TaskManager, TasksListRequest, TasksGetRequest, TasksResultRequest, TasksCancelRequest,
+    CreateTaskRequest,
+};
+use crate::mcp::elicitation::ElicitationManager;
+use crate::tools::metadata::ToolMetadataRegistry;
 
 /// Helper function to convert Value to Arc<JsonObject>
 fn value_to_schema(value: Value) -> Arc<JsonObject> {
@@ -73,6 +79,9 @@ use crate::tools::shared::*;
 pub struct ProtocolHandler {
     resource_registry: ResourceRegistry,
     server_info: ServerInfo,
+    task_manager: TaskManager,
+    tool_metadata: Arc<ToolMetadataRegistry>,
+    elicitation_manager: ElicitationManager,
 }
 
 /// Server information
@@ -97,7 +106,15 @@ impl ProtocolHandler {
         Self {
             resource_registry: ResourceRegistry::new(),
             server_info: ServerInfo::default(),
+            task_manager: TaskManager::new(),
+            tool_metadata: Arc::new(ToolMetadataRegistry::with_defaults()),
+            elicitation_manager: ElicitationManager::new(),
         }
+    }
+
+    /// Get the elicitation manager
+    pub fn elicitation_manager(&self) -> &ElicitationManager {
+        &self.elicitation_manager
     }
 
     /// Handle JSON-RPC request string and return JSON-RPC response string
@@ -133,6 +150,11 @@ impl ProtocolHandler {
             "resources/read" => self.handle_read_resource(id, request).await,
             "resources/templates/list" => self.handle_list_resource_templates(id).await,
             "ping" => self.handle_ping(id).await,
+            // Task endpoints (MCP 2025-11-25)
+            "tasks/list" => self.handle_tasks_list(id, request).await,
+            "tasks/get" => self.handle_tasks_get(id, request).await,
+            "tasks/result" => self.handle_tasks_result(id, request).await,
+            "tasks/cancel" => self.handle_tasks_cancel(id, request).await,
             _ => self.error_response(id, -32601, format!("Method not found: {method}")),
         };
 
@@ -160,6 +182,13 @@ impl ProtocolHandler {
     async fn handle_initialize(&self, id: Option<Value>, _request: Value) -> Value {
         info!("Initialize request");
 
+        // Build task capabilities (MCP 2025-11-25)
+        let task_capabilities = Some(TasksCapability {
+            requests: None,
+            list: Some(true),
+            cancel: Some(true),
+        });
+
         let result = InitializeResult {
             protocol_version: ProtocolVersion::V_2024_11_05,
             capabilities: ServerCapabilities {
@@ -172,7 +201,7 @@ impl ProtocolHandler {
                 logging: None,
                 completions: None,
                 experimental: None,
-                tasks: None,
+                tasks: task_capabilities,
             },
             server_info: Implementation {
                 name: self.server_info.name.clone(),
@@ -204,6 +233,39 @@ impl ProtocolHandler {
     async fn handle_list_tools(&self, id: Option<Value>) -> Value {
         info!("List tools request");
 
+        // Helper to get output schema from metadata registry
+        let get_output_schema = |name: &str| -> Option<Arc<JsonObject>> {
+            self.tool_metadata
+                .get(name)
+                .and_then(|m| m.output_schema.as_ref())
+                .and_then(|v| match v {
+                    Value::Object(map) => Some(Arc::new(map.clone())),
+                    _ => None,
+                })
+        };
+
+        // Helper to get execution config as meta
+        let get_execution_meta = |name: &str| -> Option<Meta> {
+            self.tool_metadata.get(name).and_then(|m| {
+                m.execution.as_ref().map(|exec| {
+                    let mut meta = serde_json::Map::new();
+                    if let Some(ref ts) = exec.task_support {
+                        meta.insert("taskSupport".into(), json!(ts));
+                    }
+                    if let Some(sp) = exec.supports_progress {
+                        meta.insert("supportsProgress".into(), json!(sp));
+                    }
+                    if let Some(sc) = exec.supports_cancellation {
+                        meta.insert("supportsCancellation".into(), json!(sc));
+                    }
+                    if let Some(dur) = exec.estimated_duration_ms {
+                        meta.insert("estimatedDurationMs".into(), json!(dur));
+                    }
+                    Meta(meta)
+                })
+            })
+        };
+
         let tools = vec![
             Tool {
                 name: "echo".to_string().into(),
@@ -219,10 +281,10 @@ impl ProtocolHandler {
                     },
                     "required": ["message"]
                 })),
-                output_schema: None,
+                output_schema: get_output_schema("echo"),
                 annotations: None,
                 icons: None,
-                meta: None,
+                meta: get_execution_meta("echo"),
             },
             Tool {
                 name: "ping".to_string().into(),
@@ -232,10 +294,10 @@ impl ProtocolHandler {
                     "type": "object",
                     "properties": {}
                 })),
-                output_schema: None,
+                output_schema: get_output_schema("ping"),
                 annotations: None,
                 icons: None,
-                meta: None,
+                meta: get_execution_meta("ping"),
             },
             Tool {
                 name: "info".to_string().into(),
@@ -273,10 +335,10 @@ impl ProtocolHandler {
                     },
                     "required": ["operation", "a", "b"]
                 })),
-                output_schema: None,
+                output_schema: get_output_schema("calculate"),
                 annotations: None,
                 icons: None,
-                meta: None,
+                meta: get_execution_meta("calculate"),
             },
             Tool {
                 name: "evaluate".to_string().into(),
@@ -315,10 +377,10 @@ impl ProtocolHandler {
                     },
                     "required": ["duration_seconds"]
                 })),
-                output_schema: None,
+                output_schema: get_output_schema("long_task"),
                 annotations: None,
                 icons: None,
-                meta: None,
+                meta: get_execution_meta("long_task"),
             },
             Tool {
                 name: "process_with_progress".to_string().into(),
@@ -335,10 +397,10 @@ impl ProtocolHandler {
                     },
                     "required": ["items"]
                 })),
-                output_schema: None,
+                output_schema: get_output_schema("process_with_progress"),
                 annotations: None,
                 icons: None,
-                meta: None,
+                meta: get_execution_meta("process_with_progress"),
             },
             Tool {
                 name: "batch_process".to_string().into(),
@@ -355,10 +417,10 @@ impl ProtocolHandler {
                     },
                     "required": ["operations"]
                 })),
-                output_schema: None,
+                output_schema: get_output_schema("batch_process"),
                 annotations: None,
                 icons: None,
-                meta: None,
+                meta: get_execution_meta("batch_process"),
             },
             Tool {
                 name: "transform_data".to_string().into(),
@@ -415,10 +477,10 @@ impl ProtocolHandler {
                     "type": "object",
                     "properties": {}
                 })),
-                output_schema: None,
+                output_schema: get_output_schema("health_check"),
                 annotations: None,
                 icons: None,
-                meta: None,
+                meta: get_execution_meta("health_check"),
             },
         ];
 
@@ -1006,6 +1068,129 @@ impl ProtocolHandler {
         expr[start..*pos]
             .parse::<f64>()
             .map_err(|_| "Invalid number".to_string())
+    }
+
+    // ========================================================================
+    // Task Endpoints (MCP 2025-11-25 - Experimental)
+    // ========================================================================
+
+    /// Handle tasks/list request
+    async fn handle_tasks_list(&self, id: Option<Value>, request: Value) -> Value {
+        info!("Tasks list request");
+
+        let params = request.get("params").cloned().unwrap_or(json!({}));
+        let req: TasksListRequest = serde_json::from_value(params).unwrap_or_default();
+
+        let response = self.task_manager.list_tasks(req).await;
+
+        json!({
+            "jsonrpc": "2.0",
+            "id": id,
+            "result": response
+        })
+    }
+
+    /// Handle tasks/get request
+    async fn handle_tasks_get(&self, id: Option<Value>, request: Value) -> Value {
+        info!("Tasks get request");
+
+        let params = match request.get("params") {
+            Some(p) => p.clone(),
+            None => return self.error_response(id, -32602, "Missing params".into()),
+        };
+
+        let req: TasksGetRequest = match serde_json::from_value(params) {
+            Ok(r) => r,
+            Err(e) => return self.error_response(id, -32602, format!("Invalid params: {}", e)),
+        };
+
+        match self.task_manager.get_task(&req.task_id).await {
+            Ok(task) => json!({
+                "jsonrpc": "2.0",
+                "id": id,
+                "result": {
+                    "task": task
+                }
+            }),
+            Err(e) => json!({
+                "jsonrpc": "2.0",
+                "id": id,
+                "error": e.to_json_rpc_error()
+            }),
+        }
+    }
+
+    /// Handle tasks/result request
+    async fn handle_tasks_result(&self, id: Option<Value>, request: Value) -> Value {
+        info!("Tasks result request");
+
+        let params = match request.get("params") {
+            Some(p) => p.clone(),
+            None => return self.error_response(id, -32602, "Missing params".into()),
+        };
+
+        let req: TasksResultRequest = match serde_json::from_value(params) {
+            Ok(r) => r,
+            Err(e) => return self.error_response(id, -32602, format!("Invalid params: {}", e)),
+        };
+
+        match self.task_manager.get_task_result(&req.task_id).await {
+            Ok(result) => json!({
+                "jsonrpc": "2.0",
+                "id": id,
+                "result": result
+            }),
+            Err(e) => json!({
+                "jsonrpc": "2.0",
+                "id": id,
+                "error": e.to_json_rpc_error()
+            }),
+        }
+    }
+
+    /// Handle tasks/cancel request
+    async fn handle_tasks_cancel(&self, id: Option<Value>, request: Value) -> Value {
+        info!("Tasks cancel request");
+
+        let params = match request.get("params") {
+            Some(p) => p.clone(),
+            None => return self.error_response(id, -32602, "Missing params".into()),
+        };
+
+        let req: TasksCancelRequest = match serde_json::from_value(params) {
+            Ok(r) => r,
+            Err(e) => return self.error_response(id, -32602, format!("Invalid params: {}", e)),
+        };
+
+        match self.task_manager.cancel_task(&req.task_id).await {
+            Ok(result) => json!({
+                "jsonrpc": "2.0",
+                "id": id,
+                "result": result
+            }),
+            Err(e) => json!({
+                "jsonrpc": "2.0",
+                "id": id,
+                "error": e.to_json_rpc_error()
+            }),
+        }
+    }
+
+    /// Create a task for tool execution (internal use)
+    #[allow(dead_code)]
+    pub async fn create_tool_task(
+        &self,
+        tool_name: &str,
+        arguments: Value,
+    ) -> Result<crate::mcp::tasks::Task, crate::mcp::tasks::TaskError> {
+        self.task_manager
+            .create_task(CreateTaskRequest {
+                tool_name: tool_name.to_string(),
+                arguments,
+                ttl: None,
+                poll_interval: None,
+            })
+            .await
     }
 }
 

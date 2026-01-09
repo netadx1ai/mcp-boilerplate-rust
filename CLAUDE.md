@@ -6,13 +6,48 @@ This file provides guidance to Claude (AI assistant) when working with code in t
 
 **MCP Boilerplate Rust** is a production-ready Model Context Protocol (MCP) server implementation in Rust with 6 transport modes. This is a reference implementation and starting template for Rust-based MCP servers.
 
-**Version:** 0.5.1  
-**Protocol:** MCP 2025-03-26  
+**Version:** 0.6.1  
+**Protocol:** MCP 2025-11-25  
 **SDK:** rmcp v0.12.0 (official Rust SDK)  
 **Status:** Production Ready  
-**Last Updated:** 2026-01-09 HCMC
+**Last Updated:** 2026-01-09 14:20 HCMC
 
-## What's New in v0.5.1
+## What's New in v0.6.1
+
+**Integration Work Completed:**
+
+- **OAuth/Well-Known Routers Mounted** - `/oauth` and `/.well-known` routes active in HTTP mode
+- **Task Endpoints Integrated** - `tasks/list`, `tasks/get`, `tasks/result`, `tasks/cancel` via JSON-RPC
+- **Tool Metadata in tools/list** - `outputSchema`, `_meta.taskSupport`, progress, cancellation, duration hints
+- **TasksCapability Advertised** - Server initialization includes task support in capabilities
+
+**Technical:**
+- ProtocolHandler now includes TaskManager and ToolMetadataRegistry
+- OAuth routers use separate state, cleanly merged with main app
+- 70 tests passing
+
+## What's New in v0.6.0
+
+**MCP 2025-11-25 Specification Updates:**
+
+- **Protected Resource Metadata (RFC 9728)** - New `/.well-known/oauth-protected-resource` endpoint
+- **OpenID Connect Discovery** - New `/.well-known/openid-configuration` endpoint
+- **Client ID Metadata Documents** - URL-based client_id with automatic metadata fetching
+- **Task Manager (Experimental)** - Full task lifecycle with `tasks/list`, `tasks/get`, `tasks/result`, `tasks/cancel`
+- **Tool Metadata** - Icons, output schemas, and execution config for tool definitions
+- **WWW-Authenticate Enhancement** - resource_metadata parameter and scope hints for 401 responses
+
+**New Files:**
+- `src/mcp/tasks.rs` - Task lifecycle management (633 lines)
+- `src/tools/metadata.rs` - Tool icons, output schemas, execution config
+
+## What's in v0.5.2
+
+- **JWT Authentication** - Complete auth system with login, token verification, protected routes
+- **Auth Middleware** - Required and optional auth middleware for HTTP transport
+- **Secure Defaults** - JWT_SECRET required (no unsafe defaults)
+
+## What's in v0.5.1
 
 - **Official SDK Patterns** - Refactored to use `#[prompt_router]`, `#[prompt_handler]`, `#[task_handler]` macros
 - **Task Lifecycle Support** - Enabled `#[task_handler]` for long-running operations (SEP-1686)
@@ -45,6 +80,9 @@ cargo run --release --features sse -- --mode sse --bind 127.0.0.1:8025
 cargo run --release --features websocket -- --mode websocket --bind 127.0.0.1:9001
 cargo run --release --features http-stream -- --mode http-stream --bind 127.0.0.1:8026
 cargo run --release --features grpc -- --mode grpc --bind 127.0.0.1:50051
+
+# Run HTTP with auth
+JWT_SECRET="your-secret-key" cargo run --release --features "http,auth" -- --mode http
 
 # Run with OpenTelemetry (requires OTEL collector)
 export OTEL_EXPORTER_OTLP_ENDPOINT="http://localhost:4317"
@@ -745,7 +783,7 @@ open examples/websocket_test_client.html
 - `metrics` - Prometheus metrics collection
 - `otel` - OpenTelemetry distributed tracing
 - `database` - MongoDB integration (future)
-- `auth` - JWT authentication (future)
+- `auth` - JWT authentication (requires http)
 - `full` - All features
 
 ## Contact
@@ -766,6 +804,6 @@ open examples/websocket_test_client.html
 ---
 
 **Last Updated:** 2026-01-09 HCMC  
-**Version:** 0.5.0  
+**Version:** 0.5.2  
 **For:** Claude AI Assistant  
 **Purpose:** Code assistance and development guidance
