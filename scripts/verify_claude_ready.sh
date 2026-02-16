@@ -16,7 +16,7 @@ RED='\033[0;31m'
 YELLOW='\033[1;33m'
 NC='\033[0m'
 
-PROJECT_DIR="/Users/hoangiso/Desktop/mcp-boilerplate-rust"
+PROJECT_DIR="/Volumes/T7Shield/Work2026/mcp-boilerplate-rust"
 BINARY="$PROJECT_DIR/target/release/mcp-boilerplate-rust"
 CLAUDE_CONFIG="$HOME/Library/Application Support/Claude/claude_desktop_config.json"
 
