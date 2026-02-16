@@ -1,7 +1,7 @@
 {
   "mcpServers": {
     "mcp-boilerplate-rust": {
-      "command": "/Users/hoangiso/Desktop/mcp-boilerplate-rust/target/release/mcp-boilerplate-rust",
+      "command": "/Volumes/T7Shield/Work2026/mcp-boilerplate-rust/target/release/mcp-boilerplate-rust",
       "args": [
         "--mode",
         "stdio"
