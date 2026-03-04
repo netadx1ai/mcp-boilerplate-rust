@@ -91,9 +91,10 @@ database = ["dep:mongodb"]
 auth = ["dep:jsonwebtoken", "dep:axum", "dep:tower", "dep:tower-http"]
 metrics = ["dep:prometheus", "dep:lazy_static"]
 otel = ["dep:opentelemetry", "dep:opentelemetry_sdk", "dep:opentelemetry-otlp", "dep:tracing-opentelemetry"]
+postgres = []
 
 # All features
-full = ["http", "sse", "websocket", "http-stream", "grpc", "database", "auth", "metrics", "otel"]
+full = ["http", "sse", "websocket", "http-stream", "grpc", "database", "auth", "metrics", "otel", "postgres"]
 
 [profile.release]
 opt-level = 3

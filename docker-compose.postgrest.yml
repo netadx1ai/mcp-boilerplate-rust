@@ -1,0 +1,47 @@
+# PostgREST development environment for MCP db tool
+# Usage: docker compose -f docker-compose.postgrest.yml up -d
+#
+# Services:
+#   postgres   - PostgreSQL 16 on port 5432
+#   postgrest  - PostgREST v12.2.0 on port 3000
+#
+# After starting, run the setup SQL:
+#   docker compose -f docker-compose.postgrest.yml exec -T postgres \
+#     psql -U postgres -d myapp < scripts/postgrest-setup.sql
+
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: myapp
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d myapp"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  postgrest:
+    image: postgrest/postgrest:v12.2.0
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGRST_DB_URI: postgres://postgres:postgres@postgres:5432/myapp
+      PGRST_DB_SCHEMAS: public
+      PGRST_DB_ANON_ROLE: web_anon
+      PGRST_JWT_SECRET: your-jwt-secret-at-least-32-chars-long!!
+      PGRST_DB_POOL: 10
+      PGRST_DB_POOL_ACQUISITION_TIMEOUT: 10
+    ports:
+      - "3000:3000"
+
+volumes:
+  pgdata:

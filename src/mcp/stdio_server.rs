@@ -325,6 +325,36 @@ impl McpServer {
         AdvancedTool::health_check(ctx).await
     }
 
+    // ==================== DATABASE (PostgREST) ====================
+
+    #[tool(
+        description = "PostgreSQL database tool via PostgREST. Actions: query, insert, update, delete, upsert, rpc, list_tables, describe. Supports Supabase-compatible filters (eq, neq, gt, gte, lt, lte, like, ilike, is, in, not, contains, containedBy, overlaps). Env: POSTGREST_URL, POSTGREST_ANON_KEY, DB_ALLOWED_TABLES, DB_TABLE_PREFIX."
+    )]
+    async fn db(
+        &self,
+        Parameters(req): Parameters<serde_json::Value>,
+    ) -> Result<String, McpError> {
+        #[cfg(feature = "postgres")]
+        {
+            use crate::tools::db;
+            let db_req: db::DbRequest = serde_json::from_value(req)
+                .map_err(|e| McpError::invalid_params(format!("Invalid db request: {e}"), None))?;
+            let client = db::get_client();
+            let config = db::get_config();
+            let response = db::execute_db(client, config, &db_req).await;
+            serde_json::to_string_pretty(&response)
+                .map_err(|e| McpError::internal_error(format!("Serialization error: {e}"), None))
+        }
+        #[cfg(not(feature = "postgres"))]
+        {
+            let _ = req;
+            Err(McpError::invalid_params(
+                "PostgreSQL feature not enabled. Rebuild with: cargo build --features postgres",
+                None,
+            ))
+        }
+    }
+
     // ==================== PROMPTS ====================
 
     /// Generate a code review prompt for analyzing code quality

@@ -6,11 +6,11 @@ This file provides guidance to Claude (AI assistant) when working with code in t
 
 **MCP Boilerplate Rust** is a production-ready Model Context Protocol (MCP) server implementation in Rust with 6 transport modes. This is a reference implementation and starting template for Rust-based MCP servers.
 
-**Version:** 0.6.1  
+**Version:** 0.6.3  
 **Protocol:** MCP 2025-11-25  
 **SDK:** rmcp v0.12.0 (official Rust SDK)  
 **Status:** Production Ready  
-**Last Updated:** 2026-01-09 14:20 HCMC
+**Last Updated:** 2026-03-04 13:27 HCMC
 
 ## What's New in v0.6.1
 
@@ -71,6 +71,9 @@ cargo build --release
 # Build with all features (4.2MB binary)
 cargo build --release --features full
 
+# Build with PostgreSQL db tool
+cargo build --release --features postgres
+
 # Build with OpenTelemetry
 cargo build --release --features otel
 
@@ -84,12 +87,18 @@ cargo run --release --features grpc -- --mode grpc --bind 127.0.0.1:50051
 # Run HTTP with auth
 JWT_SECRET="your-secret-key" cargo run --release --features "http,auth" -- --mode http
 
+# Run with PostgreSQL db tool (requires PostgREST)
+POSTGREST_URL=http://localhost:3000 cargo run --release --features postgres -- --mode stdio
+
 # Run with OpenTelemetry (requires OTEL collector)
 export OTEL_EXPORTER_OTLP_ENDPOINT="http://localhost:4317"
 ./target/release/mcp-boilerplate-rust --mode stdio
 
 # Run all tests
 cargo test --features full
+
+# Run db tool tests only
+cargo test --features postgres -- db::
 
 # Code quality
 cargo clippy --release --all-features
@@ -98,6 +107,13 @@ cargo audit
 
 # Integration tests
 ./scripts/integration_test.sh
+
+# PostgREST integration tests (requires docker)
+docker compose -f docker-compose.postgrest.yml up -d
+docker compose -f docker-compose.postgrest.yml exec -T postgres \
+  psql -U postgres -d myapp < scripts/postgrest-setup.sql
+./scripts/test-db-integration.sh
+./scripts/test-db-mcp-smoke.sh
 ```
 
 ### Project Structure
@@ -118,7 +134,8 @@ mcp-boilerplate-rust/
 │   │   ├── mod.rs                  # Module exports
 │   │   ├── types.rs                # Load balancer types
 │   │   └── balancer.rs             # Load balancer impl
-│   ├── tools/                      # 11 tool implementations
+│   ├── tools/                      # 12 tool implementations
+│   │   ├── db.rs                   # PostgreSQL via PostgREST (feature: postgres)
 │   ├── prompts/                    # Prompt types (prompts use #[prompt] macro in McpServer)
 │   ├── resources/                  # Resource providers
 │   └── utils/
@@ -137,7 +154,13 @@ mcp-boilerplate-rust/
 │           └── README.md
 ├── proto/
 │   └── mcp.proto                   # gRPC service definition (158 lines)
-├── examples/                       # Browser test clients
+├── docker-compose.postgrest.yml    # PostgREST dev environment
+├── scripts/
+│   ├── postgrest-setup.sql         # DB seed for PostgREST dev
+│   ├── test-db-integration.sh      # PostgREST integration tests (23 tests)
+│   └── test-db-mcp-smoke.sh        # MCP stdio e2e db tests (34 tests)
+├── examples/                       # Browser test clients + configs
+│   ├── claude_desktop_config_db.json  # Claude Desktop config with db tool
 │   ├── sse_test_client.html
 │   └── websocket_test_client.html
 └── docs/                           # Documentation (reorganized)
@@ -449,7 +472,7 @@ lb.start_health_checks().await;
 
 📖 See `docs/features/LOAD_BALANCING.md`
 
-## Available Tools (11 Total)
+## Available Tools (12 Total)
 
 ### Basic Tools (5)
 
@@ -524,6 +547,79 @@ lb.start_health_checks().await;
 - **Output:** `{ completed, duration_seconds, steps }`
 - **Features:** Step-by-step progress updates
 - **File:** `src/tools/advanced.rs`
+
+### Database Tool (1) -- requires `postgres` feature
+
+**12. db**
+- **Purpose:** PostgreSQL database operations via PostgREST
+- **Actions:** `query`, `insert`, `update`, `delete`, `upsert`, `rpc`, `list_tables`, `describe`
+- **Input:** JSON object with `action` (required) plus action-specific fields:
+  - `table` (string) -- target table name
+  - `select` (string or array) -- column projection, e.g. `"id,name"` or `["id","name"]`
+  - `filters` (object) -- Supabase-compatible: `{ "column": { "op": value } }` where op is one of: `eq`, `neq`, `gt`, `gte`, `lt`, `lte`, `like`, `ilike`, `is`, `in`, `not`, `contains`, `containedBy`, `overlaps`
+  - `data` (object or array) -- row data for insert/update/upsert
+  - `order` (array) -- `[{ "column": "id", "ascending": true }]`
+  - `limit` (number), `offset` (number)
+  - `options` -- `{ "count": "exact", "single": true, "return_pref": "representation" }`
+  - `function_name` (string) + `params` (object) -- for `rpc` action
+  - `conflict` (string) -- conflict column for upsert
+  - `token` (string) -- JWT token override
+- **Output:** `{ success, data, error, count, metadata: { execution_time_ms, timestamp, action, table, affected_rows } }`
+- **Feature flag:** `--features postgres`
+- **Requires:** PostgREST running (see docker-compose.postgrest.yml)
+- **File:** `src/tools/db.rs`
+
+**Environment variables for db tool:**
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `POSTGREST_URL` | `http://localhost:3000` | PostgREST base URL |
+| `POSTGREST_ANON_KEY` | (none) | Bearer token for anonymous access |
+| `POSTGREST_TIMEOUT` | `30` | Request timeout in seconds |
+| `DB_ALLOWED_TABLES` | (none) | Comma-separated whitelist, e.g. `users,orders` |
+| `DB_TABLE_PREFIX` | (none) | Only allow tables starting with prefix |
+
+**Example tool calls:**
+
+```json
+// Query with filters, ordering, limit
+{ "action": "query", "table": "users", "filters": { "is_active": { "eq": true } }, "order": [{ "column": "created_at", "ascending": false }], "limit": 10 }
+
+// Insert
+{ "action": "insert", "table": "users", "data": { "name": "Alice", "email": "alice@example.com" } }
+
+// Update with filter (filters required -- prevents mass updates)
+{ "action": "update", "table": "users", "filters": { "id": { "eq": 42 } }, "data": { "name": "Bob" } }
+
+// Delete with filter (filters required)
+{ "action": "delete", "table": "users", "filters": { "id": { "eq": 42 } } }
+
+// Upsert (insert or update on conflict)
+{ "action": "upsert", "table": "users", "data": { "id": 42, "name": "Bob" }, "conflict": "id" }
+
+// RPC (call a PostgreSQL function)
+{ "action": "rpc", "function_name": "calculate_total", "params": { "order_id": 123 } }
+
+// List all tables
+{ "action": "list_tables" }
+
+// Describe table schema
+{ "action": "describe", "table": "users" }
+```
+
+**Quick start with PostgREST:**
+
+```bash
+# Start PostgreSQL + PostgREST
+docker compose -f docker-compose.postgrest.yml up -d
+
+# Seed the database
+docker compose -f docker-compose.postgrest.yml exec -T postgres \
+  psql -U postgres -d myapp < scripts/postgrest-setup.sql
+
+# Build and run with db tool
+POSTGREST_URL=http://localhost:3000 cargo run --features postgres -- --mode stdio
+```
 
 ## Adding New Tools
 
@@ -717,6 +813,13 @@ cargo run --features sse -- --mode sse --bind 127.0.0.1:9999
 # - SSE server starts and responds
 # - WebSocket server runs
 # - All tools operational
+
+# PostgREST db tool integration tests (requires docker)
+docker compose -f docker-compose.postgrest.yml up -d
+docker compose -f docker-compose.postgrest.yml exec -T postgres \
+  psql -U postgres -d myapp < scripts/postgrest-setup.sql
+./scripts/test-db-integration.sh      # 23 PostgREST HTTP tests
+./scripts/test-db-mcp-smoke.sh        # 34 MCP stdio end-to-end tests
 ```
 
 ### Manual Testing
@@ -783,8 +886,9 @@ open examples/websocket_test_client.html
 - `metrics` - Prometheus metrics collection
 - `otel` - OpenTelemetry distributed tracing
 - `database` - MongoDB integration (future)
+- `postgres` - PostgreSQL db tool via PostgREST (requires external PostgREST instance)
 - `auth` - JWT authentication (requires http)
-- `full` - All features
+- `full` - All features (includes postgres)
 
 ## Contact
 
@@ -795,15 +899,15 @@ open examples/websocket_test_client.html
 ## Quick Stats
 
 - **Transport Modes:** 6
-- **Production Tools:** 11
+- **Production Tools:** 12 (11 built-in + 1 db via PostgREST)
 - **Client SDKs:** 4 (auto-generated)
-- **Code:** ~16,500 lines
+- **Code:** ~18,000 lines
 - **Documentation:** ~12,000 lines
-- **Tests:** 89+ passing (100%)
+- **Tests:** 208 passing (151 unit + 23 integration + 34 MCP smoke)
 
 ---
 
-**Last Updated:** 2026-01-09 HCMC  
-**Version:** 0.5.2  
+**Last Updated:** 2026-03-04 HCMC  
+**Version:** 0.6.3  
 **For:** Claude AI Assistant  
 **Purpose:** Code assistance and development guidance
