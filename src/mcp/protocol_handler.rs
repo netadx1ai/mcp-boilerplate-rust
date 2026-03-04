@@ -58,6 +58,8 @@ use crate::mcp::tasks::{
 };
 use crate::mcp::elicitation::ElicitationManager;
 use crate::tools::metadata::ToolMetadataRegistry;
+#[cfg(feature = "postgres")]
+use crate::tools::db;
 
 /// Helper function to convert Value to Arc<JsonObject>
 fn value_to_schema(value: Value) -> Arc<JsonObject> {
@@ -266,7 +268,7 @@ impl ProtocolHandler {
             })
         };
 
-        let tools = vec![
+        let mut tools = vec![
             Tool {
                 name: "echo".to_string().into(),
                 title: None,
@@ -484,6 +486,75 @@ impl ProtocolHandler {
             },
         ];
 
+        #[cfg(feature = "postgres")]
+        tools.push(Tool {
+            name: "db".to_string().into(),
+            title: None,
+            description: Some(
+                "PostgreSQL database tool via PostgREST. Actions: query, insert, update, delete, upsert, rpc, list_tables, describe. Supports Supabase-compatible filters (eq, neq, gt, gte, lt, lte, like, ilike, is, in, not, contains, containedBy, overlaps).".into()
+            ),
+            input_schema: value_to_schema(json!({
+                "type": "object",
+                "properties": {
+                    "action": {
+                        "type": "string",
+                        "enum": ["query", "insert", "update", "delete", "upsert", "rpc", "list_tables", "describe"],
+                        "description": "Database action to perform"
+                    },
+                    "table": {
+                        "type": "string",
+                        "description": "Target table name (required for CRUD actions)"
+                    },
+                    "select": {
+                        "description": "Columns to select (string or array)"
+                    },
+                    "filters": {
+                        "type": "object",
+                        "description": "Filter conditions: { \"col\": { \"op\": value } }"
+                    },
+                    "data": {
+                        "description": "Data payload for insert/update/upsert"
+                    },
+                    "order": {
+                        "description": "Order spec: [{ \"column\": \"name\", \"direction\": \"asc\" }]"
+                    },
+                    "limit": {
+                        "type": "number",
+                        "description": "Max rows to return"
+                    },
+                    "offset": {
+                        "type": "number",
+                        "description": "Rows to skip"
+                    },
+                    "options": {
+                        "type": "object",
+                        "description": "Options: count (exact), single (bool), return (minimal/representation)"
+                    },
+                    "function_name": {
+                        "type": "string",
+                        "description": "Function name for rpc action"
+                    },
+                    "params": {
+                        "type": "object",
+                        "description": "Parameters for rpc action"
+                    },
+                    "conflict": {
+                        "type": "string",
+                        "description": "Conflict columns for upsert (comma-separated)"
+                    },
+                    "token": {
+                        "type": "string",
+                        "description": "JWT token for PostgREST authorization"
+                    }
+                },
+                "required": ["action"]
+            })),
+            output_schema: None,
+            annotations: None,
+            icons: None,
+            meta: None,
+        });
+
         json!({
             "jsonrpc": "2.0",
             "id": id,
@@ -525,6 +596,8 @@ impl ProtocolHandler {
             "transform_data" => self.execute_transform_data(arguments).await,
             "simulate_upload" => self.execute_simulate_upload(arguments).await,
             "health_check" => self.execute_health_check().await,
+            #[cfg(feature = "postgres")]
+            "db" => self.execute_db(arguments).await,
             _ => Err(format!("Unknown tool: {tool_name}")),
         };
 
@@ -965,6 +1038,21 @@ impl ProtocolHandler {
         Ok(vec![json!({
             "type": "text",
             "text": serde_json::to_string(&response).unwrap()
+        })])
+    }
+
+    #[cfg(feature = "postgres")]
+    async fn execute_db(&self, args: Value) -> Result<Vec<Value>, String> {
+        let req: db::DbRequest = serde_json::from_value(args)
+            .map_err(|e| format!("Invalid db request: {e}"))?;
+        let client = db::get_client();
+        let config = db::get_config();
+        let response = db::execute_db(client, config, &req).await;
+        let text = serde_json::to_string_pretty(&response)
+            .unwrap_or_else(|_| format!("{:?}", response));
+        Ok(vec![json!({
+            "type": "text",
+            "text": text
         })])
     }
 

@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "mcp-boilerplate-rust-db": {
+      "command": "/path/to/mcp-boilerplate-rust/target/release/mcp-boilerplate-rust",
+      "args": ["--mode", "stdio"],
+      "env": {
+        "RUST_LOG": "off",
+        "POSTGREST_URL": "http://localhost:3000",
+        "POSTGREST_ANON_KEY": "",
+        "POSTGREST_TIMEOUT": "30",
+        "DB_ALLOWED_TABLES": "",
+        "DB_TABLE_PREFIX": ""
+      }
+    }
+  }
+}

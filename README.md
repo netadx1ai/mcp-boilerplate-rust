@@ -1,12 +1,12 @@
 # MCP Boilerplate Rust
 
-**Version 0.6.3** | Production-Ready Multi-Transport MCP Server
+**Version 0.6.3** | Production-Ready Multi-Transport MCP Server | PostgreSQL via PostgREST
 
 A production-ready Rust implementation of the Model Context Protocol (MCP) 2025-11-25 specification featuring 6 transport modes, comprehensive observability, and enterprise-grade tooling.
 
 [![Rust](https://img.shields.io/badge/rust-1.75%2B-orange.svg)](https://www.rust-lang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-108%20passing-brightgreen.svg)]()
+[![Tests](https://img.shields.io/badge/tests-208%20passing-brightgreen.svg)]()
 [![MCP](https://img.shields.io/badge/MCP-2025--11--25-purple.svg)](https://modelcontextprotocol.io)
 
 ## Features
@@ -148,6 +148,65 @@ manager.complete_task(&task.id, result).await?;
 | `simulate_upload` | File upload simulation |
 | `health_check` | System health status |
 | `long_task` | Long operation simulation |
+| `db` | PostgreSQL via PostgREST (feature: `postgres`) |
+
+## PostgreSQL Database Tool (via PostgREST)
+
+The `db` tool provides full CRUD operations on PostgreSQL through a PostgREST proxy. Requires the `postgres` feature flag and a running PostgREST instance.
+
+**Actions:** `query`, `insert`, `update`, `delete`, `upsert`, `rpc`, `list_tables`, `describe`
+
+### Quick Start
+
+```bash
+# Start PostgreSQL + PostgREST
+docker compose -f docker-compose.postgrest.yml up -d
+
+# Seed the database
+docker compose -f docker-compose.postgrest.yml exec -T postgres \
+  psql -U postgres -d myapp < scripts/postgrest-setup.sql
+
+# Build and run
+POSTGREST_URL=http://localhost:3000 cargo run --features postgres -- --mode stdio
+```
+
+### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `POSTGREST_URL` | `http://localhost:3000` | PostgREST base URL |
+| `POSTGREST_ANON_KEY` | (none) | Bearer token for anonymous access |
+| `POSTGREST_TIMEOUT` | `30` | Request timeout in seconds |
+| `DB_ALLOWED_TABLES` | (none) | Comma-separated whitelist |
+| `DB_TABLE_PREFIX` | (none) | Only allow tables with this prefix |
+
+### Example Tool Calls
+
+```json
+// Query with filters
+{ "action": "query", "table": "users", "filters": { "is_active": { "eq": true } }, "order": [{ "column": "created_at", "ascending": false }], "limit": 10 }
+
+// Insert
+{ "action": "insert", "table": "users", "data": { "name": "Alice", "email": "alice@example.com" } }
+
+// Update (filters required)
+{ "action": "update", "table": "users", "filters": { "id": { "eq": 42 } }, "data": { "name": "Bob" } }
+
+// Delete (filters required)
+{ "action": "delete", "table": "users", "filters": { "id": { "eq": 42 } } }
+
+// Upsert
+{ "action": "upsert", "table": "users", "data": { "id": 42, "name": "Bob" }, "conflict": "id" }
+
+// RPC (call a PostgreSQL function)
+{ "action": "rpc", "function_name": "calculate_total", "params": { "order_id": 123 } }
+
+// List tables / Describe schema
+{ "action": "list_tables" }
+{ "action": "describe", "table": "users" }
+```
+
+Supports 14 Supabase-compatible filter operators: `eq`, `neq`, `gt`, `gte`, `lt`, `lte`, `like`, `ilike`, `is`, `in`, `not`, `contains`, `containedBy`, `overlaps`.
 
 ## OAuth 2.1 & Security
 
@@ -185,13 +244,14 @@ cargo run --release
 | Minimal (Stdio) | `cargo build --release` | ~2.4 MB |
 | HTTP + Auth | `cargo build --release --features "http,auth"` | ~3.0 MB |
 | Web (SSE/WS) | `cargo build --release --features "sse,websocket"` | ~3.3 MB |
+| PostgreSQL DB | `cargo build --release --features postgres` | ~2.5 MB |
 | gRPC | `cargo build --release --features grpc` | ~3.9 MB |
 | Full | `cargo build --release --features full` | ~4.2 MB |
 
 ## Testing
 
 ```bash
-# Run all tests (108 passing)
+# Run all tests (208 passing)
 cargo test --features "http,auth"
 
 # Run specific module tests
@@ -199,6 +259,13 @@ cargo test --features "http,auth" elicitation::tests
 cargo test --features "http,auth" sampling::tests
 cargo test --features "http,auth" structured_content::tests
 cargo test --features "http,auth" integration_tests
+
+# PostgreSQL db tool tests (56 unit tests)
+cargo test --features postgres -- db::
+
+# PostgREST integration tests (requires docker)
+./scripts/test-db-integration.sh      # 23 tests
+./scripts/test-db-mcp-smoke.sh        # 34 MCP stdio e2e tests
 ```
 
 ## Documentation
@@ -220,9 +287,9 @@ cargo test --features "http,auth" integration_tests
 |--------|-------|
 | MCP Spec Version | 2025-11-25 |
 | Transport Modes | 6 |
-| Production Tools | 11 |
+| Production Tools | 12 (11 built-in + 1 db via PostgREST) |
 | Client SDKs | 4 |
-| Tests | 108 passing |
+| Tests | 208 passing (151 unit + 23 integration + 34 smoke) |
 | Code | ~20,000 lines |
 | Binary Size | 2.4MB - 4.2MB |
 
@@ -241,7 +308,8 @@ cargo test --features "http,auth" integration_tests
 │  ├── tasks.rs         - Long-running task management    │
 │  ├── elicitation.rs   - User input collection           │
 │  ├── sampling.rs      - LLM completion with tools       │
-│  └── structured_content.rs - Output validation          │
+│  ├── structured_content.rs - Output validation          │
+│  └── db.rs            - PostgreSQL via PostgREST [postgres] │
 ├─────────────────────────────────────────────────────────┤
 │  Transport Layer                                         │
 │  ├── stdio (default)                                    │
