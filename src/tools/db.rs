@@ -934,7 +934,7 @@ pub async fn execute_db(
                 response.data = Some(definition.clone());
             } else {
                 response = DbResponse::err(
-                    format!("Table '{}' not found in PostgREST schema", tbl),
+                    format!("Table '{tbl}' not found in PostgREST schema"),
                     &action,
                     table,
                     start,
