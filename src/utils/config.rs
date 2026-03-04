@@ -1,6 +1,5 @@
-#[cfg(feature = "http")]
-use anyhow::Result;
-#[cfg(feature = "http")]
+#![allow(dead_code)]
+
 use std::env;
 
 pub struct Config {
@@ -9,32 +8,30 @@ pub struct Config {
     #[allow(dead_code)]
     pub rust_log: String,
     #[allow(dead_code)]
-    pub mongodb_uri: Option<String>,
-    #[allow(dead_code)]
-    pub mongodb_database: Option<String>,
-    #[allow(dead_code)]
     pub jwt_secret: Option<String>,
+    #[allow(dead_code)]
+    pub postgrest_url: Option<String>,
+    #[allow(dead_code)]
+    pub db_table_prefix: Option<String>,
 }
 
 impl Config {
-    #[cfg(feature = "http")]
     pub fn from_env() -> Self {
         Self {
             host: env::var("HOST").unwrap_or_else(|_| "0.0.0.0".to_string()),
             port: env::var("PORT")
-                .unwrap_or_else(|_| "8025".to_string())
+                .unwrap_or_else(|_| "8030".to_string())
                 .parse()
-                .unwrap_or(8025),
+                .unwrap_or(8030),
             rust_log: env::var("RUST_LOG")
-                .unwrap_or_else(|_| "info,mcp_boilerplate_rust=debug".to_string()),
-            mongodb_uri: env::var("MONGODB_URI").ok(),
-            mongodb_database: env::var("MONGODB_DATABASE").ok(),
+                .unwrap_or_else(|_| "info,mcp_dautruongvui_be=debug".to_string()),
             jwt_secret: env::var("JWT_SECRET").ok(),
+            postgrest_url: env::var("POSTGREST_URL").ok(),
+            db_table_prefix: env::var("DB_TABLE_PREFIX").ok(),
         }
     }
 
-    #[cfg(feature = "http")]
-    pub fn validate(&self) -> Result<()> {
+    pub fn validate(&self) -> anyhow::Result<()> {
         if self.port == 0 {
             anyhow::bail!("Invalid port number");
         }
@@ -51,11 +48,11 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             host: "0.0.0.0".to_string(),
-            port: 8025,
+            port: 8030,
             rust_log: "info".to_string(),
-            mongodb_uri: None,
-            mongodb_database: None,
             jwt_secret: None,
+            postgrest_url: None,
+            db_table_prefix: None,
         }
     }
 }
