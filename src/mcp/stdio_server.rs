@@ -91,7 +91,31 @@ impl McpServer {
         }
     }
 
-    // textgen tool will be added in Phase E (Task 11)
+    // ==================== TEXTGEN (V5 Proxy) ====================
+
+    #[tool(
+        description = "AI text generation via MCP V5 proxy. Supports JSON mode, structured output (json_schema), vision attachments. Credit-gated per toolId. bypassConsume=true (DTV manages credits in PostgreSQL)."
+    )]
+    async fn textgen(
+        &self,
+        Parameters(req): Parameters<serde_json::Value>,
+    ) -> Result<String, McpError> {
+        #[cfg(feature = "auth")]
+        {
+            use crate::tools::textgen;
+            let response = textgen::execute(req).await;
+            serde_json::to_string_pretty(&response)
+                .map_err(|e| McpError::internal_error(format!("Serialization error: {e}"), None))
+        }
+        #[cfg(not(feature = "auth"))]
+        {
+            let _ = req;
+            Err(McpError::invalid_params(
+                "Auth feature not enabled (required for textgen). Rebuild with: cargo build --features auth",
+                None,
+            ))
+        }
+    }
 
     // ==================== SERVER ====================
 
@@ -99,7 +123,7 @@ impl McpServer {
     pub async fn run(self) -> Result<()> {
         info!("Starting mcp-dautruongvui-be stdio server");
         info!("Protocol: MCP 2025-03-26");
-        info!("Tools: auth (PostgreSQL auth), db (PostgreSQL via PostgREST)");
+        info!("Tools: auth (PostgreSQL auth), db (PostgreSQL via PostgREST), textgen (AI via V5 proxy)");
         info!("Ready to receive MCP requests");
 
         let service = self.serve(rmcp::transport::stdio()).await?;
@@ -127,7 +151,7 @@ impl ServerHandler for McpServer {
                 .build(),
             server_info: Implementation::from_build_env(),
             instructions: Some(
-                "Đấu Trường Vui MCP Backend. Tools: auth (PostgreSQL auth), db (PostgreSQL via PostgREST).".to_string(),
+                "Đấu Trường Vui MCP Backend. Tools: auth (PostgreSQL auth), db (PostgreSQL via PostgREST), textgen (AI via V5 proxy).".to_string(),
             ),
         }
     }

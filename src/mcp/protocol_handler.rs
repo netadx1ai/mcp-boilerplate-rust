@@ -20,6 +20,9 @@ use crate::tools::db;
 #[cfg(feature = "auth")]
 use crate::tools::auth;
 
+#[cfg(feature = "auth")]
+use crate::tools::textgen;
+
 use crate::metrics;
 
 /// Helper function to convert Value to Arc<JsonObject>
@@ -106,7 +109,7 @@ impl ProtocolHandler {
                 website_url: None,
             },
             instructions: Some(
-                "Đấu Trường Vui MCP Backend. Tools: auth (PostgreSQL auth), db (PostgreSQL via PostgREST).".to_string(),
+                "Đấu Trường Vui MCP Backend. Tools: auth (PostgreSQL auth), db (PostgreSQL via PostgREST), textgen (AI via V5 proxy).".to_string(),
             ),
         };
 
@@ -242,7 +245,73 @@ impl ProtocolHandler {
             meta: None,
         });
 
-        // textgen tool will be added in Phase E (Task 11)
+        #[cfg(feature = "auth")]
+        tools.push(Tool {
+            name: "textgen".to_string().into(),
+            title: None,
+            description: Some(
+                "AI text generation via MCP V5 proxy. Supports JSON mode, structured output (json_schema), vision attachments. Credit-gated per toolId.".into()
+            ),
+            input_schema: value_to_schema(json!({
+                "type": "object",
+                "properties": {
+                    "action": {
+                        "type": "string",
+                        "enum": ["generate"],
+                        "description": "Action to perform"
+                    },
+                    "prompt": {
+                        "type": "string",
+                        "description": "Text prompt (required)"
+                    },
+                    "token": {
+                        "type": "string",
+                        "description": "JWT token"
+                    },
+                    "model_code": {
+                        "type": "string",
+                        "description": "Model code (default: gemini-2.5-pro)"
+                    },
+                    "system_prompt": {
+                        "type": "string",
+                        "description": "System prompt"
+                    },
+                    "max_tokens": {
+                        "type": "number",
+                        "description": "Max output tokens"
+                    },
+                    "temperature": {
+                        "type": "number",
+                        "description": "Temperature (0-2)"
+                    },
+                    "json_mode": {
+                        "type": "boolean",
+                        "description": "Simple JSON mode"
+                    },
+                    "response_format": {
+                        "type": "object",
+                        "description": "Structured output format (json_object or json_schema)"
+                    },
+                    "toolId": {
+                        "type": "string",
+                        "description": "Tool ID for credit deduction"
+                    },
+                    "attachments": {
+                        "type": "array",
+                        "description": "Vision attachments [{type, url, mimeType}]"
+                    },
+                    "save_result": {
+                        "type": "object",
+                        "description": "Auto-save result options {toolId, resultSummary}"
+                    }
+                },
+                "required": ["prompt", "token"]
+            })),
+            output_schema: None,
+            annotations: None,
+            icons: None,
+            meta: None,
+        });
 
         json!({
             "jsonrpc": "2.0",
@@ -277,6 +346,8 @@ impl ProtocolHandler {
             "db" => self.execute_db(arguments).await,
             #[cfg(feature = "auth")]
             "auth" => self.execute_auth(arguments).await,
+            #[cfg(feature = "auth")]
+            "textgen" => self.execute_textgen(arguments).await,
             _ => Err(format!("Unknown tool: {tool_name}")),
         };
 
@@ -340,6 +411,17 @@ impl ProtocolHandler {
     #[cfg(feature = "auth")]
     async fn execute_auth(&self, args: Value) -> Result<Vec<Value>, String> {
         let response = auth::execute(args).await;
+        let text = serde_json::to_string_pretty(&response)
+            .unwrap_or_else(|_| format!("{response:?}"));
+        Ok(vec![json!({
+            "type": "text",
+            "text": text
+        })])
+    }
+
+    #[cfg(feature = "auth")]
+    async fn execute_textgen(&self, args: Value) -> Result<Vec<Value>, String> {
+        let response = textgen::execute(args).await;
         let text = serde_json::to_string_pretty(&response)
             .unwrap_or_else(|_| format!("{response:?}"));
         Ok(vec![json!({

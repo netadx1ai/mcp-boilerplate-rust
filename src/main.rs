@@ -14,6 +14,9 @@ mod auth;
 #[cfg(feature = "http-stream")]
 mod credits;
 
+#[cfg(feature = "http-stream")]
+mod upload;
+
 use mcp::McpServer;
 use utils::Logger;
 

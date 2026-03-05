@@ -47,6 +47,7 @@ pub async fn run_http_stream_server(bind_address: &str) -> anyhow::Result<()> {
         .route("/tools", get(list_tools_handler))
         .route("/tools/call", post(call_tool_handler))
         .nest("/credits", credit_routes().with_state(()))
+        .route("/upload", post(upload_proxy_handler))
         .layer(cors)
         .with_state(state);
 
@@ -61,6 +62,7 @@ pub async fn run_http_stream_server(bind_address: &str) -> anyhow::Result<()> {
     info!("  POST /credits/deduct            - Deduct credits");
     info!("  POST /credits/claim-welcome-bonus - Claim welcome bonus");
     info!("  POST /credits/claim-daily-bonus   - Claim daily bonus");
+    info!("  POST /upload                      - S3 file upload via V5 proxy");
 
     let listener = tokio::net::TcpListener::bind(bind_address).await?;
     axum::serve(listener, app).await?;
@@ -181,6 +183,29 @@ async fn call_tool_handler(
         Json(response),
     )
         .into_response()
+}
+
+/// Upload proxy handler -- delegates to upload::routes module
+async fn upload_proxy_handler(
+    auth: crate::auth::middleware::AuthToken,
+    Json(payload): Json<Value>,
+) -> Response {
+    // Deserialize into UploadRequest
+    let upload_req: crate::upload::routes::UploadRequest = match serde_json::from_value(payload) {
+        Ok(req) => req,
+        Err(e) => {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(json!({
+                    "success": false,
+                    "error": format!("Request không hợp lệ: {}", e)
+                })),
+            )
+                .into_response();
+        }
+    };
+
+    crate::upload::routes::handle_upload(auth, upload_req).await
 }
 
 #[cfg(test)]

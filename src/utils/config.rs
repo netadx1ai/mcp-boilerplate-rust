@@ -13,6 +13,10 @@ pub struct Config {
     pub postgrest_url: Option<String>,
     #[allow(dead_code)]
     pub db_table_prefix: Option<String>,
+    /// MCP V5 API base URL (AI text generation + S3 upload proxy)
+    pub v5_api_url: String,
+    /// MCP V5 server-to-server API key (X-API-Key header, bypassConsume: true)
+    pub v5_api_key: Option<String>,
 }
 
 impl Config {
@@ -28,6 +32,9 @@ impl Config {
             jwt_secret: env::var("JWT_SECRET").ok(),
             postgrest_url: env::var("POSTGREST_URL").ok(),
             db_table_prefix: env::var("DB_TABLE_PREFIX").ok(),
+            v5_api_url: env::var("V5_API_URL")
+                .unwrap_or_else(|_| "http://api_v5.ainext.vn".to_string()),
+            v5_api_key: env::var("V5_API_KEY").ok(),
         }
     }
 
@@ -53,6 +60,8 @@ impl Default for Config {
             jwt_secret: None,
             postgrest_url: None,
             db_table_prefix: None,
+            v5_api_url: "http://api_v5.ainext.vn".to_string(),
+            v5_api_key: None,
         }
     }
 }

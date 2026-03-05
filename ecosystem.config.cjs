@@ -18,6 +18,8 @@ module.exports = {
         JWT_SECRET: 'aivaAPI',
         POSTGREST_URL: 'http://localhost:3001',
         DB_TABLE_PREFIX: 'dtv_',
+        V5_API_URL: 'http://api_v5.ainext.vn',
+        V5_API_KEY: 'z18ZUTnlUEhtkCx3Fu1lRQHW2EKpi+3DrxZbLz1aB0I=',
       },
       error_file: '/opt/apps/dautruongvui-be/logs/error.log',
       out_file: '/opt/apps/dautruongvui-be/logs/out.log',
