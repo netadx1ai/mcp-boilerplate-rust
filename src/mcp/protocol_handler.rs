@@ -23,6 +23,12 @@ use crate::tools::auth;
 #[cfg(feature = "auth")]
 use crate::tools::textgen;
 
+#[cfg(feature = "auth")]
+use crate::tools::credits;
+
+#[cfg(feature = "auth")]
+use crate::tools::upload;
+
 use crate::metrics;
 
 /// Helper function to convert Value to Arc<JsonObject>
@@ -131,6 +137,83 @@ impl ProtocolHandler {
         info!("List tools request");
 
         let mut tools: Vec<Tool> = Vec::new();
+
+        #[cfg(feature = "auth")]
+        tools.push(Tool {
+            name: "credits".to_string().into(),
+            title: None,
+            description: Some(
+                "Credit management tool for Đấu Trường Vui. Actions: wallet (get/create wallet), deduct (deduct credits for tool usage), claim_welcome_bonus (one-time new user bonus), claim_daily_bonus (daily login bonus). All actions require JWT token.".into()
+            ),
+            input_schema: value_to_schema(json!({
+                "type": "object",
+                "properties": {
+                    "action": {
+                        "type": "string",
+                        "enum": ["wallet", "deduct", "claim_welcome_bonus", "claim_daily_bonus"],
+                        "description": "Credit action to perform"
+                    },
+                    "token": {
+                        "type": "string",
+                        "description": "JWT token (required for all actions)"
+                    },
+                    "tool_id": {
+                        "type": "string",
+                        "description": "Tool ID for deduction (deduct action)"
+                    },
+                    "amount": {
+                        "type": "number",
+                        "description": "Credit amount to deduct (optional, defaults to tool cost from settings)"
+                    }
+                },
+                "required": ["action", "token"]
+            })),
+            output_schema: None,
+            annotations: None,
+            icons: None,
+            meta: None,
+        });
+
+        #[cfg(feature = "auth")]
+        tools.push(Tool {
+            name: "upload".to_string().into(),
+            title: None,
+            description: Some(
+                "File upload tool for Đấu Trường Vui. Proxies uploads to S3 via MCP V5. Action: upload_files. Accepts base64-encoded files. Requires JWT token.".into()
+            ),
+            input_schema: value_to_schema(json!({
+                "type": "object",
+                "properties": {
+                    "action": {
+                        "type": "string",
+                        "enum": ["upload_files"],
+                        "description": "Upload action to perform"
+                    },
+                    "token": {
+                        "type": "string",
+                        "description": "JWT token (required)"
+                    },
+                    "files": {
+                        "type": "array",
+                        "description": "Files to upload: [{ name, content (base64), mimetype }]",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "name": { "type": "string" },
+                                "content": { "type": "string" },
+                                "mimetype": { "type": "string" }
+                            },
+                            "required": ["name", "content", "mimetype"]
+                        }
+                    }
+                },
+                "required": ["action", "token", "files"]
+            })),
+            output_schema: None,
+            annotations: None,
+            icons: None,
+            meta: None,
+        });
 
         #[cfg(feature = "postgres")]
         tools.push(Tool {
@@ -348,6 +431,10 @@ impl ProtocolHandler {
             "auth" => self.execute_auth(arguments).await,
             #[cfg(feature = "auth")]
             "textgen" => self.execute_textgen(arguments).await,
+            #[cfg(feature = "auth")]
+            "credits" => self.execute_credits(arguments).await,
+            #[cfg(feature = "auth")]
+            "upload" => self.execute_upload(arguments).await,
             _ => Err(format!("Unknown tool: {tool_name}")),
         };
 
@@ -422,6 +509,28 @@ impl ProtocolHandler {
     #[cfg(feature = "auth")]
     async fn execute_textgen(&self, args: Value) -> Result<Vec<Value>, String> {
         let response = textgen::execute(args).await;
+        let text = serde_json::to_string_pretty(&response)
+            .unwrap_or_else(|_| format!("{response:?}"));
+        Ok(vec![json!({
+            "type": "text",
+            "text": text
+        })])
+    }
+
+    #[cfg(feature = "auth")]
+    async fn execute_credits(&self, args: Value) -> Result<Vec<Value>, String> {
+        let response = credits::execute(args).await;
+        let text = serde_json::to_string_pretty(&response)
+            .unwrap_or_else(|_| format!("{response:?}"));
+        Ok(vec![json!({
+            "type": "text",
+            "text": text
+        })])
+    }
+
+    #[cfg(feature = "auth")]
+    async fn execute_upload(&self, args: Value) -> Result<Vec<Value>, String> {
+        let response = upload::execute(args).await;
         let text = serde_json::to_string_pretty(&response)
             .unwrap_or_else(|_| format!("{response:?}"));
         Ok(vec![json!({
