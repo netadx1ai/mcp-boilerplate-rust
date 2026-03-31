@@ -16,9 +16,9 @@ RED='\033[0;31m'
 YELLOW='\033[1;33m'
 NC='\033[0m'
 
-PROJECT_DIR="/Users/hoangiso/Desktop/mcp-boilerplate-rust"
+PROJECT_DIR="/Volumes/T7Shield/Work2026/mcp-boilerplate-rust"
 HTTP_SERVER_URL="http://localhost:8025"
-WRAPPER_DIR="/Users/hoangiso/Desktop/mcp-stdio-wrapper"
+WRAPPER_DIR="/Volumes/T7Shield/Work2026/mcp-stdio-wrapper"
 WRAPPER_LOG="/tmp/mcp-http-wrapper.log"
 
 # Check if HTTP server is running
